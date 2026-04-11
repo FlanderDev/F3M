@@ -208,7 +208,7 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
             var ext      = Path.GetExtension(f.FileName).ToLowerInvariant();
             var safeName = $"{Guid.NewGuid():N}{ext}";
             var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
-            var installPath = i < installPaths.Count ? (installPaths[i] ?? "").Trim() : "";
+            var installPath = i < installPaths.Count ? (installPaths[i] ?? "").Trim() : string.Empty;
 
             await using var stream = System.IO.File.Create(Path.Combine(uploadsDir, safeName));
             await f.CopyToAsync(stream);

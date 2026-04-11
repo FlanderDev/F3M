@@ -53,10 +53,10 @@
                     @foreach (var user in Filtered)
                     {
                         var u = user;
-                        <tr class="@(u.IsAdmin ? "f3m-admin-row" : "")">
+                        <tr class="@(u.IsAdmin ? "f3m-admin-row" : string.Empty)">
                             <td>
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="f3m-user-avatar @(u.IsAdmin ? "admin" : "")">
+                                    <span class="f3m-user-avatar @(u.IsAdmin ? "admin" : string.Empty)">
                                         @u.Username[0].ToString().ToUpper()
                                     </span>
                                     <span class="fw-semibold small">@u.Username</span>
@@ -117,7 +117,7 @@
             </table>
         </div>
 
-        <p class="small mt-3">@users.Count total user@(users.Count != 1 ? "s" : "")</p>
+        <p class="small mt-3">@users.Count total user@(users.Count != 1 ? "s" : string.Empty)</p>
     }
 </div>
 
@@ -156,7 +156,7 @@
     private bool               loading   = true;
     private string?            loadError;
     private string?            actionError;
-    private string             search    = "";
+    private string             search    = string.Empty;
     private int?               busyId;
     private AdminUserDto?      deleteTarget;
 
