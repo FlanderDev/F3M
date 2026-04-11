@@ -18,7 +18,7 @@
     {
         <div class="text-center py-5">
             <h3 class="text-warning fw-bold">Access denied</h3>
-            <p class="text-muted small">You don't have permission to edit this mod.</p>
+            <p class="small">You don't have permission to edit this mod.</p>
             <a href="/" class="btn btn-outline-warning mt-2">Back to Browse</a>
         </div>
     }
@@ -32,11 +32,11 @@
     else
     {
         <div class="mb-4">
-            <a href="/mod/@Id" class="text-muted small d-inline-flex align-items-center gap-1 mb-3">
+            <a href="/mod/@Id" class="small d-inline-flex align-items-center gap-1 mb-3">
                 <i class="bi bi-arrow-left"></i> Back to mod
             </a>
             <h1 class="fw-black mb-1 fs-2">Edit Mod</h1>
-            <p class="text-muted small mb-0">
+            <p class="small mb-0">
                 Editing <span class="text-warning fw-semibold">@mod.Name</span>
                 &nbsp;·&nbsp; v@mod.Version
             </p>
@@ -78,7 +78,7 @@
                 <div class="mb-4">
                     <label class="form-label fw-semibold small">Description</label>
                     <InputTextArea class="form-control f3m-input" rows="4" @bind-Value="dto.Description" />
-                    <div class="text-muted" style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
+                    <div  style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
                 </div>
 
                 @if (saveError is not null)
@@ -111,7 +111,7 @@
             <div class="f3m-surface rounded-3 p-4 border mt-3" style="border-color:var(--f3m-border);">
                 <h6 class="fw-bold mb-3">
                     <i class="bi bi-files me-2 text-warning"></i>Files in this version
-                    <span class="text-muted fw-normal small ms-1">(to change files, upload a new version)</span>
+                    <span class="fw-normal small ms-1">(to change files, upload a new version)</span>
                 </h6>
                 <div class="d-flex flex-column gap-2">
                     @foreach (var file in mod.Files)
@@ -121,13 +121,13 @@
                                 <i class="bi bi-file-zip-fill text-warning fs-5 flex-shrink-0"></i>
                                 <div class="flex-grow-1 overflow-hidden">
                                     <div class="fw-semibold small text-truncate">@file.OriginalName</div>
-                                    <div class="text-muted" style="font-size:.7rem;">@file.FileSizeDisplay</div>
+                                    <div  style="font-size:.7rem;">@file.FileSizeDisplay</div>
                                 </div>
                             </div>
                             @if (!string.IsNullOrWhiteSpace(file.InstallPath))
                             {
                                 <div class="f3m-file-entry-path">
-                                    <i class="bi bi-folder2 text-muted flex-shrink-0" style="font-size:.8rem;"></i>
+                                    <i class="bi bi-folder2 flex-shrink-0" style="font-size:.8rem;"></i>
                                     <span class="f3m-path-input" style="cursor:default;">@file.InstallPath</span>
                                 </div>
                             }

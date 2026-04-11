@@ -24,12 +24,12 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
 
         var result = users.Select(u => new AdminUserDto
         {
-            Id           = u.Id,
-            Username     = u.Username,
-            Email        = u.Email,
-            IsAdmin      = u.IsAdmin,
+            Id = u.Id,
+            Username = u.Username,
+            Email = u.Email,
+            IsAdmin = u.IsAdmin,
             RegisteredAt = u.RegisteredAt,
-            ModCount     = modCounts.FirstOrDefault(m => m.OwnerId == u.Id)?.Count ?? 0
+            ModCount = modCounts.FirstOrDefault(m => m.OwnerId == u.Id)?.Count ?? 0
         }).OrderBy(u => u.Username).ToList();
 
         return Ok(result);
@@ -47,23 +47,23 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
             return BadRequest("You cannot change your own admin status.");
 
         var user = await db.Users.FindAsync(id);
-        if (user is null) return NotFound();
+        if (user is null)
+            return NotFound();
 
         user.IsAdmin = !user.IsAdmin;
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Admin {Caller} toggled admin={IsAdmin} for user {Username}",
-            callerId, user.IsAdmin, user.Username);
+        logger.LogInformation("Admin {Caller} toggled admin={IsAdmin} for user {Username}", callerId, user.IsAdmin, user.Username);
 
         var modCount = await db.ModGroups.CountAsync(g => g.OwnerId == user.Id);
         return Ok(new AdminUserDto
         {
-            Id           = user.Id,
-            Username     = user.Username,
-            Email        = user.Email,
-            IsAdmin      = user.IsAdmin,
+            Id = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            IsAdmin = user.IsAdmin,
             RegisteredAt = user.RegisteredAt,
-            ModCount     = modCount
+            ModCount = modCount
         });
     }
 
@@ -79,7 +79,8 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
             return BadRequest("You cannot delete your own account.");
 
         var user = await db.Users.FindAsync(id);
-        if (user is null) return NotFound();
+        if (user is null)
+            return NotFound();
 
         db.Users.Remove(user);
         await db.SaveChangesAsync();

@@ -9,7 +9,7 @@
         <h1 class="fw-black mb-1 fs-2">
             <i class="bi bi-shield-fill text-warning me-2"></i>Admin Panel
         </h1>
-        <p class="text-muted small mb-0">Manage users and permissions.</p>
+        <p class="small mb-0">Manage users and permissions.</p>
     </div>
 
     @if (loading)
@@ -62,11 +62,11 @@
                                     <span class="fw-semibold small">@u.Username</span>
                                 </div>
                             </td>
-                            <td class="text-muted small align-middle">@u.Email</td>
+                            <td class="small align-middle">@u.Email</td>
                             <td class="text-center align-middle">
                                 <span class="badge bg-secondary">@u.ModCount</span>
                             </td>
-                            <td class="text-muted small align-middle">
+                            <td class="small align-middle">
                                 @u.RegisteredAt.ToString("MMM d, yyyy")
                             </td>
                             <td class="text-center align-middle">
@@ -111,13 +111,13 @@
                     }
                     @if (!Filtered.Any())
                     {
-                        <tr><td colspan="6" class="text-center text-muted py-4 small">No users match your search.</td></tr>
+                        <tr><td colspan="6" class="text-center py-4 small">No users match your search.</td></tr>
                     }
                 </tbody>
             </table>
         </div>
 
-        <p class="text-muted small mt-3">@users.Count total user@(users.Count != 1 ? "s" : "")</p>
+        <p class="small mt-3">@users.Count total user@(users.Count != 1 ? "s" : "")</p>
     }
 </div>
 
@@ -127,7 +127,7 @@
     <div class="f3m-modal-backdrop" @onclick="() => deleteTarget = null">
         <div class="f3m-modal" @onclick:stopPropagation="true">
             <h5 class="fw-black mb-2">Delete user?</h5>
-            <p class="text-muted small mb-1">
+            <p class="small mb-1">
                 This will permanently delete <strong>@deleteTarget.Username</strong>'s account.
                 Their mods will remain but will be unowned.
             </p>
