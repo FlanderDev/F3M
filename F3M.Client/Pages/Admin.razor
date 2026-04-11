@@ -2,7 +2,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject HttpClient Http
 
-<PageTitle>Admin — F3M</PageTitle>
+<PageTitle>F3M - Admin</PageTitle>
 
 <div class="container py-5" style="max-width:900px;">
     <div class="mb-4">
@@ -152,13 +152,13 @@
 }
 
 @code {
-    private List<AdminUserDto> users     = [];
-    private bool               loading   = true;
-    private string?            loadError;
-    private string?            actionError;
-    private string             search    = string.Empty;
-    private int?               busyId;
-    private AdminUserDto?      deleteTarget;
+    private List<AdminUserDto> users = [];
+    private bool loading = true;
+    private string? loadError;
+    private string? actionError;
+    private string search = string.Empty;
+    private int? busyId;
+    private AdminUserDto? deleteTarget;
 
     private IEnumerable<AdminUserDto> Filtered => string.IsNullOrWhiteSpace(search)
         ? users
@@ -203,7 +203,7 @@
     private void ConfirmDelete(AdminUserDto user)
     {
         deleteTarget = user;
-        actionError  = null;
+        actionError = null;
     }
 
     private async Task ExecuteDelete()
