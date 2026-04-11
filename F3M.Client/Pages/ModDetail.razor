@@ -61,7 +61,7 @@ else
                             @foreach (var file in selectedVersion.Files)
                             {
                                 var f = file;
-                                <div class="f3m-file-row @(activeFileId == f.Id ? "active" : "")"
+                                <div class="f3m-file-row @(activeFileId == f.Id ? "active" : string.Empty)"
                                      @onclick="() => activeFileId = f.Id">
                                     <div class="f3m-file-row-info">
                                         <i class="bi bi-file-zip-fill text-warning flex-shrink-0"></i>
@@ -171,7 +171,7 @@ else
                                 <div class="mt-2 p-3 rounded-3 border border-danger" style="background:rgba(220,53,69,.08);">
                                     <p class="small mb-2 fw-semibold text-danger">
                                         Delete <em>v@selectedVersion.Version</em>?
-                                        @(allVersions.Count == 1 ? " This is the only version — the entire mod will be removed." : "")
+                                        @(allVersions.Count == 1 ? " This is the only version — the entire mod will be removed." : string.Empty)
                                     </p>
                                     <div class="d-flex gap-2">
                                         <button class="btn btn-danger btn-sm fw-bold flex-grow-1"
@@ -217,7 +217,7 @@ else
                                 {
                                     var v = ver;
                                     <li>
-                                        <button class="dropdown-item d-flex justify-content-between align-items-center @(v.Id == selectedVersion.Id ? "active" : "")"
+                                        <button class="dropdown-item d-flex justify-content-between align-items-center @(v.Id == selectedVersion.Id ? "active" : string.Empty)"
                                                 @onclick="() => SelectVersion(v)">
                                             <span class="fw-semibold">v@v.Version</span>
                                             <span class="small ms-3">@v.UploadedAt.ToString("MMM d, yyyy")</span>
@@ -280,9 +280,9 @@ else
                             var v   = ver;
                             bool latest = v.Id == allVersions[0].Id;
                             bool selected = v.Id == selectedVersion.Id;
-                            <div class="f3m-version-row @(selected ? "selected" : "")"
+                            <div class="f3m-version-row @(selected ? "selected" : string.Empty)"
                                  @onclick="() => SelectVersion(v)">
-                                <div class="f3m-version-dot @(latest ? "latest" : "")"></div>
+                                <div class="f3m-version-dot @(latest ? "latest" : string.Empty)"></div>
                                 <div class="flex-grow-1">
                                     <span class="fw-semibold small">v@v.Version</span>
                                     @if (latest) { <span class="ms-2 badge" style="background:rgba(255,193,7,.15);color:var(--f3m-amber);font-size:.6rem;">Latest</span> }

@@ -71,11 +71,11 @@
         @if (categories.Any())
         {
             <div class="d-flex flex-wrap gap-2 mt-3">
-                <button class="f3m-chip @(selectedCategory == "All" ? "active" : "")"
+                <button class="f3m-chip @(selectedCategory == "All" ? "active" : string.Empty)"
                         @onclick='() => SelectCategory("All")'>All</button>
                 @foreach (var cat in categories)
                 {
-                    <button class="f3m-chip @(selectedCategory == cat ? "active" : "")"
+                    <button class="f3m-chip @(selectedCategory == cat ? "active" : string.Empty)"
                             @onclick="() => SelectCategory(cat)">@cat</button>
                 }
             </div>
@@ -125,7 +125,7 @@
         {
             <div class="d-flex justify-content-center mt-5">
                 <ul class="pagination f3m-pagination gap-1 mb-0">
-                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <li class="page-item @(currentPage == 1 ? "disabled" : string.Empty)">
                         <button class="page-link" @onclick="() => GoToPage(currentPage - 1)">
                             <i class="bi bi-chevron-left"></i>
                         </button>
@@ -133,11 +133,11 @@
                     @for (int p = 1; p <= result.TotalPages; p++)
                     {
                         var pg = p;
-                        <li class="page-item @(pg == currentPage ? "active" : "")">
+                        <li class="page-item @(pg == currentPage ? "active" : string.Empty)">
                             <button class="page-link" @onclick="() => GoToPage(pg)">@pg</button>
                         </li>
                     }
-                    <li class="page-item @(currentPage == result.TotalPages ? "disabled" : "")">
+                    <li class="page-item @(currentPage == result.TotalPages ? "disabled" : string.Empty)">
                         <button class="page-link" @onclick="() => GoToPage(currentPage + 1)">
                             <i class="bi bi-chevron-right"></i>
                         </button>
@@ -152,7 +152,7 @@
     private ModListResult? result;
     private List<string> categories = [];
     private bool loading = true;
-    private string searchTerm = "";
+    private string searchTerm = string.Empty;
     private string selectedCategory = "All";
     private string sortBy = "newest";
     private int currentPage = 1;
@@ -199,5 +199,5 @@
 
     private async Task SelectCategory(string cat) { selectedCategory = cat; currentPage = 1; await LoadMods(); }
     private async Task GoToPage(int p) { currentPage = p; await LoadMods(); }
-    private async Task ClearFilters() { searchTerm = ""; selectedCategory = "All"; sortBy = "newest"; currentPage = 1; await LoadMods(); }
+    private async Task ClearFilters() { searchTerm = string.Empty; selectedCategory = "All"; sortBy = "newest"; currentPage = 1; await LoadMods(); }
 }

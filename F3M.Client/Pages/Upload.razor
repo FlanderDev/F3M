@@ -78,7 +78,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">
                         Preview Image
-                        <span class="fw-normal">(optional@(isNewVersion ? ", leave blank to keep existing" : ""), max 8 MB)</span>
+                        <span class="fw-normal">(optional@(isNewVersion ? ", leave blank to keep existing" : string.Empty), max 8 MB)</span>
                     </label>
                     @if (previewDataUrl is not null)
                     {
@@ -89,7 +89,7 @@
                             </button>
                         </div>
                     }
-                    <label class="f3m-dropzone @(previewDataUrl != null ? "d-none" : "")" style="cursor:pointer;">
+                    <label class="f3m-dropzone @(previewDataUrl != null ? "d-none" : string.Empty)" style="cursor:pointer;">
                         <i class="bi bi-image fs-3 d-block mb-1"></i>
                         <span class="small ">Click to choose an image (JPG, PNG, WebP)</span>
                         <InputFile OnChange="OnImageSelected" accept=".jpg,.jpeg,.png,.webp" style="display:none;" />
@@ -107,7 +107,7 @@
                             Mod Files <span class="text-danger">*</span>
                             <span class="fw-normal"> — ZIP, RAR, 7Z, PAK, MOD (max 512 MB each)</span>
                         </label>
-                        <span class="badge bg-secondary">@fileEntries.Count file@(fileEntries.Count != 1 ? "s" : "")</span>
+                        <span class="badge bg-secondary">@fileEntries.Count file@(fileEntries.Count != 1 ? "s" : string.Empty)</span>
                     </div>
 
                     @if (fileEntries.Count > 0)
@@ -181,7 +181,7 @@
                     @if (uploading)
                     {
                         <span class="spinner-border spinner-border-sm me-2"></span>
-                        <span>Uploading @fileEntries.Count file@(fileEntries.Count != 1 ? "s" : "")…</span>
+                        <span>Uploading @fileEntries.Count file@(fileEntries.Count != 1 ? "s" : string.Empty)…</span>
                     }
                     else
                     {
@@ -222,7 +222,7 @@
 
     // ── Preview image ─────────────────────────────────────────────────────────
     private byte[]? imageBytes;
-    private string  imageFileName = "";
+    private string  imageFileName = string.Empty;
     private string? previewDataUrl;
 
     private string? fileError;
@@ -281,7 +281,7 @@
         previewDataUrl = $"data:{mime};base64,{Convert.ToBase64String(imageBytes)}";
     }
 
-    private void ClearImage() { imageBytes = null; imageFileName = ""; previewDataUrl = null; imageError = null; }
+    private void ClearImage() { imageBytes = null; imageFileName = string.Empty; previewDataUrl = null; imageError = null; }
 
     // ── Mod file handler — eagerly buffer bytes, then rotate the InputFile key ──
     // The key increment causes Blazor to unmount the old <input type=file> and
@@ -383,7 +383,7 @@
     {
         dto = new();
         fileEntries.Clear();
-        imageBytes = null; imageFileName = ""; previewDataUrl = null;
+        imageBytes = null; imageFileName = string.Empty; previewDataUrl = null;
         fileError = null; imageError = null; uploadError = null;
         uploadSuccess = false; uploading = false; progress = 0; uploadedId = 0;
     }
