@@ -1,0 +1,393 @@
+@page "/upload"
+@page "/upload/{GroupId:int}"
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject AuthService Auth
+
+<PageTitle>@(isNewVersion ? "Upload New Version" : "Upload Mod") — F3M</PageTitle>
+
+<div class="container py-5" style="max-width:720px;">
+    <div class="mb-4">
+        <h1 class="fw-black mb-1 fs-2">@(isNewVersion ? $"Upload New Version" : "Upload a Mod")</h1>
+        @if (isNewVersion && existingMod is not null)
+        {
+            <p class="small mb-0">
+                Adding a new version to <span class="text-warning fw-semibold">@existingMod.Name</span>
+                &nbsp;·&nbsp; latest: <span class="text-muted">v@existingMod.Version</span>
+            </p>
+        }
+        else
+        {
+            <p class="text-muted small mb-0">Share your creation with the community.</p>
+        }
+    </div>
+
+    @if (uploadSuccess)
+    {
+        <div class="f3m-surface rounded-3 p-5 text-center border" style="border-color:rgba(255,193,7,.2) !important;">
+            <i class="bi bi-check-circle-fill display-4 text-warning d-block mb-3"></i>
+            <h4 class="fw-black mb-2">@(isNewVersion ? "New version uploaded!" : "Mod uploaded!")</h4>
+            <p class="text-muted small mb-4">Your mod is now live.</p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="/mod/@uploadedId" class="btn btn-warning fw-bold px-4">View Mod</a>
+                <button class="btn btn-outline-secondary" @onclick="Reset">Upload Another</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="f3m-surface rounded-3 p-4 border" style="border-color:var(--f3m-border);">
+            <EditForm Model="dto" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+
+                <!-- Mod metadata (lock name/category when adding a version) -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Mod Name <span class="text-danger">*</span></label>
+                    <InputText class="form-control f3m-input" placeholder="e.g. HD Texture Overhaul"
+                               @bind-Value="dto.Name" disabled="@isNewVersion" />
+                    <ValidationMessage For="@(() => dto.Name)" class="text-danger small mt-1 d-block" />
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-4">
+                        <label class="form-label fw-semibold small">Version <span class="text-danger">*</span></label>
+                        <InputText class="form-control f3m-input" placeholder="1.0.0" @bind-Value="dto.Version" />
+                        <ValidationMessage For="@(() => dto.Version)" class="text-danger small mt-1 d-block" />
+                    </div>
+                    <div class="col-8">
+                        <label class="form-label fw-semibold small">Category</label>
+                        <InputSelect class="form-select f3m-select" @bind-Value="dto.Category" disabled="@isNewVersion">
+                            @foreach (var cat in Categories)
+                            {
+                                <option value="@cat">@cat</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Description</label>
+                    <InputTextArea class="form-control f3m-input" rows="3"
+                                   placeholder="What does your mod do? Include compatibility notes."
+                                   @bind-Value="dto.Description" />
+                    <div class="text-muted" style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
+                </div>
+
+                <!-- Preview image -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">
+                        Preview Image
+                        <span class="text-muted fw-normal">(optional@(isNewVersion ? ", leave blank to keep existing" : ""), max 8 MB)</span>
+                    </label>
+                    @if (previewDataUrl is not null)
+                    {
+                        <div class="f3m-preview-thumb mb-2">
+                            <img src="@previewDataUrl" alt="Preview" />
+                            <button type="button" class="f3m-preview-remove" @onclick="ClearImage">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    }
+                    <label class="f3m-dropzone @(previewDataUrl != null ? "d-none" : "")" style="cursor:pointer;">
+                        <i class="bi bi-image text-muted fs-3 d-block mb-1"></i>
+                        <span class="small text-muted">Click to choose an image (JPG, PNG, WebP)</span>
+                        <InputFile OnChange="OnImageSelected" accept=".jpg,.jpeg,.png,.webp" style="display:none;" />
+                    </label>
+                    @if (imageError is not null)
+                    {
+                        <p class="text-danger small mt-1">@imageError</p>
+                    }
+                </div>
+
+                <!-- ── Mod files list ─────────────────────────────────────── -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-semibold small mb-0">
+                            Mod Files <span class="text-danger">*</span>
+                            <span class="text-muted fw-normal"> — ZIP, RAR, 7Z, PAK, MOD (max 512 MB each)</span>
+                        </label>
+                        <span class="badge bg-secondary">@fileEntries.Count file@(fileEntries.Count != 1 ? "s" : "")</span>
+                    </div>
+
+                    @if (fileEntries.Count > 0)
+                    {
+                        <div class="d-flex flex-column gap-2 mb-2">
+                            @for (int i = 0; i < fileEntries.Count; i++)
+                            {
+                                var idx = i;
+                                var entry = fileEntries[idx];
+                                <div class="f3m-file-entry">
+                                    <div class="f3m-file-entry-top">
+                                        <i class="bi bi-file-zip-fill text-warning fs-5 flex-shrink-0"></i>
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <div class="fw-semibold small text-truncate">@entry.OriginalName</div>
+                                            <div class="text-muted" style="font-size:.7rem;">@FormatSize(entry.Size)</div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0"
+                                                @onclick="() => RemoveFile(idx)">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                    <div class="f3m-file-entry-path">
+                                        <i class="bi bi-folder2 text-muted flex-shrink-0" style="font-size:.8rem;"></i>
+                                        <input class="f3m-path-input"
+                                               type="text"
+                                               placeholder="Install path (e.g. Manaka/Mods/Textures)"
+                                               value="@entry.InstallPath"
+                                               @oninput="@(e => fileEntries[idx].InstallPath = e.Value?.ToString() ?? string.Empty)" />
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <!-- Add-file dropzone.
+                         @key="addFileKey" forces Blazor to replace the entire label+InputFile
+                         subtree after each successful add, giving the new InputFile a fresh
+                         DOM element and a fresh _blazorFilesById entry for the next pick. -->
+                    <label @key="addFileKey" class="f3m-dropzone f3m-dropzone-sm" style="cursor:pointer;">
+                        <i class="bi bi-plus-lg text-warning me-2"></i>
+                        <span class="small text-muted">
+                            @(fileEntries.Count == 0 ? "Choose file(s)" : "Add another file")
+                        </span>
+                        <InputFile OnChange="OnModFileSelected" accept=".zip,.rar,.7z,.pak,.mod"
+                                   style="display:none;" />
+                    </label>
+
+                    @if (fileError is not null)
+                    {
+                        <p class="text-danger small mt-1">@fileError</p>
+                    }
+                </div>
+
+                @if (uploadError is not null)
+                {
+                    <div class="alert alert-danger py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>@uploadError
+                    </div>
+                }
+
+                @if (uploading)
+                {
+                    <div class="progress mb-3" style="height:4px;">
+                        <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated"
+                             style="width:@(progress)%"></div>
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-warning fw-bold w-100"
+                        disabled="@(uploading || fileEntries.Count == 0)">
+                    @if (uploading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Uploading @fileEntries.Count file@(fileEntries.Count != 1 ? "s" : "")…</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-cloud-arrow-up-fill me-2"></i>
+                        <span>@(isNewVersion ? "Publish New Version" : "Upload Mod")</span>
+                    }
+                </button>
+            </EditForm>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int? GroupId { get; set; }
+
+    private ModUploadDto dto = new();
+
+    // Is this a "new version" upload for an existing group?
+    private bool isNewVersion => GroupId.HasValue;
+    private Mod? existingMod;   // latest version of the group (for display)
+
+    // ── File entries list ─────────────────────────────────────────────────────
+    // Must be a class (not a record) so InstallPath mutations via @oninput
+    // are reflected on the same heap object (records are nominally immutable).
+    private class FileEntry
+    {
+        public required string OriginalName { get; init; }
+        public required long   Size         { get; init; }
+        public required byte[] Bytes        { get; init; }
+        public string InstallPath { get; set; } = string.Empty;
+    }
+    private List<FileEntry> fileEntries = [];
+
+    // Incremented each time a file is added so the InputFile "Add file" button
+    // gets a fresh @key, forcing Blazor to mount a brand-new <input type=file>
+    // element with a fresh _blazorFilesById registration for the next pick.
+    private int addFileKey = 0;
+
+    // ── Preview image ─────────────────────────────────────────────────────────
+    private byte[]? imageBytes;
+    private string  imageFileName = "";
+    private string? previewDataUrl;
+
+    private string? fileError;
+    private string? imageError;
+    private string? uploadError;
+    private bool    uploading;
+    private bool    uploadSuccess;
+    private int     uploadedId;
+    private int     progress;
+
+    private static readonly string[] Categories =
+        ["General","Audio","Textures","Gameplay","Items","UI","Maps","Characters","Weapons","Other"];
+    private static readonly string[] AllowedMod   = [".zip",".rar",".7z",".pak",".mod"];
+    private static readonly string[] AllowedImage = [".jpg",".jpeg",".png",".webp"];
+    private const long MaxMod   = 512L * 1024 * 1024;
+    private const long MaxImage = 8L   * 1024 * 1024;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!GroupId.HasValue) return;
+
+        // Load the latest version so we can pre-fill name/category
+        try
+        {
+            var result = await Http.GetFromJsonAsync<ModVersionsResult>($"api/mods/group/{GroupId}/versions");
+            existingMod = result?.Versions.FirstOrDefault();
+            if (existingMod is not null)
+            {
+                dto.Name     = existingMod.Name;
+                dto.Category = existingMod.Category;
+                dto.Description = existingMod.Description;
+                dto.ModGroupId  = GroupId;
+            }
+        }
+        catch { }
+    }
+
+    // ── Image handler ──────────────────────────────────────────────────────────
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        imageError = null;
+        var f   = e.File;
+        var ext = Path.GetExtension(f.Name).ToLowerInvariant();
+        if (!AllowedImage.Contains(ext)) { imageError = $"Image type '{ext}' not allowed."; return; }
+        if (f.Size > MaxImage)           { imageError = "Image exceeds 8 MB."; return; }
+
+        await using var stream = f.OpenReadStream(MaxImage);
+        using var ms = new MemoryStream((int)f.Size);
+        await stream.CopyToAsync(ms);
+        imageBytes    = ms.ToArray();
+        imageFileName = f.Name;
+
+        var mime = ext is ".jpg" or ".jpeg" ? "image/jpeg"
+                 : ext == ".png"            ? "image/png"
+                                            : "image/webp";
+        previewDataUrl = $"data:{mime};base64,{Convert.ToBase64String(imageBytes)}";
+    }
+
+    private void ClearImage() { imageBytes = null; imageFileName = ""; previewDataUrl = null; imageError = null; }
+
+    // ── Mod file handler — eagerly buffer bytes, then rotate the InputFile key ──
+    // The key increment causes Blazor to unmount the old <input type=file> and
+    // mount a fresh one, giving it a new _blazorFilesById registration so the
+    // next file pick works without "_blazorFilesById, e is null" crashes.
+    private async Task OnModFileSelected(InputFileChangeEventArgs e)
+    {
+        fileError = null;
+        var f   = e.File;
+        var ext = Path.GetExtension(f.Name).ToLowerInvariant();
+        if (!AllowedMod.Contains(ext)) { fileError = $"File type '{ext}' not allowed."; return; }
+        if (f.Size > MaxMod)           { fileError = "File exceeds 512 MB."; return; }
+
+        // Read all bytes NOW, while _blazorFilesById still knows about this file
+        await using var stream = f.OpenReadStream(MaxMod);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+
+        fileEntries.Add(new FileEntry
+        {
+            OriginalName = f.Name,
+            Size         = f.Size,
+            Bytes        = ms.ToArray()
+        });
+
+        // Rotate the key → fresh <input type=file> for the next pick
+        addFileKey++;
+    }
+
+    private void RemoveFile(int index)
+    {
+        if (index >= 0 && index < fileEntries.Count)
+            fileEntries.RemoveAt(index);
+    }
+
+    // ── Submit ────────────────────────────────────────────────────────────────
+    private async Task HandleSubmit()
+    {
+        if (fileEntries.Count == 0) return;
+
+        uploading = true; uploadError = null; progress = 10;
+        StateHasChanged();
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(dto.Name),              "Name");
+            content.Add(new StringContent(dto.Version),           "Version");
+            content.Add(new StringContent(dto.Category),          "Category");
+            content.Add(new StringContent(dto.Description ?? ""), "Description");
+            if (dto.ModGroupId.HasValue)
+                content.Add(new StringContent(dto.ModGroupId.Value.ToString()), "ModGroupId");
+
+            // Preview image
+            if (imageBytes is not null)
+            {
+                var imgPart = new ByteArrayContent(imageBytes);
+                imgPart.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                content.Add(imgPart, "previewImage", imageFileName);
+            }
+
+            progress = 20; StateHasChanged();
+
+            // All mod files + their metadata (same index)
+            for (int i = 0; i < fileEntries.Count; i++)
+            {
+                var entry   = fileEntries[i];
+                var filePart = new ByteArrayContent(entry.Bytes);
+                filePart.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                content.Add(filePart, "files", entry.OriginalName);
+                content.Add(new StringContent(entry.InstallPath ?? ""), "installPaths");
+                content.Add(new StringContent(entry.OriginalName),      "originalNames");
+            }
+
+            progress = 50; StateHasChanged();
+
+            var response = await Http.PostAsync("api/mods/upload", content);
+            progress = 90; StateHasChanged();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var uploaded = await response.Content.ReadFromJsonAsync<Mod>();
+                uploadedId    = uploaded?.Id ?? 0;
+                uploadSuccess = true;
+                progress      = 100;
+            }
+            else
+            {
+                uploadError = await response.Content.ReadAsStringAsync();
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    uploadError = "Session expired. Please sign in again.";
+            }
+        }
+        catch (Exception ex) { uploadError = ex.Message; }
+        finally               { uploading = false; }
+    }
+
+    private void Reset()
+    {
+        dto = new();
+        fileEntries.Clear();
+        imageBytes = null; imageFileName = ""; previewDataUrl = null;
+        fileError = null; imageError = null; uploadError = null;
+        uploadSuccess = false; uploading = false; progress = 0; uploadedId = 0;
+    }
+
+    private static string FormatSize(long b) =>
+        b >= 1_048_576 ? $"{b / 1_048_576.0:F1} MB" : $"{b / 1024.0:F1} KB";
+}

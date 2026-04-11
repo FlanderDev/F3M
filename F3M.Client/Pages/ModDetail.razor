@@ -1,0 +1,436 @@
+@page "/mod/{Id:int}"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>@(selectedVersion?.Name ?? "Mod") — F3M</PageTitle>
+
+@if (loading)
+{
+    <div class="container py-5">
+        <div class="placeholder-glow">
+            <div class="placeholder col-5 mb-3" style="height:2rem;border-radius:6px;"></div>
+            <div class="placeholder col-12 mb-2" style="height:1rem;border-radius:4px;"></div>
+            <div class="placeholder col-8" style="height:1rem;border-radius:4px;"></div>
+        </div>
+    </div>
+}
+else if (selectedVersion is null)
+{
+    <div class="container py-5 text-center">
+        <h3 class="fw-bold text-warning">Mod not found</h3>
+        <p class="text-muted small">This mod may have been removed.</p>
+        <a href="/" class="btn btn-outline-warning mt-2">Back to Browse</a>
+    </div>
+}
+else
+{
+    <div class="container py-4" style="max-width:960px;">
+        <a href="/" class="text-muted small d-inline-flex align-items-center gap-1 mb-4">
+            <i class="bi bi-arrow-left"></i> Back to Browse
+        </a>
+
+        <div class="row g-4">
+            <!-- Left col: image + download panel -->
+            <div class="col-lg-5">
+                @if (!string.IsNullOrEmpty(selectedVersion.PreviewImageName))
+                {
+                    <div class="mod-detail-image mb-3">
+                        <img src="previews/@selectedVersion.PreviewImageName" alt="@selectedVersion.Name" />
+                    </div>
+                }
+                else
+                {
+                    <div class="mod-detail-no-image mb-3"><i class="bi bi-box-seam"></i></div>
+                }
+
+                <!-- Download panel -->
+                <div class="f3m-surface rounded-3 p-4 border mb-3" style="border-color:var(--f3m-border);">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-files me-2 text-warning"></i>Files
+                        <span class="badge bg-secondary ms-1" style="font-size:.65rem;">@selectedVersion.Files.Count</span>
+                    </h6>
+
+                    @if (selectedVersion.Files.Count == 0)
+                    {
+                        <p class="text-muted small mb-3">No files attached to this version.</p>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            @foreach (var file in selectedVersion.Files)
+                            {
+                                var f = file;
+                                <div class="f3m-file-row @(activeFileId == f.Id ? "active" : "")"
+                                     @onclick="() => activeFileId = f.Id">
+                                    <div class="f3m-file-row-info">
+                                        <i class="bi bi-file-zip-fill text-warning flex-shrink-0"></i>
+                                        <div class="overflow-hidden">
+                                            <div class="small fw-semibold text-truncate">@f.OriginalName</div>
+                                            <div class="text-muted" style="font-size:.68rem;">@f.FileSizeDisplay</div>
+                                            @if (!string.IsNullOrWhiteSpace(f.InstallPath))
+                                            {
+                                                <div class="f3m-install-path">
+                                                    <i class="bi bi-folder2"></i> @f.InstallPath
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-warning flex-shrink-0"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => DownloadFile(selectedVersion.Id, f)"
+                                            disabled="@(downloadingFileId == f.Id)">
+                                        @if (downloadingFileId == f.Id)
+                                        {
+                                            <span class="spinner-border spinner-border-sm"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-download"></i>
+                                        }
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (selectedVersion.Files.Count > 1)
+                    {
+                        <button class="btn btn-warning fw-bold w-100 btn-sm"
+                                @onclick="DownloadAll"
+                                disabled="@downloadingAll">
+                            @if (downloadingAll)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Downloading all…</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-cloud-download-fill me-2"></i>
+                                <span>Download All (@selectedVersion.Files.Count files)</span>
+                            }
+                        </button>
+                    }
+                    else if (selectedVersion.Files.Count == 1)
+                    {
+                        var singleFile = selectedVersion.Files[0];
+                        <button class="btn btn-warning fw-bold w-100"
+                                @onclick="() => DownloadFile(selectedVersion.Id, singleFile)"
+                                disabled="@(downloadingFileId == singleFile.Id)">
+                            @if (downloadingFileId == singleFile.Id)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-cloud-download-fill me-2"></i>
+                            }
+                            Download
+                        </button>
+                    }
+
+                    @if (dlSuccess)
+                    {
+                        <div class="alert alert-success py-2 text-center small mt-2 mb-0">
+                            <i class="bi bi-check-circle-fill me-1"></i>Download started!
+                        </div>
+                    }
+                    @if (dlError)
+                    {
+                        <div class="alert alert-danger py-2 text-center small mt-2 mb-0">
+                            Download failed. Please try again.
+                        </div>
+                    }
+                </div>
+
+                <!-- Owner / Admin actions -->
+                <AuthorizeView>
+                    <Authorized Context="auth">
+                        @if (isOwner || isAdmin)
+                        {
+                            <div class="d-flex flex-column gap-2 mt-1">
+                                @if (isOwner)
+                                {
+                                    <a href="/upload/@selectedVersion.ModGroupId"
+                                       class="btn btn-outline-warning fw-semibold">
+                                        <i class="bi bi-arrow-up-circle me-2"></i>Upload New Version
+                                    </a>
+                                    <a href="/mod/@selectedVersion.Id/edit"
+                                       class="btn btn-outline-secondary fw-semibold">
+                                        <i class="bi bi-pencil me-2"></i>Edit This Version
+                                    </a>
+                                }
+                                <button class="btn btn-outline-danger fw-semibold"
+                                        @onclick="() => showDeleteConfirm = true">
+                                    <i class="bi bi-trash me-2"></i>Delete This Version
+                                </button>
+                            </div>
+
+                            @if (showDeleteConfirm)
+                            {
+                                <div class="mt-2 p-3 rounded-3 border border-danger" style="background:rgba(220,53,69,.08);">
+                                    <p class="small mb-2 fw-semibold text-danger">
+                                        Delete <em>v@selectedVersion.Version</em>?
+                                        @(allVersions.Count == 1 ? " This is the only version — the entire mod will be removed." : "")
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-danger btn-sm fw-bold flex-grow-1"
+                                                @onclick="DeleteVersion"
+                                                disabled="@deleting">
+                                            @if (deleting)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            Confirm Delete
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm"
+                                                @onclick="() => showDeleteConfirm = false">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                    @if (deleteError is not null)
+                                    {
+                                        <p class="text-danger small mt-2 mb-0">@deleteError</p>
+                                    }
+                                </div>
+                            }
+                        }
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+
+            <!-- Right col: info -->
+            <div class="col-lg-7">
+                <div class="d-flex gap-2 mb-2 flex-wrap align-items-center">
+                    <span class="mod-card-category" style="position:static;font-size:.72rem;">@selectedVersion.Category</span>
+
+                    <!-- Version selector dropdown -->
+                    @if (allVersions.Count > 1)
+                    {
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle fw-semibold"
+                                    type="button" data-bs-toggle="dropdown">
+                                v@selectedVersion.Version
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-dark f3m-version-dropdown">
+                                @foreach (var ver in allVersions)
+                                {
+                                    var v = ver;
+                                    <li>
+                                        <button class="dropdown-item d-flex justify-content-between align-items-center @(v.Id == selectedVersion.Id ? "active" : "")"
+                                                @onclick="() => SelectVersion(v)">
+                                            <span class="fw-semibold">v@v.Version</span>
+                                            <span class="text-muted small ms-3">@v.UploadedAt.ToString("MMM d, yyyy")</span>
+                                        </button>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">v@selectedVersion.Version</span>
+                    }
+
+                    @if (allVersions.Count > 1 && selectedVersion.Id != allVersions[0].Id)
+                    {
+                        <span class="badge" style="background:rgba(255,193,7,.15);color:var(--f3m-amber);border:1px solid rgba(255,193,7,.2);font-size:.65rem;">
+                            Older version
+                        </span>
+                    }
+                </div>
+
+                <h1 class="fw-black fs-2 mb-1">@selectedVersion.Name</h1>
+                <p class="text-muted small mb-4">
+                    by <span class="text-warning fw-semibold">@selectedVersion.Author</span>
+                    &nbsp;·&nbsp; @selectedVersion.UploadedAt.ToString("MMM d, yyyy")
+                </p>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-4">
+                        <div class="f3m-stat-mini">
+                            <div class="f3m-stat-mini-val text-warning">@selectedVersion.DownloadCount.ToString("N0")</div>
+                            <div class="f3m-stat-mini-label">Downloads</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="f3m-stat-mini">
+                            <div class="f3m-stat-mini-val">@selectedVersion.Files.Count</div>
+                            <div class="f3m-stat-mini-label">Files</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="f3m-stat-mini">
+                            <div class="f3m-stat-mini-val">@allVersions.Count</div>
+                            <div class="f3m-stat-mini-label">Versions</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-2">Description</h6>
+                <p class="text-muted lh-lg" style="white-space:pre-wrap;">@selectedVersion.Description</p>
+
+                <!-- All versions timeline (compact, only shown if > 1) -->
+                @if (allVersions.Count > 1)
+                {
+                    <h6 class="fw-bold mb-2 mt-4">Version History</h6>
+                    <div class="f3m-version-history">
+                        @foreach (var ver in allVersions)
+                        {
+                            var v   = ver;
+                            bool latest = v.Id == allVersions[0].Id;
+                            bool selected = v.Id == selectedVersion.Id;
+                            <div class="f3m-version-row @(selected ? "selected" : "")"
+                                 @onclick="() => SelectVersion(v)">
+                                <div class="f3m-version-dot @(latest ? "latest" : "")"></div>
+                                <div class="flex-grow-1">
+                                    <span class="fw-semibold small">v@v.Version</span>
+                                    @if (latest) { <span class="ms-2 badge" style="background:rgba(255,193,7,.15);color:var(--f3m-amber);font-size:.6rem;">Latest</span> }
+                                </div>
+                                <span class="text-muted" style="font-size:.72rem;">
+                                    @v.UploadedAt.ToString("MMM d, yyyy")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Mod?       selectedVersion;
+    private List<Mod>  allVersions = [];
+    private bool       loading     = true;
+    private bool       isOwner;
+    private bool       isAdmin;
+
+    private bool       showDeleteConfirm;
+    private bool       deleting;
+    private string?    deleteError;
+
+    private int?   activeFileId;
+    private int?   downloadingFileId;
+    private bool   downloadingAll;
+    private bool   dlSuccess;
+    private bool   dlError;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Load the requested version
+            selectedVersion = await Http.GetFromJsonAsync<Mod>($"api/mods/{Id}");
+            if (selectedVersion is null) return;
+
+            // Load all versions of the group
+            var result = await Http.GetFromJsonAsync<ModVersionsResult>(
+                $"api/mods/group/{selectedVersion.ModGroupId}/versions");
+            allVersions = result?.Versions ?? [selectedVersion];
+
+            // Check ownership
+            if (AuthState is not null)
+            {
+                var state     = await AuthState;
+                var userIdStr = state.User.FindFirst(
+                    "sub")?.Value;
+                if (int.TryParse(userIdStr, out var userId))
+                    isOwner = result?.Group.OwnerId == userId;
+                isAdmin = state.User.IsInRole("Admin");
+            }
+        }
+        catch { selectedVersion = null; }
+        finally { loading = false; }
+    }
+
+    private void SelectVersion(Mod ver)
+    {
+        selectedVersion = ver;
+        dlSuccess = false;
+        dlError = false;
+        activeFileId = null;
+    }
+
+    private async Task DownloadFile(int modId, ModFile file)
+    {
+        downloadingFileId = file.Id;
+        dlSuccess = false; dlError = false;
+        try
+        {
+            var resp = await Http.PostAsync($"api/mods/{modId}/download/{file.Id}", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                var bytes  = await resp.Content.ReadAsByteArrayAsync();
+                await JS.InvokeVoidAsync("f3m.downloadFile", file.OriginalName, Convert.ToBase64String(bytes));
+                selectedVersion!.DownloadCount++;
+                dlSuccess = true;
+            }
+            else dlError = true;
+        }
+        catch { dlError = true; }
+        finally { downloadingFileId = null; }
+    }
+
+    private async Task DeleteVersion()
+    {
+        if (selectedVersion is null) return;
+        deleting = true; deleteError = null;
+        try
+        {
+            var resp = await Http.DeleteAsync($"api/mods/{selectedVersion.Id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                // If it was the last version, go home; otherwise reload versions
+                if (allVersions.Count <= 1)
+                    Nav.NavigateTo("/");
+                else
+                {
+                    allVersions.Remove(selectedVersion);
+                    selectedVersion    = allVersions[0];
+                    showDeleteConfirm  = false;
+                }
+            }
+            else
+            {
+                deleteError = resp.StatusCode == System.Net.HttpStatusCode.Forbidden
+                    ? "You don't have permission to delete this mod."
+                    : $"Delete failed ({(int)resp.StatusCode}).";
+            }
+        }
+        catch (Exception ex) { deleteError = ex.Message; }
+        finally { deleting = false; }
+    }
+
+    private async Task DownloadAll()
+    {
+        if (selectedVersion is null) return;
+        downloadingAll = true;
+        dlSuccess = false; dlError = false;
+        try
+        {
+            bool anyError = false;
+            foreach (var file in selectedVersion.Files)
+            {
+                var resp = await Http.PostAsync($"api/mods/{selectedVersion.Id}/download/{file.Id}", null);
+                if (resp.IsSuccessStatusCode)
+                {
+                    var bytes = await resp.Content.ReadAsByteArrayAsync();
+                    await JS.InvokeVoidAsync("f3m.downloadFile", file.OriginalName, Convert.ToBase64String(bytes));
+                    // Small delay so browser doesn't block multiple simultaneous downloads
+                    await Task.Delay(400);
+                }
+                else { anyError = true; }
+            }
+            selectedVersion.DownloadCount++;
+            dlSuccess = !anyError;
+            dlError   = anyError;
+        }
+        catch { dlError = true; }
+        finally { downloadingAll = false; }
+    }
+}

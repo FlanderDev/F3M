@@ -1,0 +1,83 @@
+@inherits LayoutComponentBase
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<div class="f3m-wrapper">
+    <nav class="navbar navbar-expand-lg navbar-dark f3m-navbar sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <span class="f3m-logo-badge">F3M</span>
+                <span class="f3m-brand-text d-none d-sm-inline">Mod Manager</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                <ul class="navbar-nav me-auto gap-1">
+                    <li class="nav-item">
+                        <NavLink class="nav-link px-3 py-2 rounded" href="/" Match="NavLinkMatch.All">
+                            <i class="bi bi-house me-1"></i>Home
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link px-3 py-2 rounded" href="/upload">
+                            <i class="bi bi-cloud-arrow-up me-1"></i>Upload
+                        </NavLink>
+                    </li>
+                </ul>
+                <ul class="navbar-nav gap-1 ms-auto">
+                    <AuthorizeView>
+                        <Authorized>
+                            @if (context.User.IsInRole("Admin"))
+                            {
+                                <li class="nav-item">
+                                    <NavLink class="nav-link px-3 py-2 rounded" href="/admin">
+                                        <i class="bi bi-shield-fill me-1 text-warning"></i>Admin
+                                    </NavLink>
+                                </li>
+                            }
+                            <li class="nav-item d-flex align-items-center">
+                                <span class="nav-link text-muted px-3 py-2">
+                                    <i class="bi bi-person-circle me-1 text-warning"></i>@context.User.Identity?.Name
+                                </span>
+                            </li>
+                            <li class="nav-item">
+                                <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="Logout">
+                                    <i class="bi bi-box-arrow-right me-1"></i>Sign Out
+                                </button>
+                            </li>
+                        </Authorized>
+                        <NotAuthorized>
+                            <li class="nav-item">
+                                <NavLink class="nav-link px-3 py-2 rounded" href="/login">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
+                                </NavLink>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn btn-warning btn-sm fw-bold px-3 ms-1" href="/register">Register</a>
+                            </li>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="f3m-main">@Body</main>
+
+    <footer class="f3m-footer py-4 mt-5">
+        <div class="container text-center">
+            <p class="mb-0 text-muted small">
+                <strong class="text-warning">F3M</strong> — Flanders Manaka Mod Manager &nbsp;·&nbsp; Built with Blazor WASM &amp; SQLite
+            </p>
+        </div>
+    </footer>
+</div>
+
+@code {
+    private async Task Logout()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("/", forceLoad: true);
+    }
+}
