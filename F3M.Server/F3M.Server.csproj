@@ -14,15 +14,15 @@
 
   <ItemGroup>
     <!-- EF Core: latest stable 9.x (no net10 release yet as of writing) -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EFVersion)" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design"  Version="$(EFVersion)">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
 
     <!-- These MUST match the runtime: use the SDK-matching wildcard -->
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="$(AspNetCoreVersion)" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"      Version="$(AspNetCoreVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(AspNetCoreVersion)" />
 
     <!-- Independent of ASP.NET Core versioning -->
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.*-*" />
