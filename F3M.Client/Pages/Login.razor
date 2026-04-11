@@ -1,0 +1,67 @@
+@page "/login"
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Sign In — F3M</PageTitle>
+
+<div class="f3m-auth-page">
+    <div class="f3m-auth-card">
+        <div class="f3m-auth-logo">
+            <span class="f3m-logo-badge" style="width:48px;height:48px;font-size:1.1rem;">F3M</span>
+        </div>
+        <h2 class="fw-black text-center mb-1">Welcome back</h2>
+        <p class="text-muted text-center small mb-4">Sign in to upload and manage mods</p>
+
+        @if (error is not null)
+        {
+            <div class="alert alert-danger py-2 small mb-3">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+            </div>
+        }
+
+        <EditForm Model="dto" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label fw-semibold small">Username or Email</label>
+                <InputText class="form-control f3m-input" placeholder="Enter username or email"
+                           @bind-Value="dto.UsernameOrEmail" />
+                <ValidationMessage For="@(() => dto.UsernameOrEmail)" class="text-danger small mt-1 d-block" />
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-semibold small">Password</label>
+                <InputText class="form-control f3m-input" type="password" placeholder="Enter password"
+                           @bind-Value="dto.Password" />
+                <ValidationMessage For="@(() => dto.Password)" class="text-danger small mt-1 d-block" />
+            </div>
+            <button type="submit" class="btn btn-warning fw-bold w-100" disabled="@loading">
+                @if (loading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                Sign In
+            </button>
+        </EditForm>
+
+        <p class="text-center text-muted small mt-4 mb-0">
+            Don't have an account? <a href="/register" class="text-warning fw-semibold">Register</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    private LoginDto dto = new();
+    private string? error;
+    private bool loading;
+
+    private async Task HandleLogin()
+    {
+        loading = true;
+        error = null;
+        var result = await Auth.LoginAsync(dto);
+        loading = false;
+        if (result.Success)
+            Nav.NavigateTo("/", forceLoad: false);
+        else
+            error = result.Error ?? "Login failed.";
+    }
+}

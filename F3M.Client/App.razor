@@ -1,0 +1,26 @@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <div class="container py-5 text-center">
+                        <h3 class="fw-bold mb-2">Login required</h3>
+                        <p class="text-muted mb-4">You need to be signed in to access this page.</p>
+                        <a href="/login" class="btn btn-warning fw-bold px-4">Sign In</a>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found — F3M</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div class="container text-center py-5">
+                    <h2 class="display-4 fw-bold text-warning">404</h2>
+                    <p class="text-muted">Page not found.</p>
+                    <a href="/" class="btn btn-outline-warning mt-2">Back to Home</a>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

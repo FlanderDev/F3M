@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AspNetCoreVersion>10.*-*</AspNetCoreVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- These MUST all resolve to the same version as the runtime -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly"          Version="$(AspNetCoreVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="$(AspNetCoreVersion)" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization"         Version="$(AspNetCoreVersion)" />
+
+    <!-- Independent packages -->
+    <PackageReference Include="Microsoft.Extensions.Http"          Version="10.*-*" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt"   Version="8.*-*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\F3M.Shared\F3M.Shared.csproj" />
+  </ItemGroup>
+</Project>

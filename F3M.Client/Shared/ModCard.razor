@@ -1,0 +1,30 @@
+@inject NavigationManager Nav
+
+<div class="mod-card h-100" @onclick="NavigateToDetail">
+    <div class="mod-card-image">
+        @if (!string.IsNullOrEmpty(Mod.PreviewImageName))
+        {
+            <img src="previews/@Mod.PreviewImageName" alt="@Mod.Name preview" loading="lazy" />
+        }
+        else
+        {
+            <div class="mod-card-no-image"><i class="bi bi-box-seam"></i></div>
+        }
+        <span class="mod-card-category">@Mod.Category</span>
+    </div>
+    <div class="mod-card-body">
+        <h6 class="mod-card-title">@Mod.Name</h6>
+        <p class="mod-card-author">by <span>@Mod.Author</span></p>
+        <p class="mod-card-desc">@Mod.Description</p>
+        <div class="mod-card-meta">
+            <span><i class="bi bi-download"></i> @Mod.DownloadCount.ToString("N0")</span>
+            <span><i class="bi bi-files"></i> @Mod.Files.Count file@(Mod.Files.Count != 1 ? "s" : "")</span>
+            <span class="mod-card-version">v@Mod.Version</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Mod Mod { get; set; } = default!;
+    private void NavigateToDetail() => Nav.NavigateTo($"/mod/{Mod.Id}");
+}
