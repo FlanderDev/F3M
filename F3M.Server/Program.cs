@@ -5,49 +5,43 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// ── Services ──────────────────────────────────────────────────────────────────
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
-                      ?? "Data Source=f3m.db"));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=Database/f3m.db";
+var dir = Directory.GetParent(connectionString.Replace("Data Source=", string.Empty));
+if (dir != null)
+    Directory.CreateDirectory(dir.FullName);
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
-var jwtSecret = builder.Configuration["Jwt:Secret"]
-                ?? "f3m-super-secret-key-change-in-production-32chars!";
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "f3m-super-secret-key-change-in-production-32chars!";
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer           = true,
-            ValidateAudience         = true,
-            ValidateLifetime         = true,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer              = "f3m",
-            ValidAudience            = "f3m",
-            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ValidIssuer = "f3m",
+            ValidAudience = "f3m",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             // Keep claim names as written in the JWT ("role", "sub", etc.)
             // instead of remapping to long CLR URIs. Matches client-side parsing.
-            RoleClaimType            = "role",
-            NameClaimType            = "name"
+            RoleClaimType = "role",
+            NameClaimType = "name"
         };
     });
 
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
-
-// ── Migrate & seed ────────────────────────────────────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
 
-// ── Middleware ────────────────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
