@@ -14,12 +14,12 @@
         {
             <p class="small mb-0">
                 Adding a new version to <span class="text-warning fw-semibold">@existingMod.Name</span>
-                &nbsp;·&nbsp; latest: <span class="text-muted">v@existingMod.Version</span>
+                &nbsp;·&nbsp; latest: <span >v@existingMod.Version</span>
             </p>
         }
         else
         {
-            <p class="text-muted small mb-0">Share your creation with the community.</p>
+            <p class="small mb-0">Share your creation with the community.</p>
         }
     </div>
 
@@ -28,7 +28,7 @@
         <div class="f3m-surface rounded-3 p-5 text-center border" style="border-color:rgba(255,193,7,.2) !important;">
             <i class="bi bi-check-circle-fill display-4 text-warning d-block mb-3"></i>
             <h4 class="fw-black mb-2">@(isNewVersion ? "New version uploaded!" : "Mod uploaded!")</h4>
-            <p class="text-muted small mb-4">Your mod is now live.</p>
+            <p class="small mb-4">Your mod is now live.</p>
             <div class="d-flex justify-content-center gap-3">
                 <a href="/mod/@uploadedId" class="btn btn-warning fw-bold px-4">View Mod</a>
                 <button class="btn btn-outline-secondary" @onclick="Reset">Upload Another</button>
@@ -71,14 +71,14 @@
                     <InputTextArea class="form-control f3m-input" rows="3"
                                    placeholder="What does your mod do? Include compatibility notes."
                                    @bind-Value="dto.Description" />
-                    <div class="text-muted" style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
+                    <div  style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
                 </div>
 
                 <!-- Preview image -->
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">
                         Preview Image
-                        <span class="text-muted fw-normal">(optional@(isNewVersion ? ", leave blank to keep existing" : ""), max 8 MB)</span>
+                        <span class="fw-normal">(optional@(isNewVersion ? ", leave blank to keep existing" : ""), max 8 MB)</span>
                     </label>
                     @if (previewDataUrl is not null)
                     {
@@ -90,8 +90,8 @@
                         </div>
                     }
                     <label class="f3m-dropzone @(previewDataUrl != null ? "d-none" : "")" style="cursor:pointer;">
-                        <i class="bi bi-image text-muted fs-3 d-block mb-1"></i>
-                        <span class="small text-muted">Click to choose an image (JPG, PNG, WebP)</span>
+                        <i class="bi bi-image fs-3 d-block mb-1"></i>
+                        <span class="small ">Click to choose an image (JPG, PNG, WebP)</span>
                         <InputFile OnChange="OnImageSelected" accept=".jpg,.jpeg,.png,.webp" style="display:none;" />
                     </label>
                     @if (imageError is not null)
@@ -105,7 +105,7 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="form-label fw-semibold small mb-0">
                             Mod Files <span class="text-danger">*</span>
-                            <span class="text-muted fw-normal"> — ZIP, RAR, 7Z, PAK, MOD (max 512 MB each)</span>
+                            <span class="fw-normal"> — ZIP, RAR, 7Z, PAK, MOD (max 512 MB each)</span>
                         </label>
                         <span class="badge bg-secondary">@fileEntries.Count file@(fileEntries.Count != 1 ? "s" : "")</span>
                     </div>
@@ -122,7 +122,7 @@
                                         <i class="bi bi-file-zip-fill text-warning fs-5 flex-shrink-0"></i>
                                         <div class="flex-grow-1 overflow-hidden">
                                             <div class="fw-semibold small text-truncate">@entry.OriginalName</div>
-                                            <div class="text-muted" style="font-size:.7rem;">@FormatSize(entry.Size)</div>
+                                            <div  style="font-size:.7rem;">@FormatSize(entry.Size)</div>
                                         </div>
                                         <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0"
                                                 @onclick="() => RemoveFile(idx)">
@@ -130,7 +130,7 @@
                                         </button>
                                     </div>
                                     <div class="f3m-file-entry-path">
-                                        <i class="bi bi-folder2 text-muted flex-shrink-0" style="font-size:.8rem;"></i>
+                                        <i class="bi bi-folder2 flex-shrink-0" style="font-size:.8rem;"></i>
                                         <input class="f3m-path-input"
                                                type="text"
                                                placeholder="Install path (e.g. Manaka/Mods/Textures)"
@@ -148,7 +148,7 @@
                          DOM element and a fresh _blazorFilesById entry for the next pick. -->
                     <label @key="addFileKey" class="f3m-dropzone f3m-dropzone-sm" style="cursor:pointer;">
                         <i class="bi bi-plus-lg text-warning me-2"></i>
-                        <span class="small text-muted">
+                        <span class="small ">
                             @(fileEntries.Count == 0 ? "Choose file(s)" : "Add another file")
                         </span>
                         <InputFile OnChange="OnModFileSelected" accept=".zip,.rar,.7z,.pak,.mod"

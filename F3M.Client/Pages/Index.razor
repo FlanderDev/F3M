@@ -1,7 +1,9 @@
 @page "/"
+@page "/Browse"
+
 @inject HttpClient Http
 
-<PageTitle>F3M — Mod Manager</PageTitle>
+<PageTitle>F3M - Browse</PageTitle>
 
 <!-- Header bar -->
 <div class="f3m-page-header">
@@ -9,7 +11,7 @@
         <div class="row align-items-center g-3">
             <div class="col">
                 <h1 class="fw-black mb-0 fs-3">Browse Mods</h1>
-                <p class="text-muted small mb-0">@(result?.TotalCount ?? 0) mods available</p>
+                <p class="small mb-0">@(result?.TotalCount ?? 0) mods available</p>
             </div>
             <div class="col-auto">
                 <AuthorizeView>
@@ -103,9 +105,9 @@
     else if (result?.Items.Count == 0)
     {
         <div class="f3m-empty text-center py-5">
-            <i class="bi bi-inbox display-3 text-muted opacity-50 d-block mb-3"></i>
+            <i class="bi bi-inbox display-3 opacity-50 d-block mb-3"></i>
             <h5 class="fw-bold mb-1">No mods found</h5>
-            <p class="text-muted small">Try adjusting your filters.</p>
+            <p class="small">Try adjusting your filters.</p>
             <button class="btn btn-sm btn-outline-warning mt-2" @onclick="ClearFilters">Clear Filters</button>
         </div>
     }
@@ -184,7 +186,7 @@
     private void OnSearchKeyUp(KeyboardEventArgs _)
     {
         _debounce?.Dispose();
-        _debounce = new System.Timers.Timer(350);
+        _debounce = new System.Timers.Timer(500);
         _debounce.Elapsed += async (_, _) =>
         {
             _debounce?.Dispose();

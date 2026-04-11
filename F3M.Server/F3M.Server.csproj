@@ -11,6 +11,9 @@
     <AspNetCoreVersion>10.*-*</AspNetCoreVersion>
     <EFVersion>9.*-*</EFVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="Properties\PublishProfiles\site63047-WebDeploy.pubxml.user" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- EF Core: latest stable 9.x (no net10 release yet as of writing) -->

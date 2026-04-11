@@ -19,14 +19,14 @@ else if (selectedVersion is null)
 {
     <div class="container py-5 text-center">
         <h3 class="fw-bold text-warning">Mod not found</h3>
-        <p class="text-muted small">This mod may have been removed.</p>
+        <p class="small">This mod may have been removed.</p>
         <a href="/" class="btn btn-outline-warning mt-2">Back to Browse</a>
     </div>
 }
 else
 {
     <div class="container py-4" style="max-width:960px;">
-        <a href="/" class="text-muted small d-inline-flex align-items-center gap-1 mb-4">
+        <a href="/" class="small d-inline-flex align-items-center gap-1 mb-4">
             <i class="bi bi-arrow-left"></i> Back to Browse
         </a>
 
@@ -53,7 +53,7 @@ else
 
                     @if (selectedVersion.Files.Count == 0)
                     {
-                        <p class="text-muted small mb-3">No files attached to this version.</p>
+                        <p class="small mb-3">No files attached to this version.</p>
                     }
                     else
                     {
@@ -67,7 +67,7 @@ else
                                         <i class="bi bi-file-zip-fill text-warning flex-shrink-0"></i>
                                         <div class="overflow-hidden">
                                             <div class="small fw-semibold text-truncate">@f.OriginalName</div>
-                                            <div class="text-muted" style="font-size:.68rem;">@f.FileSizeDisplay</div>
+                                            <div  style="font-size:.68rem;">@f.FileSizeDisplay</div>
                                             @if (!string.IsNullOrWhiteSpace(f.InstallPath))
                                             {
                                                 <div class="f3m-install-path">
@@ -220,7 +220,7 @@ else
                                         <button class="dropdown-item d-flex justify-content-between align-items-center @(v.Id == selectedVersion.Id ? "active" : "")"
                                                 @onclick="() => SelectVersion(v)">
                                             <span class="fw-semibold">v@v.Version</span>
-                                            <span class="text-muted small ms-3">@v.UploadedAt.ToString("MMM d, yyyy")</span>
+                                            <span class="small ms-3">@v.UploadedAt.ToString("MMM d, yyyy")</span>
                                         </button>
                                     </li>
                                 }
@@ -241,7 +241,7 @@ else
                 </div>
 
                 <h1 class="fw-black fs-2 mb-1">@selectedVersion.Name</h1>
-                <p class="text-muted small mb-4">
+                <p class="small mb-4">
                     by <span class="text-warning fw-semibold">@selectedVersion.Author</span>
                     &nbsp;·&nbsp; @selectedVersion.UploadedAt.ToString("MMM d, yyyy")
                 </p>
@@ -268,7 +268,7 @@ else
                 </div>
 
                 <h6 class="fw-bold mb-2">Description</h6>
-                <p class="text-muted lh-lg" style="white-space:pre-wrap;">@selectedVersion.Description</p>
+                <p class="lh-lg" style="white-space:pre-wrap;">@selectedVersion.Description</p>
 
                 <!-- All versions timeline (compact, only shown if > 1) -->
                 @if (allVersions.Count > 1)
@@ -287,7 +287,7 @@ else
                                     <span class="fw-semibold small">v@v.Version</span>
                                     @if (latest) { <span class="ms-2 badge" style="background:rgba(255,193,7,.15);color:var(--f3m-amber);font-size:.6rem;">Latest</span> }
                                 </div>
-                                <span class="text-muted" style="font-size:.72rem;">
+                                <span  style="font-size:.72rem;">
                                     @v.UploadedAt.ToString("MMM d, yyyy")
                                 </span>
                             </div>
