@@ -6,73 +6,72 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 
 #nullable disable
 
-namespace F3M.Server.Migrations
+namespace F3M.Server.Migrations;
+
+[DbContext(typeof(AppDbContext))]
+partial class AppDbContextModelSnapshot : ModelSnapshot
 {
-    [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    protected override void BuildModel(ModelBuilder modelBuilder)
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
-        {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
+        modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
 
-            modelBuilder.Entity("F3M.Shared.Models.AppUser", b =>
-            {
-                b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
-                b.Property<string>("Username").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
-                b.Property<string>("Email").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
-                b.Property<string>("PasswordHash").IsRequired().HasColumnType("TEXT");
-                b.Property<DateTime>("RegisteredAt").HasColumnType("TEXT");
-                b.Property<bool>("IsAdmin").HasDefaultValue(false).HasColumnType("INTEGER");
-                b.HasKey("Id");
-                b.HasIndex("Username").IsUnique();
-                b.HasIndex("Email").IsUnique();
-                b.ToTable("Users");
-            });
+        modelBuilder.Entity("F3M.Shared.Models.AppUser", b =>
+        {
+            b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
+            b.Property<string>("Username").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+            b.Property<string>("Email").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+            b.Property<string>("PasswordHash").IsRequired().HasColumnType("TEXT");
+            b.Property<DateTime>("RegisteredAt").HasColumnType("TEXT");
+            b.Property<bool>("IsAdmin").HasDefaultValue(false).HasColumnType("INTEGER");
+            b.HasKey("Id");
+            b.HasIndex("Username").IsUnique();
+            b.HasIndex("Email").IsUnique();
+            b.ToTable("Users");
+        });
 
-            modelBuilder.Entity("F3M.Shared.Models.ModGroup", b =>
-            {
-                b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
-                b.Property<int?>("OwnerId").HasColumnType("INTEGER");
-                b.Property<string>("Author").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
-                b.HasKey("Id");
-                b.ToTable("ModGroups");
-            });
+        modelBuilder.Entity("F3M.Shared.Models.ModGroup", b =>
+        {
+            b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
+            b.Property<int?>("OwnerId").HasColumnType("INTEGER");
+            b.Property<string>("Author").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+            b.HasKey("Id");
+            b.ToTable("ModGroups");
+        });
 
-            modelBuilder.Entity("F3M.Shared.Models.Mod", b =>
-            {
-                b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
-                b.Property<int>("ModGroupId").HasColumnType("INTEGER");
-                b.Property<string>("Author").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
-                b.Property<string>("Category").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
-                b.Property<string>("Description").IsRequired().HasMaxLength(1000).HasColumnType("TEXT");
-                b.Property<int>("DownloadCount").HasColumnType("INTEGER");
-                b.Property<string>("PreviewImageName").HasColumnType("TEXT");
-                b.Property<bool>("IsApproved").HasColumnType("INTEGER");
-                b.Property<string>("Name").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
-                b.Property<DateTime>("UploadedAt").HasColumnType("TEXT");
-                b.Property<int?>("UserId").HasColumnType("INTEGER");
-                b.Property<string>("Version").IsRequired().HasMaxLength(20).HasColumnType("TEXT");
-                b.HasKey("Id");
-                b.HasIndex("Category");
-                b.HasIndex("Name");
-                b.HasIndex("ModGroupId");
-                b.ToTable("Mods");
-            });
+        modelBuilder.Entity("F3M.Shared.Models.Mod", b =>
+        {
+            b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
+            b.Property<int>("ModGroupId").HasColumnType("INTEGER");
+            b.Property<string>("Author").IsRequired().HasMaxLength(80).HasColumnType("TEXT");
+            b.Property<string>("Category").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+            b.Property<string>("Description").IsRequired().HasMaxLength(1000).HasColumnType("TEXT");
+            b.Property<int>("DownloadCount").HasColumnType("INTEGER");
+            b.Property<string>("PreviewImageName").HasColumnType("TEXT");
+            b.Property<bool>("IsApproved").HasColumnType("INTEGER");
+            b.Property<string>("Name").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
+            b.Property<DateTime>("UploadedAt").HasColumnType("TEXT");
+            b.Property<int?>("UserId").HasColumnType("INTEGER");
+            b.Property<string>("Version").IsRequired().HasMaxLength(20).HasColumnType("TEXT");
+            b.HasKey("Id");
+            b.HasIndex("Category");
+            b.HasIndex("Name");
+            b.HasIndex("ModGroupId");
+            b.ToTable("Mods");
+        });
 
-            modelBuilder.Entity("F3M.Shared.Models.ModFile", b =>
-            {
-                b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
-                b.Property<int>("ModId").HasColumnType("INTEGER");
-                b.Property<string>("FileName").IsRequired().HasColumnType("TEXT");
-                b.Property<string>("OriginalName").IsRequired().HasColumnType("TEXT");
-                b.Property<string>("InstallPath").IsRequired().HasMaxLength(260).HasColumnType("TEXT");
-                b.Property<long>("FileSizeBytes").HasColumnType("INTEGER");
-                b.HasKey("Id");
-                b.HasIndex("ModId");
-                b.ToTable("ModFiles");
-            });
+        modelBuilder.Entity("F3M.Shared.Models.ModFile", b =>
+        {
+            b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
+            b.Property<int>("ModId").HasColumnType("INTEGER");
+            b.Property<string>("FileName").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("OriginalName").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("InstallPath").IsRequired().HasMaxLength(260).HasColumnType("TEXT");
+            b.Property<long>("FileSizeBytes").HasColumnType("INTEGER");
+            b.HasKey("Id");
+            b.HasIndex("ModId");
+            b.ToTable("ModFiles");
+        });
 #pragma warning restore 612, 618
-        }
     }
 }
