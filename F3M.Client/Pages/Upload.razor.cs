@@ -7,12 +7,13 @@ namespace F3M.Client.Pages;
 
 public partial class Upload
 {
-    [Parameter] public int? GroupId { get; set; }
+    [Parameter] 
+    public int? GroupId { get; set; }
 
     private ModUploadDto dto = new();
 
     // Is this a "new version" upload for an existing group?
-    private bool isNewVersion => GroupId.HasValue;
+    private bool IsNewVersion => GroupId.HasValue;
     private Mod? existingMod;   // latest version of the group (for display)
 
     // ── File entries list ─────────────────────────────────────────────────────
@@ -25,7 +26,8 @@ public partial class Upload
         public required byte[] Bytes { get; init; }
         public string InstallPath { get; set; } = string.Empty;
     }
-    private List<FileEntry> fileEntries = [];
+
+    private readonly List<FileEntry> fileEntries = [];
 
     // Incremented each time a file is added so the InputFile "Add file" button
     // gets a fresh @key, forcing Blazor to mount a brand-new <input type=file>
