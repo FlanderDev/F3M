@@ -9,8 +9,8 @@
 
 <div class="container py-5" style="max-width:720px;">
     <div class="mb-4">
-        <h1 class="fw-black mb-1 fs-2">@(isNewVersion ? $"Upload New Version" : "Upload a Mod")</h1>
-        @if (isNewVersion && existingMod is not null)
+        <h1 class="fw-black mb-1 fs-2">@(IsNewVersion ? $"Upload New Version" : "Upload a Mod")</h1>
+        @if (IsNewVersion && existingMod is not null)
         {
             <p class="small mb-0">
                 Adding a new version to <span class="text-warning fw-semibold">@existingMod.Name</span>
@@ -27,7 +27,7 @@
     {
         <div class="f3m-surface rounded-3 p-5 text-center border" style="border-color:rgba(255,193,7,.2) !important;">
             <i class="bi bi-check-circle-fill display-4 text-warning d-block mb-3"></i>
-            <h4 class="fw-black mb-2">@(isNewVersion ? "New version uploaded!" : "Mod uploaded!")</h4>
+            <h4 class="fw-black mb-2">@(IsNewVersion ? "New version uploaded!" : "Mod uploaded!")</h4>
             <p class="small mb-4">Your mod is now live.</p>
             <div class="d-flex justify-content-center gap-3">
                 <a href="/mod/@uploadedId" class="btn btn-warning fw-bold px-4">View Mod</a>
@@ -45,7 +45,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Mod Name <span class="text-danger">*</span></label>
                     <InputText class="form-control f3m-input" placeholder="e.g. HD Texture Overhaul"
-                               @bind-Value="dto.Name" disabled="@isNewVersion" />
+                               @bind-Value="dto.Name" disabled="@IsNewVersion" />
                     <ValidationMessage For="@(() => dto.Name)" class="text-danger small mt-1 d-block" />
                 </div>
 
@@ -57,7 +57,7 @@
                     </div>
                     <div class="col-8">
                         <label class="form-label fw-semibold small">Category</label>
-                        <InputSelect class="form-select f3m-select" @bind-Value="dto.Category" disabled="@isNewVersion">
+                        <InputSelect class="form-select f3m-select" @bind-Value="dto.Category" disabled="@IsNewVersion">
                             @foreach (var cat in Categories)
                             {
                                 <option value="@cat">@cat</option>
@@ -78,7 +78,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">
                         Preview Image
-                        <span class="fw-normal">(optional@(isNewVersion ? ", leave blank to keep existing" : string.Empty), max 8 MB)</span>
+                        <span class="fw-normal">(optional@(IsNewVersion ? ", leave blank to keep existing" : string.Empty), max 8 MB)</span>
                     </label>
                     @if (previewDataUrl is not null)
                     {
@@ -186,7 +186,7 @@
                     else
                     {
                         <i class="bi bi-cloud-arrow-up-fill me-2"></i>
-                        <span>@(isNewVersion ? "Publish New Version" : "Upload Mod")</span>
+                        <span>@(IsNewVersion ? "Publish New Version" : "Upload Mod")</span>
                     }
                 </button>
             </EditForm>

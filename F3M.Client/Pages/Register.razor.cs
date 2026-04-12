@@ -4,7 +4,7 @@ namespace F3M.Client.Pages;
 
 public partial class Register
 {
-    private RegisterDto dto = new();
+    private readonly RegisterDto dto = new();
     private string? error;
     private bool loading;
 
