@@ -11,21 +11,21 @@ namespace F3M.Server.Controllers;
 [Route("api/[controller]")]
 public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<ModsController> logger) : ControllerBase
 {
-    private static readonly string[] AllowedModExtensions   = [".zip", ".rar", ".7z", ".pak", ".mod"];
+    private static readonly string[] AllowedModExtensions = [".zip", ".rar", ".7z", ".pak", ".mod"];
     private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-    private const long MaxModSize    = 512 * 1024 * 1024;
-    private const long MaxImageSize  = 8   * 1024 * 1024;
-    private const long MaxTotalSize  = 2L  * 1024 * 1024 * 1024; // 2 GB total per upload
+    private const long MaxModSize = 512 * 1024 * 1024;
+    private const long MaxImageSize = 8 * 1024 * 1024;
+    private const long MaxTotalSize = 2L * 1024 * 1024 * 1024; // 2 GB total per upload
 
     // ── Browse: one row per group (latest version only) ───────────────────────
     // GET /api/mods?page=1&pageSize=18&search=&category=&sort=newest
     [HttpGet]
     public async Task<ActionResult<ModListResult>> GetMods(
-        [FromQuery] int     page      = 1,
-        [FromQuery] int     pageSize  = 18,
-        [FromQuery] string? search    = null,
-        [FromQuery] string? category  = null,
-        [FromQuery] string? sort      = "newest")
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 18,
+        [FromQuery] string? search = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? sort = "newest")
     {
         // Latest version per group: pick the Mod row with the highest UploadedAt per ModGroupId
         var latestIds = db.Mods
@@ -50,8 +50,8 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         query = sort switch
         {
             "popular" => query.OrderByDescending(m => m.DownloadCount),
-            "name"    => query.OrderBy(m => m.Name),
-            _         => query.OrderByDescending(m => m.UploadedAt)
+            "name" => query.OrderBy(m => m.Name),
+            _ => query.OrderByDescending(m => m.UploadedAt)
         };
 
         var total = await query.CountAsync();
@@ -86,7 +86,7 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
 
     // GET /api/mods/categories
     [HttpGet("categories")]
-    public async Task<ActionResult<List<string>>> GetCategories()
+    public async Task<ActionResult<List<ValueTuple<string, int>>>> GetCategories()
     {
         // Category of each group = category of its latest version
         var latestIds = db.Mods
@@ -116,14 +116,14 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
     [Authorize]
     [RequestSizeLimit(MaxTotalSize)]
     public async Task<ActionResult<Mod>> Upload(
-        [FromForm] ModUploadDto      dto,
+        [FromForm] ModUploadDto dto,
         [FromForm] IFormFileCollection files,
-        [FromForm] List<string>       installPaths,
-        [FromForm] List<string>       originalNames,
-        IFormFile?                    previewImage)
+        [FromForm] List<string> installPaths,
+        [FromForm] List<string> originalNames,
+        IFormFile? previewImage)
     {
         var username = User.FindFirstValue("name") ?? "unknown";
-        var userId   = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
+        var userId = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
 
         // ── Validate files ────────────────────────────────────────────────────
         if (files.Count == 0)
@@ -131,7 +131,7 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
 
         foreach (var f in files)
         {
-            if (f.Length == 0)       return BadRequest($"File '{f.FileName}' is empty.");
+            if (f.Length == 0) return BadRequest($"File '{f.FileName}' is empty.");
             if (f.Length > MaxModSize) return BadRequest($"File '{f.FileName}' exceeds 512 MB.");
             var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
             if (!AllowedModExtensions.Contains(ext))
@@ -184,17 +184,19 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         // ── Create version record ─────────────────────────────────────────────
         var mod = new Mod
         {
-            ModGroupId       = group.Id,
-            Name             = dto.Name,
-            Description      = dto.Description,
-            Author           = username,
-            Version          = dto.Version,
-            Category         = dto.Category,
+            ModGroupId = group.Id,
+            Name = dto.Name,
+            Description = dto.Description,
+            Author = username,
+            Version = dto.Version,
+            Category = dto.Category,
             PreviewImageName = previewName,
-            UploadedAt       = DateTime.UtcNow,
-            IsApproved       = true,
-            UserId           = userId
+            UploadedAt = DateTime.UtcNow,
+            IsApproved = true,
+            UserId = userId
         };
+
+        await RecalculateLatestVersion(db, group.Id);
         db.Mods.Add(mod);
         await db.SaveChangesAsync(); // need mod.Id for ModFile FKs
 
@@ -204,8 +206,8 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
 
         for (int i = 0; i < files.Count; i++)
         {
-            var f        = files[i];
-            var ext      = Path.GetExtension(f.FileName).ToLowerInvariant();
+            var f = files[i];
+            var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
             var safeName = $"{Guid.NewGuid():N}{ext}";
             var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
             var installPath = i < installPaths.Count ? (installPaths[i] ?? "").Trim() : string.Empty;
@@ -215,21 +217,20 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
 
             db.ModFiles.Add(new ModFile
             {
-                ModId        = mod.Id,
-                FileName     = safeName,
+                ModId = mod.Id,
+                FileName = safeName,
                 OriginalName = origName,
-                InstallPath  = installPath,
+                InstallPath = installPath,
                 FileSizeBytes = f.Length
             });
         }
 
         await db.SaveChangesAsync();
-        logger.LogInformation("Mod uploaded: {Name} v{Version} by {Author} ({FileCount} files)",
-            mod.Name, mod.Version, mod.Author, files.Count);
+        logger.LogInformation("Mod uploaded: {Name} v{Version} by {Author} ({FileCount} files)", mod.Name, mod.Version, mod.Author, files.Count);
 
         // Return with files populated
-        return CreatedAtAction(nameof(GetMod), new { id = mod.Id },
-            await db.Mods.Include(m => m.Files).FirstAsync(m => m.Id == mod.Id));
+        var uploadedMod = await db.Mods.Include(m => m.Files).FirstAsync(m => m.Id == mod.Id);
+        return CreatedAtAction(nameof(GetMod), new { id = mod.Id }, uploadedMod);
     }
 
     // POST /api/mods/{id}/download/{fileId}
@@ -262,17 +263,18 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
         if (mod is null) return NotFound();
 
-        var userId  = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
+        var userId = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
         var isAdmin = User.IsInRole("Admin");
-        var group   = await db.ModGroups.FindAsync(mod.ModGroupId);
+        var group = await db.ModGroups.FindAsync(mod.ModGroupId);
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
 
-        mod.Name        = dto.Name;
+        mod.Name = dto.Name;
         mod.Description = dto.Description;
-        mod.Version     = dto.Version;
-        mod.Category    = dto.Category;
-        await db.SaveChangesAsync();
+        mod.Version = dto.Version;
+        mod.Category = dto.Category;
 
+        await RecalculateLatestVersion(db, group?.Id, mod);
+        await db.SaveChangesAsync();
         return Ok(mod);
     }
 
@@ -284,9 +286,9 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
         if (mod is null) return NotFound();
 
-        var userId  = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
+        var userId = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
         var isAdmin = User.IsInRole("Admin");
-        var group   = await db.ModGroups.FindAsync(mod.ModGroupId);
+        var group = await db.ModGroups.FindAsync(mod.ModGroupId);
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
 
         // Delete uploaded files from disk
@@ -303,8 +305,21 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         var remaining = await db.Mods.CountAsync(m => m.ModGroupId == mod.ModGroupId && m.Id != id);
         if (remaining == 0 && group is not null)
             db.ModGroups.Remove(group);
-
+        
+        await RecalculateLatestVersion(db, group?.Id, mod);
         await db.SaveChangesAsync();
         return NoContent();
+    }
+
+    private static async Task RecalculateLatestVersion(AppDbContext appDbContext, int? modGroupId, Mod? incoming = null)
+    {
+        var existing = await appDbContext.Mods.Where(m => m.ModGroupId == modGroupId).ToListAsync();
+        var all = incoming is not null
+            ? existing.Append(incoming)
+            : existing;
+
+        var latest = all.OrderByDescending(m => new Version(m.Version)).First();
+        foreach (var m in all)
+            m.IsLatestVersion = m.Id == latest.Id;
     }
 }

@@ -30,6 +30,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(m => m.Name);
             e.HasIndex(m => m.Category);
             e.HasIndex(m => m.ModGroupId);
+            e.HasIndex(m => m.IsLatestVersion);
             // Navigation: a Mod has many ModFiles
             e.HasMany(m => m.Files)
              .WithOne()
