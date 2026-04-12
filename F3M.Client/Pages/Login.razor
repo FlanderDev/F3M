@@ -48,20 +48,4 @@
     </div>
 </div>
 
-@code {
-    private LoginDto dto = new();
-    private string? error;
-    private bool loading;
 
-    private async Task HandleLogin()
-    {
-        loading = true;
-        error = null;
-        var result = await Auth.LoginAsync(dto);
-        loading = false;
-        if (result.Success)
-            Nav.NavigateTo("/", forceLoad: false);
-        else
-            error = result.Error ?? "Login failed.";
-    }
-}
