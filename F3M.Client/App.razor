@@ -2,12 +2,25 @@
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                <NotAuthorized>
-                    <div class="container py-5 text-center">
-                        <h3 class="fw-bold mb-2">Login required</h3>
-                        <p class="mb-4">You need to be signed in to access this page.</p>
-                        <a href="/login" class="btn btn-warning fw-bold px-4">Sign In</a>
-                    </div>
+                <NotAuthorized Context="authContext">
+                    @if (authContext.User.Identity?.IsAuthenticated ?? false)
+                    {
+                        <!-- Logged in but NOT authorized (bad role) -->
+                        <div class="container py-5 text-center">
+                            <h3 class="fw-bold mb-2">Access denied</h3>
+                            <p class="mb-4">You don’t have permission to view this page.</p>
+                            <a href="/" class="btn btn-secondary fw-bold px-4">Go Home</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Not logged in -->
+                        <div class="container py-5 text-center">
+                            <h3 class="fw-bold mb-2">Login required</h3>
+                            <p class="mb-4">You need to be signed in to access this page.</p>
+                            <a href="/login" class="btn btn-warning fw-bold px-4">Sign In</a>
+                        </div>
+                    }
                 </NotAuthorized>
             </AuthorizeRouteView>
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />
@@ -17,7 +30,7 @@
             <LayoutView Layout="@typeof(MainLayout)">
                 <div class="container text-center py-5">
                     <h2 class="display-4 fw-bold text-warning">404</h2>
-                    <p >Page not found.</p>
+                    <p>Page not found.</p>
                     <a href="/" class="btn btn-outline-warning mt-2">Back to Home</a>
                 </div>
             </LayoutView>
