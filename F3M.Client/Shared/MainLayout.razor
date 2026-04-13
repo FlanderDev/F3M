@@ -26,6 +26,7 @@
                         </NavLink>
                     </li>
                 </ul>
+                <h1 class="@(IsDebug ? "text-danger" : "text-warning")">@Configuration.HeaderDisclaimer</h1>
                 <ul class="navbar-nav gap-1 ms-auto">
                     <AuthorizeView>
                         <Authorized>
@@ -82,6 +83,14 @@
 </div>
 
 @code {
+
+    private bool IsDebug =
+#if DEBUG
+        true;
+#else
+        false;
+#endif
+
     private async Task Logout()
     {
         await Auth.LogoutAsync();
