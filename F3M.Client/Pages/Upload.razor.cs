@@ -1,3 +1,4 @@
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
@@ -7,7 +8,7 @@ namespace F3M.Client.Pages;
 
 public partial class Upload
 {
-    [Parameter] 
+    [Parameter]
     public int? GroupId { get; set; }
 
     private ModUploadDto dto = new();
@@ -47,10 +48,7 @@ public partial class Upload
     private int uploadedId;
     private int progress;
 
-    private static readonly string[] Categories =
-        ["General", "Audio", "Textures", "Gameplay", "Items", "UI", "Maps", "Characters", "Weapons", "Other"];
-    private static readonly string[] AllowedMod = [".zip", ".rar", ".7z", ".pak", ".mod"];
-    private static readonly string[] AllowedImage = [".jpg", ".jpeg", ".png", ".webp"];
+
     private const long MaxMod = 512L * 1024 * 1024;
     private const long MaxImage = 8L * 1024 * 1024;
 
@@ -80,7 +78,7 @@ public partial class Upload
         imageError = null;
         var f = e.File;
         var ext = Path.GetExtension(f.Name).ToLowerInvariant();
-        if (!AllowedImage.Contains(ext)) { imageError = $"Image type '{ext}' not allowed."; return; }
+        if (!Configuration.AllowedThumbnailFormat.Contains(ext)) { imageError = $"Image type '{ext}' not allowed."; return; }
         if (f.Size > MaxImage) { imageError = "Image exceeds 8 MB."; return; }
 
         await using var stream = f.OpenReadStream(MaxImage);
@@ -106,7 +104,7 @@ public partial class Upload
         fileError = null;
         var f = e.File;
         var ext = Path.GetExtension(f.Name).ToLowerInvariant();
-        if (!AllowedMod.Contains(ext)) { fileError = $"File type '{ext}' not allowed."; return; }
+        if (!Configuration.AllowedFileFormat.Contains(ext)) { fileError = $"File type '{ext}' not allowed."; return; }
         if (f.Size > MaxMod) { fileError = "File exceeds 512 MB."; return; }
 
         // Read all bytes NOW, while _blazorFilesById still knows about this file
