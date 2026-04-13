@@ -72,11 +72,15 @@
         {
             <div class="d-flex flex-wrap gap-2 mt-3">
                 <button class="f3m-chip @(selectedCategory == "All" ? "active" : string.Empty)"
-                        @onclick='() => SelectCategory("All")'>All</button>
+                        @onclick='() => SelectCategory("All")'>
+                    All
+                </button>
                 @foreach (var cat in categories)
                 {
                     <button class="f3m-chip @(selectedCategory == cat ? "active" : string.Empty)"
-                            @onclick="() => SelectCategory(cat)">@cat</button>
+                            @onclick="() => SelectCategory(cat)">
+                        @cat
+                    </button>
                 }
             </div>
         }

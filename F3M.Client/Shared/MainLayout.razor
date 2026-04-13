@@ -26,7 +26,10 @@
                         </NavLink>
                     </li>
                 </ul>
-                <h1 class="@(IsDebug ? "text-danger" : "text-warning")">@Configuration.HeaderDisclaimer</h1>
+                <div class="container col">
+                    <h4 class="my-0 @(IsDebug ? "text-danger" : "text-warning")">@Configuration.HeaderDisclaimer</h4>
+                    <p class="my-0 small f3m-brand-text">All data will be wiped before the `offical` launch. Feel free to trash this site.</p>
+                </div>
                 <ul class="navbar-nav gap-1 ms-auto">
                     <AuthorizeView>
                         <Authorized>

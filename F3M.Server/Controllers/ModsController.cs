@@ -314,6 +314,12 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
     private static async Task RecalculateLatestVersion(AppDbContext appDbContext, int? modGroupId, Mod? incoming = null)
     {
         var existing = await appDbContext.Mods.Where(m => m.ModGroupId == modGroupId).ToListAsync();
+        if (existing.Count == 0)
+        {
+            incoming?.IsLatestVersion = true;
+            return;
+        }
+
         var all = incoming is not null
             ? existing.Append(incoming)
             : existing;

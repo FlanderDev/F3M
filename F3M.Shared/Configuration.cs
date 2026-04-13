@@ -8,7 +8,7 @@ public static class Configuration
 #else
         "Public Alpha";
 #endif
-    public static readonly string[] Categories = ["General", "Audio", "Textures", "Gameplay", "Items", "UI", "Maps", "Characters", "Weapons", "Other"];
+    public static readonly string[] Categories = ["BepInEx-Plugin", "Custom-Missions 1", "Custom-Missions 2", "Cosplay-Loader", "Texture Edits", "Others"];
     public static readonly string[] AllowedFileFormat = [".zip", ".rar", ".7z", ".pak", ".mod"];
     public static readonly string[] AllowedThumbnailFormat = [".jpg", ".jpeg", ".png", ".webp"];
 }

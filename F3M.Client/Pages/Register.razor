@@ -36,14 +36,14 @@
                 <ValidationMessage For="@(() => dto.Email)" class="text-danger small mt-1 d-block" />
             </div>
             <div class="mb-3">
+                @* // TODO: Remove this label*@
+                <label class="form-label fw-semibold small text-danger">PW HASING IS MEH RIGHT NOW. DO NOT USE RE-USE YOUR PASSWORDS (you never should).</label>
                 <label class="form-label fw-semibold small">Password</label>
                 <InputText class="form-control f3m-input" type="password" placeholder="At least 8 characters"
                            @bind-Value="dto.Password" />
                 <ValidationMessage For="@(() => dto.Password)" class="text-danger small mt-1 d-block" />
             </div>
             <div class="mb-4">
-                @* // TODO: Remove this label*@
-                <label class="form-label fw-semibold small text-danger">PW HASING IS MEH RIGHT NOW. DO NOT USE RE-USE YOUR PASSWORDS (you never should).</label>
                 <label class="form-label fw-semibold small">Confirm Password</label>
                 <InputText class="form-control f3m-input" type="password" placeholder="Repeat your password"
                            @bind-Value="dto.ConfirmPassword" />
