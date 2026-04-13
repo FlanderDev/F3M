@@ -1,0 +1,22 @@
+﻿<a href="@Href"
+       class="mx-1"
+       style="
+    background-image: url('@IconUrl');
+    background-size: 18px;
+    background-repeat: no-repeat;
+    background-position: left center;
+    padding-left: 20px;
+    ">
+    @Content
+</a>
+
+@code {
+    [Parameter]
+    public string IconUrl { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Href { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Content { get; set; } = string.Empty;
+}
