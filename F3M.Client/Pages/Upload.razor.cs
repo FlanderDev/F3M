@@ -2,6 +2,7 @@ using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 namespace F3M.Client.Pages;
@@ -140,18 +141,18 @@ public partial class Upload
         try
         {
             using var content = new MultipartFormDataContent();
-            content.Add(new StringContent(dto.Name), "Name");
-            content.Add(new StringContent(dto.Version), "Version");
-            content.Add(new StringContent(dto.Category), "Category");
-            content.Add(new StringContent(dto.Description ?? ""), "Description");
+            content.Add(new StringContent(dto.Name), nameof(ModUploadDto.Name));
+            content.Add(new StringContent(dto.Version), nameof(ModUploadDto.Version));
+            content.Add(new StringContent(dto.Category), nameof(ModUploadDto.Category));
+            content.Add(new StringContent(dto.Description ?? string.Empty), nameof(ModUploadDto.Description));
             if (dto.ModGroupId.HasValue)
-                content.Add(new StringContent(dto.ModGroupId.Value.ToString()), "ModGroupId");
+                content.Add(new StringContent(dto.ModGroupId.Value.ToString()), nameof(ModUploadDto.ModGroupId));
 
             // Preview image
             if (imageBytes is not null)
             {
                 var imgPart = new ByteArrayContent(imageBytes);
-                imgPart.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                imgPart.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                 content.Add(imgPart, "previewImage", imageFileName);
             }
 
@@ -162,9 +163,9 @@ public partial class Upload
             {
                 var entry = fileEntries[i];
                 var filePart = new ByteArrayContent(entry.Bytes);
-                filePart.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                filePart.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                 content.Add(filePart, "files", entry.OriginalName);
-                content.Add(new StringContent(entry.InstallPath ?? ""), "installPaths");
+                content.Add(new StringContent(entry.InstallPath ?? string.Empty), "installPaths");
                 content.Add(new StringContent(entry.OriginalName), "originalNames");
             }
 
@@ -200,6 +201,5 @@ public partial class Upload
         uploadSuccess = false; uploading = false; progress = 0; uploadedId = 0;
     }
 
-    private static string FormatSize(long b) =>
-        b >= 1_048_576 ? $"{b / 1_048_576.0:F1} MB" : $"{b / 1024.0:F1} KB";
+    private static string FormatSize(long b) => b >= 1_048_576 ? $"{b / 1_048_576.0:F1} MB" : $"{b / 1024.0:F1} KB";
 }
