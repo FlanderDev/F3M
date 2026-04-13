@@ -11,6 +11,9 @@
     <AspNetCoreVersion>10.*-*</AspNetCoreVersion>
     <EFVersion>9.*-*</EFVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Remove="wwwroot\.gitignore" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- EF Core: latest stable 9.x (no net10 release yet as of writing) -->
@@ -31,5 +34,9 @@
   <ItemGroup>
     <ProjectReference Include="..\F3M.Shared\F3M.Shared.csproj" />
     <ProjectReference Include="..\F3M.Client\F3M.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\.gitignore" />
   </ItemGroup>
 </Project>
