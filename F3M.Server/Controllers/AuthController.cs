@@ -29,8 +29,8 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
 
         var user = new AppUser
         {
-            Username     = dto.Username,
-            Email        = dto.Email,
+            Username = dto.Username,
+            Email = dto.Email,
             PasswordHash = HashPassword(dto.Password),
             RegisteredAt = DateTime.UtcNow
         };
@@ -44,8 +44,8 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         return Ok(new AuthResult
         {
             Success = true,
-            Token   = token,
-            User    = new UserInfo { Id = user.Id, Username = user.Username, Email = user.Email, IsAdmin = user.IsAdmin }
+            Token = token,
+            User = new UserInfo { Id = user.Id, Username = user.Username, Email = user.Email, IsAdmin = user.IsAdmin }
         });
     }
 
@@ -63,8 +63,8 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         return Ok(new AuthResult
         {
             Success = true,
-            Token   = token,
-            User    = new UserInfo { Id = user.Id, Username = user.Username, Email = user.Email, IsAdmin = user.IsAdmin }
+            Token = token,
+            User = new UserInfo { Id = user.Id, Username = user.Username, Email = user.Email, IsAdmin = user.IsAdmin }
         });
     }
 
@@ -73,8 +73,8 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
     private string GenerateToken(AppUser user)
     {
         var secret = config["Jwt:Secret"] ?? "f3m-super-secret-key-change-in-production-32chars!";
-        var key    = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
-        var creds  = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         // Use short JWT claim names to avoid the long-URI remapping mismatch
         // between JwtSecurityTokenHandler write and read paths.
@@ -87,19 +87,19 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         };
 
         var token = new JwtSecurityToken(
-            issuer:   "f3m",
+            issuer: "f3m",
             audience: "f3m",
-            claims:   claims,
-            expires:  DateTime.UtcNow.AddDays(30),
+            claims: claims,
+            expires: DateTime.UtcNow.AddDays(30),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private static string HashPassword(string password)
+    internal static string HashPassword(string password)
     {
-        var salt  = RandomNumberGenerator.GetBytes(16);
-        var hash  = Rfc2898DeriveBytes.Pbkdf2(
+        var salt = RandomNumberGenerator.GetBytes(16);
+        var hash = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password), salt,
             iterations: 100_000, HashAlgorithmName.SHA256, outputLength: 32);
         return $"{Convert.ToBase64String(salt)}:{Convert.ToBase64String(hash)}";
@@ -109,9 +109,9 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
     {
         var parts = stored.Split(':');
         if (parts.Length != 2) return false;
-        var salt     = Convert.FromBase64String(parts[0]);
+        var salt = Convert.FromBase64String(parts[0]);
         var expected = Convert.FromBase64String(parts[1]);
-        var actual   = Rfc2898DeriveBytes.Pbkdf2(
+        var actual = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password), salt,
             iterations: 100_000, HashAlgorithmName.SHA256, outputLength: 32);
         return CryptographicOperations.FixedTimeEquals(actual, expected);
