@@ -28,7 +28,9 @@
                 <ValidationMessage For="@(() => dto.Username)" class="text-danger small mt-1 d-block" />
             </div>
             <div class="mb-3">
-                <label class="form-label fw-semibold small">Email</label>
+                @* // TODO: Remove this label*@
+                <label class="form-label fw-semibold small text-warning">E-Mail dosen't do anything right now, feel free to enter garbage.</label> 
+                <label class="form-label fw-semibold small">Email</label> 
                 <InputText class="form-control f3m-input" type="email" placeholder="your@email.com"
                            @bind-Value="dto.Email" />
                 <ValidationMessage For="@(() => dto.Email)" class="text-danger small mt-1 d-block" />
@@ -40,6 +42,8 @@
                 <ValidationMessage For="@(() => dto.Password)" class="text-danger small mt-1 d-block" />
             </div>
             <div class="mb-4">
+                @* // TODO: Remove this label*@
+                <label class="form-label fw-semibold small text-danger">PW HASING IS MEH RIGHT NOW. DO NOT USE RE-USE YOUR PASSWORDS (you never should).</label>
                 <label class="form-label fw-semibold small">Confirm Password</label>
                 <InputText class="form-control f3m-input" type="password" placeholder="Repeat your password"
                            @bind-Value="dto.ConfirmPassword" />
@@ -53,7 +57,6 @@
                 Create Account
             </button>
         </EditForm>
-
         <p class="text-center small mt-4 mb-0">
             Already have an account? <a href="/login" class="text-warning fw-semibold">Sign In</a>
         </p>
