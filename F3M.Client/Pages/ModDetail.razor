@@ -284,7 +284,7 @@ else
                                  @onclick="() => SelectVersion(v)">
                                 <div class="f3m-version-dot @(latest ? "latest" : string.Empty)"></div>
                                 <div class="flex-grow-1">
-                                    <span class="fw-semibold small">v@v.Version</span>
+                                    <span class="fw-semibold small">v: @v.Version</span>
                                     @if (latest) { <span class="ms-2 badge" style="background:rgba(255,193,7,.15);color:var(--f3m-amber);font-size:.6rem;">Latest</span> }
                                 </div>
                                 <span  style="font-size:.72rem;">
