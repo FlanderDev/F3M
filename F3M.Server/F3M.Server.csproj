@@ -1,42 +1,38 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <!--
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<!--
       AspNetCoreVersion is resolved at build time from the installed SDK.
       This avoids hard-coding 9.x vs 10.x and prevents the MIME-type error
       caused by UseBlazorFrameworkFiles() not finding the WASM output.
     -->
-    <AspNetCoreVersion>10.*-*</AspNetCoreVersion>
-    <EFVersion>9.*-*</EFVersion>
-  </PropertyGroup>
-  <ItemGroup>
-    <Content Remove="wwwroot\.gitignore" />
-  </ItemGroup>
+		<AspNetCoreVersion>10.*-*</AspNetCoreVersion>
+		<EFVersion>9.*-*</EFVersion>
+	</PropertyGroup>
+	<ItemGroup>
+		<Content Remove="wwwroot\.gitignore" />
+	</ItemGroup>
+	
+	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.6" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.6">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+		</PackageReference>
 
-  <ItemGroup>
-    <!-- EF Core: latest stable 9.x (no net10 release yet as of writing) -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.6" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.6">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="$(AspNetCoreVersion)" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(AspNetCoreVersion)" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.*-*" />
+	</ItemGroup>
 
-    <!-- These MUST match the runtime: use the SDK-matching wildcard -->
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="$(AspNetCoreVersion)" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(AspNetCoreVersion)" />
+	<ItemGroup>
+		<ProjectReference Include="..\F3M.Shared\F3M.Shared.csproj" />
+		<ProjectReference Include="..\F3M.Client\F3M.Client.csproj" />
+	</ItemGroup>
 
-    <!-- Independent of ASP.NET Core versioning -->
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.*-*" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\F3M.Shared\F3M.Shared.csproj" />
-    <ProjectReference Include="..\F3M.Client\F3M.Client.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="wwwroot\.gitignore" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Include="wwwroot\.gitignore" />
+	</ItemGroup>
 </Project>
