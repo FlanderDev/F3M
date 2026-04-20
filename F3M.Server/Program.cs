@@ -14,7 +14,7 @@ if (dir != null)
     Directory.CreateDirectory(dir.FullName);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "f3m-super-secret-key-change-in-production-32chars!";
+var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "f3m-super-secret-key-change-in-production-32chars!"; // TODO: You know.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters

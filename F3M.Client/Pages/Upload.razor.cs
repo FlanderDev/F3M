@@ -49,6 +49,7 @@ public partial class Upload
     private int uploadedId;
     private int progress;
 
+    private bool fsdOpen = false;
 
     private const long MaxMod = 512L * 1024 * 1024;
     private const long MaxImage = 8L * 1024 * 1024;

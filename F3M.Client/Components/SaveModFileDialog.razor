@@ -1,0 +1,122 @@
+﻿@*
+    SaveFileDialog.razor
+    A virtual save-file dialog that returns a path string.
+    No real filesystem — purely for collecting a save/install path.
+
+    Parameters
+      Visible        – show/hide; supports @bind-Visible
+      Title          – dialog header text          (default: "Save File")
+      DefaultName    – pre-fill the filename input (default: "")
+      InitialPath    – navigate to this path on open (default: "")
+      OnSave         – EventCallback<string> fired with the full path
+      OnCancel       – EventCallback fired on dismiss
+*@
+
+@if (Visible)
+{
+    <div class="sfd-backdrop" @onclick="Cancel">
+        <div class="sfd-dialog" @onclick:stopPropagation @onkeydown="OnDialogKey" tabindex="0">
+
+            <!-- Title bar -->
+            <div class="sfd-titlebar">
+                <i class="bi bi-folder2-open sfd-titlebar-icon"></i>
+                <span class="sfd-title">@Title</span>
+                <button class="sfd-close" @onclick="Cancel"><i class="bi bi-x-lg"></i></button>
+            </div>
+
+            <!-- Breadcrumb / toolbar row -->
+            <div class="sfd-toolbar">
+                <button class="sfd-toolbtn" @onclick="GoUp" disabled="@(_crumbs.Count <= 1)" title="Up">
+                    <i class="bi bi-arrow-up"></i>
+                </button>
+                <div class="sfd-breadcrumbs">
+                    @for (int i = 0; i < _crumbs.Count; i++)
+                    {
+                        var depth = i;
+                        var isLast = i == _crumbs.Count - 1;
+                        <button class="sfd-crumb @(isLast ? "active" : string.Empty)"
+                                @onclick="() => NavigateToCrumb(depth)">
+                            @_crumbs[depth].Label
+                        </button>
+                        @if (!isLast)
+                        {
+                            <i class="bi bi-chevron-right sfd-crumb-sep"></i>
+                        }
+                    }
+                </div>
+                <button class="sfd-toolbtn" @onclick="BeginNewFolder" title="New folder">
+                    <i class="bi bi-folder-plus"></i>
+                </button>
+            </div>
+
+            <!-- File pane -->
+            <div class="sfd-pane">
+                @if (_newFolderMode)
+                {
+                    <div class="sfd-entry sfd-new-folder-entry">
+                        <i class="bi bi-folder-fill sfd-icon-dir"></i>
+                        <input @ref="_newFolderRef"
+                               class="sfd-inline-input"
+                               type="text"
+                               placeholder="Folder name"
+                               @bind="_newFolderName"
+                               @bind:event="oninput"
+                               @onkeydown="OnNewFolderKey" />
+                        <button class="sfd-toolbtn" @onclick="CommitNewFolder"><i class="bi bi-check-lg"></i></button>
+                        <button class="sfd-toolbtn" @onclick="CancelNewFolder"><i class="bi bi-x-lg"></i></button>
+                    </div>
+                }
+
+                @if (Current.Children.Count == 0 && !_newFolderMode)
+                {
+                    <div class="sfd-empty">
+                        <i class="bi bi-folder2 sfd-empty-icon"></i>
+                        <span>Empty folder</span>
+                    </div>
+                }
+                else
+                {
+                    foreach (var node in Current.Children.OrderByDescending(n => n.IsDir).ThenBy(n => n.Name))
+                    {
+                        <div class="sfd-entry @(_selected == node ? "selected" : string.Empty)"
+                             @onclick="() => SelectNode(node)"
+                             @ondblclick="() => ActivateNode(node)">
+                            <i class="@(node.IsDir ? "bi bi-folder-fill sfd-icon-dir" : "bi bi-file-earmark sfd-icon-file")"></i>
+                            <span class="sfd-entry-name">@node.Name</span>
+                        </div>
+                    }
+                }
+            </div>
+
+            <i class="text-small f3m-brand-text">hint: double-click directories</i>
+            <!-- Filename input row -->
+            <div class="sfd-filename-row">
+                <label class="sfd-label">File name</label>
+                <input @ref="_fileNameRef"
+                       class="sfd-filename-input"
+                       type="text"
+                       placeholder="Enter filename…"
+                       @bind="_fileName"
+                       @bind:event="oninput"
+                       @onkeydown="OnFileNameKey" />
+            </div>
+
+            <!-- Live path preview -->
+            <div class="sfd-preview">
+                <i class="bi bi-link-45deg"></i>
+                <span class="sfd-preview-path">@FullPath</span>
+            </div>
+
+            <!-- Actions -->
+            <div class="sfd-actions my-2">
+                <button class="btn btn-outline-secondary fw-semibold" @onclick="Cancel">Cancel</button>
+                <button class="btn btn-warning fw-bold px-4"
+                        @onclick="Confirm"
+                        disabled="@string.IsNullOrWhiteSpace(_fileName)">
+                    <i class="bi bi-floppy me-2"></i>Save
+                </button>
+            </div>
+
+        </div>
+    </div>
+}

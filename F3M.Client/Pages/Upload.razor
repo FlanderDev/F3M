@@ -136,6 +136,15 @@
                                                placeholder="Install path (e.g. Manaka/Mods/Textures)"
                                                value="@entry.InstallPath"
                                                @oninput="@(e => fileEntries[idx].InstallPath = e.Value?.ToString() ?? string.Empty)" />
+
+                                        <button type="button" class="btn btn-sm btn-outline-warning flex-shrink-0" @onclick="() => fsdOpen = true">
+                                            <i class="bi bi-folder2-open"></i>
+                                            <SaveModFileDialog @bind-Visible="fsdOpen"
+                                                            Title="Choose Install Path"
+                                                            InitialPath="Manaka/Mods/Textures"
+                                                            DefaultName="@entry.OriginalName"
+                                                            OnSave="savePath => entry.InstallPath = savePath" />
+                                        </button>
                                     </div>
                                 </div>
                             }
@@ -175,8 +184,7 @@
                     </div>
                 }
 
-                <button type="submit" class="btn btn-warning fw-bold w-100"
-                        disabled="@(uploading || fileEntries.Count == 0)">
+                <button type="submit" class="btn btn-warning fw-bold w-100" disabled="@(uploading || fileEntries.Count == 0)">
                     @if (uploading)
                     {
                         <span class="spinner-border spinner-border-sm me-2"></span>
