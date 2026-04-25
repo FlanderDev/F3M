@@ -9,7 +9,7 @@ namespace F3M.Shared.Models;
 public class ModGroup
 {
     public int Id { get; set; }
-    public int? OwnerId { get; set; }   // UserId who created this group
+    public int OwnerId { get; set; }   // UserId who created this group
     public string Author { get; set; } = string.Empty;
 }
 

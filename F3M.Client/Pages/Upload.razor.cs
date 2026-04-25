@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace F3M.Client.Pages;
 
@@ -11,6 +12,7 @@ public partial class Upload
 {
     [Parameter]
     public int? GroupId { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private ModUploadDto dto = new();
 
@@ -134,6 +136,18 @@ public partial class Upload
     // ── Submit ────────────────────────────────────────────────────────────────
     private async Task HandleSubmit()
     {
+        // Verify user is logged in before processing files
+        if (AuthState != null)
+        {
+            var state = await AuthState;
+            bool isAuthenticated = state.User.Identity?.IsAuthenticated ?? false;
+        
+            if (!isAuthenticated)
+            {
+                uploadError = "You must be signed in to upload mods.";
+                return;
+            }
+        }
         if (fileEntries.Count == 0) return;
 
         uploading = true; uploadError = null; progress = 10;
