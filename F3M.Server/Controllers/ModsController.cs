@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using F3M.Server.Data;
+using F3M.Server.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -132,7 +133,9 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         // --- DEBUGGING STEP END ---
         
         var username = User.FindFirstValue("name") ?? "unknown";
-        var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null;
+        var userId = Helper.GetUserId(User);
+        logger.LogInformation($"User ID: {userId}");
+        // var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null;
         
         if (userId is null) return BadRequest("User ID not found."); 
 
@@ -290,21 +293,21 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
     public async Task<ActionResult<Mod>> Edit(int id, [FromBody] ModEditDto dto)
     {
         // --- DEBUGGING STEP START ---
-        foreach (var claim in User.Claims)
-        {
-            logger.LogInformation($"Claim Type: '{claim.Type}', Value: '{claim.Value}'");
-        }
-        var rawSub = User.FindFirst("sub")?.Value;
-        logger.LogInformation($"Direct FindFirst('sub') result: {rawSub ?? "NULL"}");
+        // foreach (var claim in User.Claims)
+        // {
+        //     logger.LogInformation($"Claim Type: '{claim.Type}', Value: '{claim.Value}'");
+        // }
+        // var rawSub = User.FindFirst("sub")?.Value;
+        // logger.LogInformation($"Direct FindFirst('sub') result: {rawSub ?? "NULL"}");
         // --- DEBUGGING STEP END ---
         
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
         if (mod is null) return NotFound();
 
-        var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null;
+        var userId = Helper.GetUserId(User);
         var isAdmin = User.IsInRole("Admin");
         var group = await db.ModGroups.FindAsync(mod.ModGroupId);
-        logger.LogInformation($"ModGroup: {group?.OwnerId} vs {userId}");
+        // logger.LogInformation($"ModGroup: {group?.OwnerId} vs {userId}");
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
 
         mod.Name = dto.Name;
@@ -325,7 +328,7 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
         if (mod is null) return NotFound();
 
-        var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null;
+        var userId = Helper.GetUserId(User);
         var isAdmin = User.IsInRole("Admin");
         var group = await db.ModGroups.FindAsync(mod.ModGroupId);
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
