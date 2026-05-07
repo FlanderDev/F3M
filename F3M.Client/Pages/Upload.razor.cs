@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using F3M.Client.Business;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace F3M.Client.Pages;
@@ -137,16 +138,11 @@ public partial class Upload
     private async Task HandleSubmit()
     {
         // Verify user is logged in before processing files
-        if (AuthState != null)
+        bool isAuthed = await Helper.IsAuthenticatedAsync(AuthState);
+        if (!isAuthed)
         {
-            var state = await AuthState;
-            bool isAuthenticated = state.User.Identity?.IsAuthenticated ?? false;
-        
-            if (!isAuthenticated)
-            {
-                uploadError = "You must be signed in to upload mods.";
-                return;
-            }
+            uploadError = "You must be signed in to upload mods.";
+            return;
         }
         if (fileEntries.Count == 0) return;
 
