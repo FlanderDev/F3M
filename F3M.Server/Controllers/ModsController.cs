@@ -123,12 +123,12 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         IFormFile? previewImage)
     {
         // --- DEBUGGING STEP START ---
-        foreach (var claim in User.Claims)
-        {
-            logger.LogInformation($"Claim Type: '{claim.Type}', Value: '{claim.Value}'");
-        }
-        var rawSub = User.FindFirst("sub")?.Value;
-        logger.LogInformation($"Direct FindFirst('sub') result: {rawSub ?? "NULL"}");
+        // foreach (var claim in User.Claims)
+        // {
+        //     logger.LogInformation($"Claim Type: '{claim.Type}', Value: '{claim.Value}'");
+        // }
+        // var rawSub = User.FindFirst("sub")?.Value;
+        // logger.LogInformation($"Direct FindFirst('sub') result: {rawSub ?? "NULL"}");
         // --- DEBUGGING STEP END ---
         
         var username = User.FindFirstValue("name") ?? "unknown";
@@ -150,28 +150,39 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         }
         
         // ── Check if user is in mod group ─────────────────────────────────────
-        ModGroup group;
-        var existingUserModGroup = await db.ModGroups.Where(g => g.OwnerId == userId).FirstOrDefaultAsync();
-        if (existingUserModGroup is null)
+        ModGroup? group = null;
+        if (dto.ModGroupId is { } modGroupId)
         {
+            // This is a new version of an existing mod
+            var existing = db.Mods.FirstOrDefault(m => m.ModGroupId == modGroupId);
+            if (existing is null) return BadRequest("Mod not found.");
+            if (existing.UserId != userId) return Forbid();
+            var existingModGroup = db.ModGroups.FirstOrDefault(m => m.Id == modGroupId);
+            if (existingModGroup is not null)
+            {
+                group = existingModGroup;
+            }
+        }
+        if (group is null)
+        {
+            // Mod doesn't exist yet
             if (userId == null) return Forbid();
             
             group = new ModGroup { Author = username, OwnerId = userId.Value };
             db.ModGroups.Add(group);
             await db.SaveChangesAsync(); // need Id before creating Mod
         }
-        else group = existingUserModGroup;
 
         // ── Validate / resolve mod group ──────────────────────────────────────
         // Mod group should exist at this point
-        if (dto.ModGroupId.HasValue)
-        {
-            var existing = await db.ModGroups.FindAsync(dto.ModGroupId.Value);
-            if (existing is null) return BadRequest("ModGroup not found.");
-            if (existing.OwnerId != userId)
-                return Forbid(); // only the original uploader can add versions
-            group = existing;
-        }
+        // if (dto.ModGroupId.HasValue)
+        // {
+        //     var existing = await db.ModGroups.FindAsync(dto.ModGroupId.Value);
+        //     if (existing is null) return BadRequest("ModGroup not found.");
+        //     if (existing.OwnerId != userId)
+        //         return Forbid(); // only the original uploader can add versions
+        //     group = existing;
+        // }
 
         // ── Save preview image ────────────────────────────────────────────────
         string? previewName = null;
