@@ -45,11 +45,7 @@ public partial class ModDetail
             if (AuthState is not null)
             {
                 var state = await AuthState;
-                JS.InvokeVoidAsync("console.log", $"OwnerId: {result?.Group.OwnerId}");
-                foreach (var c in state.User.Claims)
-                    if (c.Type == "sub") JS.InvokeVoidAsync("console.log", $"Claim: {c.Type}: {c.Value}");
-                var userIdStr = state.User.FindFirst(
-                    "sub")?.Value;
+                var userIdStr = state.User.FindFirst("sub")?.Value;
                 if (int.TryParse(userIdStr, out var userId))
                     isOwner = result?.Group.OwnerId == userId;
                 isAdmin = state.User.IsInRole("Admin");
