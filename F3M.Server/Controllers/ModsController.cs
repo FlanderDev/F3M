@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using F3M.Server.Data;
+using F3M.Server.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -122,8 +123,21 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         [FromForm] List<string> originalNames,
         IFormFile? previewImage)
     {
+        // --- DEBUGGING STEP START ---
+        // foreach (var claim in User.Claims)
+        // {
+        //     logger.LogInformation($"Claim Type: '{claim.Type}', Value: '{claim.Value}'");
+        // }
+        // var rawSub = User.FindFirst("sub")?.Value;
+        // logger.LogInformation($"Direct FindFirst('sub') result: {rawSub ?? "NULL"}");
+        // --- DEBUGGING STEP END ---
+        
         var username = User.FindFirstValue("name") ?? "unknown";
-        var userId = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
+        var userId = Helper.GetUserId(User);
+        logger.LogInformation($"User ID: {userId}");
+        // var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null;
+        
+        if (userId is null) return BadRequest("User ID not found."); 
 
         // ── Validate files ────────────────────────────────────────────────────
         if (files.Count == 0)
@@ -137,23 +151,41 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
             if (!AllowedModExtensions.Contains(ext))
                 return BadRequest($"File type '{ext}' not allowed. Accepted: {string.Join(", ", AllowedModExtensions)}");
         }
-
-        // ── Validate / resolve mod group ──────────────────────────────────────
-        ModGroup group;
-        if (dto.ModGroupId.HasValue)
+        
+        // ── Check if user is in mod group ─────────────────────────────────────
+        ModGroup? group = null;
+        if (dto.ModGroupId is { } modGroupId)
         {
-            var existing = await db.ModGroups.FindAsync(dto.ModGroupId.Value);
-            if (existing is null) return BadRequest("ModGroup not found.");
-            if (existing.OwnerId.HasValue && existing.OwnerId != userId)
-                return Forbid(); // only the original uploader can add versions
-            group = existing;
+            // This is a new version of an existing mod
+            var existing = db.Mods.FirstOrDefault(m => m.ModGroupId == modGroupId);
+            if (existing is null) return BadRequest("Mod not found.");
+            if (existing.UserId != userId) return Forbid();
+            var existingModGroup = db.ModGroups.FirstOrDefault(m => m.Id == modGroupId);
+            if (existingModGroup is not null)
+            {
+                group = existingModGroup;
+            }
         }
-        else
+        if (group is null)
         {
-            group = new ModGroup { Author = username, OwnerId = userId };
+            // Mod doesn't exist yet
+            if (userId == null) return Forbid();
+            
+            group = new ModGroup { Author = username, OwnerId = userId.Value };
             db.ModGroups.Add(group);
             await db.SaveChangesAsync(); // need Id before creating Mod
         }
+
+        // ── Validate / resolve mod group ──────────────────────────────────────
+        // Mod group should exist at this point
+        // if (dto.ModGroupId.HasValue)
+        // {
+        //     var existing = await db.ModGroups.FindAsync(dto.ModGroupId.Value);
+        //     if (existing is null) return BadRequest("ModGroup not found.");
+        //     if (existing.OwnerId != userId)
+        //         return Forbid(); // only the original uploader can add versions
+        //     group = existing;
+        // }
 
         // ── Save preview image ────────────────────────────────────────────────
         string? previewName = null;
@@ -260,12 +292,22 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
     [Authorize]
     public async Task<ActionResult<Mod>> Edit(int id, [FromBody] ModEditDto dto)
     {
+        // --- DEBUGGING STEP START ---
+        // foreach (var claim in User.Claims)
+        // {
+        //     logger.LogInformation($"Claim Type: '{claim.Type}', Value: '{claim.Value}'");
+        // }
+        // var rawSub = User.FindFirst("sub")?.Value;
+        // logger.LogInformation($"Direct FindFirst('sub') result: {rawSub ?? "NULL"}");
+        // --- DEBUGGING STEP END ---
+        
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
         if (mod is null) return NotFound();
 
-        var userId = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
+        var userId = Helper.GetUserId(User);
         var isAdmin = User.IsInRole("Admin");
         var group = await db.ModGroups.FindAsync(mod.ModGroupId);
+        // logger.LogInformation($"ModGroup: {group?.OwnerId} vs {userId}");
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
 
         mod.Name = dto.Name;
@@ -286,7 +328,7 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
         if (mod is null) return NotFound();
 
-        var userId = int.TryParse(User.FindFirstValue("sub"), out var uid) ? uid : (int?)null;
+        var userId = Helper.GetUserId(User);
         var isAdmin = User.IsInRole("Admin");
         var group = await db.ModGroups.FindAsync(mod.ModGroupId);
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
