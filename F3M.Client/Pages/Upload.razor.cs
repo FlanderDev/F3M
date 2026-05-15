@@ -138,15 +138,18 @@ public partial class Upload
     private async Task HandleSubmit()
     {
         // Verify user is logged in before processing files
-        bool isAuthed = await Helper.IsAuthenticatedAsync(AuthState);
+        bool isAuthed = await AuthState.IsAuthenticatedAsync();
         if (!isAuthed)
         {
             uploadError = "You must be signed in to upload mods.";
             return;
         }
-        if (fileEntries.Count == 0) return;
+        if (fileEntries.Count == 0)
+            return;
 
-        uploading = true; uploadError = null; progress = 10;
+        uploading = true; 
+        uploadError = null; 
+        progress = 10;
         StateHasChanged();
 
         try

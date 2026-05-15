@@ -135,9 +135,9 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         var username = User.FindFirstValue("name") ?? "unknown";
         var userId = Helper.GetUserId(User);
         logger.LogInformation($"User ID: {userId}");
-        // var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : (int?)null;
         
-        if (userId is null) return BadRequest("User ID not found."); 
+        if (userId is null)
+            return BadRequest("User ID not found."); 
 
         // ── Validate files ────────────────────────────────────────────────────
         if (files.Count == 0)
@@ -145,8 +145,12 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
 
         foreach (var f in files)
         {
-            if (f.Length == 0) return BadRequest($"File '{f.FileName}' is empty.");
-            if (f.Length > MaxModSize) return BadRequest($"File '{f.FileName}' exceeds 512 MB.");
+            if (f.Length == 0)
+                return BadRequest($"File '{f.FileName}' is empty.");
+
+            if (f.Length > MaxModSize)
+                return BadRequest($"File '{f.FileName}' exceeds 512 MB.");
+
             var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
             if (!AllowedModExtensions.Contains(ext))
                 return BadRequest($"File type '{ext}' not allowed. Accepted: {string.Join(", ", AllowedModExtensions)}");
@@ -154,22 +158,23 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         
         // ── Check if user is in mod group ─────────────────────────────────────
         ModGroup? group = null;
-        if (dto.ModGroupId is { } modGroupId)
+        if (dto.ModGroupId is { } modGroupId) // This is a new version of an existing mod
         {
-            // This is a new version of an existing mod
             var existing = db.Mods.FirstOrDefault(m => m.ModGroupId == modGroupId);
-            if (existing is null) return BadRequest("Mod not found.");
-            if (existing.UserId != userId) return Forbid();
+            if (existing is null)
+                return BadRequest($"Mod with group ID {modGroupId} not found.");
+            if (existing.UserId != userId)
+                return Forbid();
+
             var existingModGroup = db.ModGroups.FirstOrDefault(m => m.Id == modGroupId);
             if (existingModGroup is not null)
-            {
                 group = existingModGroup;
-            }
         }
-        if (group is null)
+
+        if (group is null) // ModGroup doesn't exist yet
         {
-            // Mod doesn't exist yet
-            if (userId == null) return Forbid();
+            if (userId == null)
+                return Forbid();
             
             group = new ModGroup { Author = username, OwnerId = userId.Value };
             db.ModGroups.Add(group);
