@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Components.Authorization;
 
 namespace F3M.Client.Business;
 
-public class Helper
+public static class Helper
 {
-    internal static async Task<bool> IsAuthenticatedAsync(Task<AuthenticationState>? authenticationState)
+    internal static async Task<bool> IsAuthenticatedAsync(this Task<AuthenticationState>? authenticationState)
     {
-        if (authenticationState is null) return false;
-        var state = await authenticationState;
-        return state?.User.Identity?.IsAuthenticated ?? false;
+        if (authenticationState is null)
+            return false;
+        
+        return (await authenticationState)?.User.Identity?.IsAuthenticated ?? false;
     }
 }
