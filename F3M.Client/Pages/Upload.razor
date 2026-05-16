@@ -67,11 +67,12 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">Description</label>
+                    <label class="form-label fw-semibold small">Description <span class="text-danger">*</span></label>
                     <InputTextArea class="form-control f3m-input" rows="3"
                                    placeholder="What does your mod do? Include compatibility notes."
                                    @bind-Value="dto.Description" />
                     <div style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
+                    <ValidationMessage For="@(() => dto.Description)" class="text-danger small mt-1 d-block" />
                 </div>
 
                 <!-- Preview image -->
