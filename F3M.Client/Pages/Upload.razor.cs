@@ -13,7 +13,9 @@ public partial class Upload
 {
     [Parameter]
     public int? GroupId { get; set; }
-    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
 
     private ModUploadDto dto = new();
 
@@ -24,7 +26,7 @@ public partial class Upload
     // ── File entries list ─────────────────────────────────────────────────────
     // Must be a class (not a record) so InstallPath mutations via @oninput
     // are reflected on the same heap object (records are nominally immutable).
-    private class FileEntry
+    private sealed class FileEntry
     {
         public required string OriginalName { get; init; }
         public required long Size { get; init; }
@@ -158,7 +160,7 @@ public partial class Upload
             content.Add(new StringContent(dto.Name), nameof(ModUploadDto.Name));
             content.Add(new StringContent(dto.Version), nameof(ModUploadDto.Version));
             content.Add(new StringContent(dto.Category), nameof(ModUploadDto.Category));
-            content.Add(new StringContent(dto.Description ?? string.Empty), nameof(ModUploadDto.Description));
+            content.Add(new StringContent(dto.Description), nameof(ModUploadDto.Description));
             if (dto.ModGroupId.HasValue)
                 content.Add(new StringContent(dto.ModGroupId.Value.ToString()), nameof(ModUploadDto.ModGroupId));
 

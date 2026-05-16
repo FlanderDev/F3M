@@ -10,7 +10,7 @@ namespace F3M.Server.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<ModsController> logger) : ControllerBase
+public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<ModsController> logger) : ControllerBase
 {
     private static readonly string[] AllowedModExtensions = [".zip", ".rar", ".7z", ".pak", ".mod"];
     private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
@@ -123,15 +123,6 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
         [FromForm] List<string> originalNames,
         IFormFile? previewImage)
     {
-        // --- DEBUGGING STEP START ---
-        // foreach (var claim in User.Claims)
-        // {
-        //     logger.LogInformation($"Claim Type: '{claim.Type}', Value: '{claim.Value}'");
-        // }
-        // var rawSub = User.FindFirst("sub")?.Value;
-        // logger.LogInformation($"Direct FindFirst('sub') result: {rawSub ?? "NULL"}");
-        // --- DEBUGGING STEP END ---
-        
         var username = User.FindFirstValue("name") ?? "unknown";
         var userId = Helper.GetUserId(User);
         logger.LogInformation($"User ID: {userId}");
@@ -180,17 +171,6 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
             db.ModGroups.Add(group);
             await db.SaveChangesAsync(); // need Id before creating Mod
         }
-
-        // ── Validate / resolve mod group ──────────────────────────────────────
-        // Mod group should exist at this point
-        // if (dto.ModGroupId.HasValue)
-        // {
-        //     var existing = await db.ModGroups.FindAsync(dto.ModGroupId.Value);
-        //     if (existing is null) return BadRequest("ModGroup not found.");
-        //     if (existing.OwnerId != userId)
-        //         return Forbid(); // only the original uploader can add versions
-        //     group = existing;
-        // }
 
         // ── Save preview image ────────────────────────────────────────────────
         string? previewName = null;
@@ -297,15 +277,6 @@ public class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<Mo
     [Authorize]
     public async Task<ActionResult<Mod>> Edit(int id, [FromBody] ModEditDto dto)
     {
-        // --- DEBUGGING STEP START ---
-        // foreach (var claim in User.Claims)
-        // {
-        //     logger.LogInformation($"Claim Type: '{claim.Type}', Value: '{claim.Value}'");
-        // }
-        // var rawSub = User.FindFirst("sub")?.Value;
-        // logger.LogInformation($"Direct FindFirst('sub') result: {rawSub ?? "NULL"}");
-        // --- DEBUGGING STEP END ---
-        
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
         if (mod is null) return NotFound();
 
