@@ -11,7 +11,7 @@ public static class Configuration
         "Public Alpha {BuildTimeStamp}";
 #endif
     public static readonly string BuildTimeStamp = Assembly.GetExecutingAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>() is { } aiva
-        ? aiva.InformationalVersion
+        ? aiva.InformationalVersion.Split('+').Last()
         : $"No Build info";
 
     //if (DateTime.TryParse(timeString, out var dt))
@@ -19,6 +19,6 @@ public static class Configuration
 
     public const string AppName = nameof(F3M);
     public static readonly string[] Categories = ["BepInEx-Plugin", "Custom-Missions 1", "Custom-Missions 2", "Cosplay-Loader", "Texture Edits", "Others"];
-    public static readonly string[] AllowedFileFormat = [".zip", ".rar", ".7z", ".pak", ".mod"];
+    public static readonly string[] AllowedFileFormat = [".dll", ".zip", ".rar", ".7z", ".pak", ".mod"];
     public static readonly string[] AllowedThumbnailFormat = [".jpg", ".jpeg", ".png", ".webp"];
 }

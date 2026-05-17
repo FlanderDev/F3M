@@ -11,4 +11,9 @@ public static class Helper
         
         return (await authenticationState)?.User.Identity?.IsAuthenticated ?? false;
     }
+
+    public static string FileSize(this long bytes) =>
+        bytes >= 1_048_576
+            ? $"{bytes / 1_048_576.0:F1} MB"
+            : $"{bytes / 1024.0:F1} KB";
 }

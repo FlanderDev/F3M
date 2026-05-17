@@ -1,0 +1,18 @@
+@* Shown after a successful mod upload. *@
+
+<div class="f3m-surface rounded-3 p-5 text-center border"
+     style="border-color:rgba(255,193,7,.2) !important;">
+    <i class="bi bi-check-circle-fill display-4 text-warning d-block mb-3"></i>
+    <h4 class="fw-black mb-2">@(IsNewVersion ? "New version uploaded!" : "Mod uploaded!")</h4>
+    <p class="small mb-4">Your mod is now live.</p>
+    <div class="d-flex justify-content-center gap-3">
+        <a href="/mod/@ModId" class="btn btn-warning fw-bold px-4">View Mod</a>
+        <button class="btn btn-outline-secondary" @onclick="OnUploadAnother">Upload Another</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int ModId { get; set; }
+    [Parameter] public bool IsNewVersion { get; set; }
+    [Parameter] public EventCallback OnUploadAnother { get; set; }
+}

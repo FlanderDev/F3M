@@ -9,7 +9,7 @@
 
 <div class="container py-5" style="max-width:720px;">
     <div class="mb-4">
-        <h1 class="fw-black mb-1 fs-2">@(IsNewVersion ? $"Upload New Version" : "Upload a Mod")</h1>
+        <h1 class="fw-black mb-1 fs-2">@(IsNewVersion ? "Upload New Version" : "Upload a Mod")</h1>
         @if (IsNewVersion && existingMod is not null)
         {
             <p class="small mb-0">
@@ -25,15 +25,9 @@
 
     @if (uploadSuccess)
     {
-        <div class="f3m-surface rounded-3 p-5 text-center border" style="border-color:rgba(255,193,7,.2) !important;">
-            <i class="bi bi-check-circle-fill display-4 text-warning d-block mb-3"></i>
-            <h4 class="fw-black mb-2">@(IsNewVersion ? "New version uploaded!" : "Mod uploaded!")</h4>
-            <p class="small mb-4">Your mod is now live.</p>
-            <div class="d-flex justify-content-center gap-3">
-                <a href="/mod/@uploadedId" class="btn btn-warning fw-bold px-4">View Mod</a>
-                <button class="btn btn-outline-secondary" @onclick="Reset">Upload Another</button>
-            </div>
-        </div>
+        <UploadSuccessBanner ModId="uploadedId"
+                             IsNewVersion="IsNewVersion"
+                             OnUploadAnother="Reset" />
     }
     else
     {
@@ -41,7 +35,7 @@
             <EditForm Model="dto" OnValidSubmit="HandleSubmit">
                 <DataAnnotationsValidator />
 
-                <!-- Mod metadata (lock name/category when adding a version) -->
+                <!-- Mod name -->
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Mod Name <span class="text-danger">*</span></label>
                     <InputText class="form-control f3m-input" placeholder="e.g. HD Texture Overhaul"
@@ -49,6 +43,7 @@
                     <ValidationMessage For="@(() => dto.Name)" class="text-danger small mt-1 d-block" />
                 </div>
 
+                <!-- Version + category -->
                 <div class="row g-3 mb-3">
                     <div class="col-4">
                         <label class="form-label fw-semibold small">Version <span class="text-danger">*</span></label>
@@ -66,6 +61,7 @@
                     </div>
                 </div>
 
+                <!-- Description -->
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Description <span class="text-danger">*</span></label>
                     <InputTextArea class="form-control f3m-input" rows="3"
@@ -77,99 +73,18 @@
 
                 <!-- Preview image -->
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">
-                        Preview Image
-                        <span class="fw-normal">(optional@(IsNewVersion ? ", leave blank to keep existing" : string.Empty), max 8 MB)</span>
-                    </label>
-                    @if (previewDataUrl is not null)
-                    {
-                        <div class="f3m-preview-thumb mb-2">
-                            <img src="@previewDataUrl" alt="Preview" />
-                            <button type="button" class="f3m-preview-remove" @onclick="ClearImage">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-                    }
-                    <label class="f3m-dropzone @(previewDataUrl != null ? "d-none" : string.Empty)" style="cursor:pointer;">
-                        <i class="bi bi-image fs-3 d-block mb-1"></i>
-                        <span class="small ">Click to choose an image (JPG, PNG, WebP)</span>
-                        <InputFile OnChange="OnImageSelected" accept=".jpg,.jpeg,.png,.webp" style="display:none;" />
-                    </label>
-                    @if (imageError is not null)
-                    {
-                        <p class="text-danger small mt-1">@imageError</p>
-                    }
+                    <PickerImage HintText="@ImagePickerHint"
+                                   @bind-ImageBytes="imageBytes"
+                                   @bind-ImageFileName="imageFileName"
+                                   @bind-PreviewDataUrl="previewDataUrl" />
                 </div>
 
-                <!-- ── Mod files list ─────────────────────────────────────── -->
+                <!-- Mod files -->
                 <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label fw-semibold small mb-0">
-                            Mod Files <span class="text-danger">*</span>
-                            <span class="fw-normal"> — ZIP, RAR, 7Z, PAK, MOD (max 512 MB each)</span>
-                        </label>
-                        <span class="badge bg-secondary">@fileEntries.Count file@(fileEntries.Count != 1 ? "s" : string.Empty)</span>
-                    </div>
-
-                    @if (fileEntries.Count > 0)
-                    {
-                        <div class="d-flex flex-column gap-2 mb-2">
-                            @for (int i = 0; i < fileEntries.Count; i++)
-                            {
-                                var idx = i;
-                                var entry = fileEntries[idx];
-                                <div class="f3m-file-entry">
-                                    <div class="f3m-file-entry-top">
-                                        <i class="bi bi-file-zip-fill text-warning fs-5 flex-shrink-0"></i>
-                                        <div class="flex-grow-1 overflow-hidden">
-                                            <div class="fw-semibold small text-truncate">@entry.OriginalName</div>
-                                            <div style="font-size:.7rem;">@FormatSize(entry.Size)</div>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0"
-                                                @onclick="() => RemoveFile(idx)">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </div>
-                                    <div class="f3m-file-entry-path">
-                                        <i class="bi bi-folder2 flex-shrink-0" style="font-size:.8rem;"></i>
-                                        <input class="f3m-path-input"
-                                               type="text"
-                                               placeholder="Install path (e.g. Manaka/Mods/Textures)"
-                                               value="@entry.InstallPath"
-                                               @oninput="@(e => fileEntries[idx].InstallPath = e.Value?.ToString() ?? string.Empty)" />
-
-                                        <button type="button" class="btn btn-sm btn-outline-warning flex-shrink-0" @onclick="() => fsdOpen = true">
-                                            <i class="bi bi-folder2-open"></i>
-                                            <SaveModFileDialog @bind-Visible="fsdOpen"
-                                                            Title="Choose Install Path"
-                                                            InitialPath="Manaka/Mods/Textures"
-                                                            DefaultName="@entry.OriginalName"
-                                                            OnSave="savePath => entry.InstallPath = savePath" />
-                                        </button>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    }
-
-                    <!-- Add-file dropzone.
-                         (at)key="addFileKey" forces Blazor to replace the entire label+InputFile
-                         subtree after each successful add, giving the new InputFile a fresh
-                         DOM element and a fresh _blazorFilesById entry for the next pick. -->
-                    <label @key="addFileKey" class="f3m-dropzone f3m-dropzone-sm" style="cursor:pointer;">
-                        <i class="bi bi-plus-lg text-warning me-2"></i>
-                        <span class="small ">
-                            @(fileEntries.Count == 0 ? "Choose file(s)" : "Add another file")
-                        </span>
-                        <InputFile OnChange="OnModFileSelected" accept=".zip,.rar,.7z,.pak,.mod" style="display:none;" multiple />
-                    </label>
-
-                    @if (fileError is not null)
-                    {
-                        <p class="text-danger small mt-1">@fileError</p>
-                    }
+                    <PickerModFiles Entries="fileEntries" OnEntriesChanged="StateHasChanged" />
                 </div>
 
+                <!-- Upload error -->
                 @if (uploadError is not null)
                 {
                     <div class="alert alert-danger py-2 small mb-3">
@@ -177,6 +92,7 @@
                     </div>
                 }
 
+                <!-- Progress bar -->
                 @if (uploading)
                 {
                     <div class="progress mb-3" style="height:4px;">
@@ -185,7 +101,9 @@
                     </div>
                 }
 
-                <button type="submit" class="btn btn-warning fw-bold w-100" disabled="@(uploading || fileEntries.Count == 0)">
+                <!-- Submit -->
+                <button type="submit" class="btn btn-warning fw-bold w-100"
+                        disabled="@(uploading || fileEntries.Count == 0)">
                     @if (uploading)
                     {
                         <span class="spinner-border spinner-border-sm me-2"></span>
@@ -201,5 +119,3 @@
         </div>
     }
 </div>
-
-
