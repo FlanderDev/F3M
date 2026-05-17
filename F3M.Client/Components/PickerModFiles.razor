@@ -1,0 +1,83 @@
+@* Reusable mod-file list + add-file dropzone.
+   Parent passes a List<FileEntry> via the Entries parameter.
+   The component mutates that list in place and calls OnEntriesChanged
+   so the parent can trigger StateHasChanged / validation as needed. *@
+
+<div>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <label class="form-label fw-semibold small mb-0">
+            Mod Files <span class="text-danger">*</span>
+            <span class="fw-normal"> — ZIP, RAR, 7Z, PAK, MOD (max 512 MB each)</span>
+        </label>
+        <span class="badge bg-secondary">
+            @Entries.Count file@(Entries.Count != 1 ? "s" : string.Empty)
+        </span>
+    </div>
+
+    @if (Entries.Count > 0)
+    {
+        <div class="d-flex flex-column gap-2 mb-2">
+            @for (int i = 0; i < Entries.Count; i++)
+            {
+                var idx   = i;
+                var entry = Entries[idx];
+                <div class="f3m-file-entry">
+                    <div class="f3m-file-entry-top">
+                        <i class="bi bi-file-zip-fill text-warning fs-5 flex-shrink-0"></i>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="fw-semibold small text-truncate">@entry.OriginalName</div>
+                            <div style="font-size:.7rem;">@entry.Size.FileSize()</div>
+                        </div>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger flex-shrink-0"
+                                @onclick="() => Remove(idx)">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="f3m-file-entry-path">
+                        <i class="bi bi-folder2 flex-shrink-0" style="font-size:.8rem;"></i>
+                        <input class="f3m-path-input"
+                               type="text"
+                               placeholder="Install path (e.g. Manaka/Mods/Textures)"
+                               value="@entry.InstallPath"
+                               @oninput="@(e => Entries[idx].InstallPath = e.Value?.ToString() ?? string.Empty)" />
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-warning flex-shrink-0"
+                                @onclick="() => OpenFsd(idx)">
+                            <i class="bi bi-folder2-open"></i>
+                            @* SaveModFileDialog is mounted once outside the loop (see below)
+                               to avoid one dialog DOM node per file row. *@
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @* One shared SaveModFileDialog, driven by _fsdTargetIndex *@
+    <SaveModFileDialog @bind-Visible="_fsdOpen"
+                       Title="Choose Install Path"
+                       InitialPath="Manaka/Mods/Textures"
+                       DefaultName="@(_fsdTargetIndex >= 0 && _fsdTargetIndex < Entries.Count ? Entries[_fsdTargetIndex].OriginalName : string.Empty)"
+                       OnSave="ApplyFsdPath" />
+
+    @* @key forces a fresh <input type=file> after each successful pick,
+       preventing the _blazorFilesById crash on subsequent selections. *@
+    <label @key="_addFileKey" class="f3m-dropzone f3m-dropzone-sm" style="cursor:pointer;">
+        <i class="bi bi-plus-lg text-warning me-2"></i>
+        <span class="small">
+            @(Entries.Count == 0 ? "Choose file(s)" : "Add another file")
+        </span>
+        <InputFile OnChange="OnFileSelected"
+                   accept=".zip,.rar,.7z,.pak,.mod"
+                   style="display:none;"
+                   multiple />
+    </label>
+
+    @if (Error is not null)
+    {
+        <p class="text-danger small mt-1">@Error</p>
+    }
+</div>

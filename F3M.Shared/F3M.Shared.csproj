@@ -5,6 +5,6 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 	<PropertyGroup>
-		<SourceRevisionId>build$([System.DateTime]::UtcNow.ToString(" yyyy/MM/dd HH:mm:ss"))</SourceRevisionId>
+		<SourceRevisionId>$([System.DateTime]::UtcNow.ToString("yyyy/MM/dd"))</SourceRevisionId>
 	</PropertyGroup>
 </Project>

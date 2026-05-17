@@ -1,0 +1,32 @@
+@* Reusable preview-image picker.
+   Displays a dropzone when no image is chosen, a thumbnail + remove button when one is.
+   Parent binds ImageBytes / ImageFileName / PreviewDataUrl via the two-way parameters,
+   or listens to OnImageChanged for the full SelectedImageInfo bundle. *@
+
+<div>
+    <label class="form-label fw-semibold small">
+        Preview Image
+        <span class="fw-normal">(@HintText, max 8 MB)</span>
+    </label>
+
+    @if (PreviewDataUrl is not null)
+    {
+        <div class="f3m-preview-thumb mb-2">
+            <img src="@PreviewDataUrl" alt="Preview" />
+            <button type="button" class="f3m-preview-remove" @onclick="Clear">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    }
+
+    <label class="f3m-dropzone @(PreviewDataUrl != null ? "d-none" : string.Empty)" style="cursor:pointer;">
+        <i class="bi bi-image fs-3 d-block mb-1"></i>
+        <span class="small">Click to choose an image (JPG, PNG, WebP)</span>
+        <InputFile OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.webp" style="display:none;" />
+    </label>
+
+    @if (Error is not null)
+    {
+        <p class="text-danger small mt-1">@Error</p>
+    }
+</div>
