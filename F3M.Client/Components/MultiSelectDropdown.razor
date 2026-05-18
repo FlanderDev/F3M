@@ -1,0 +1,288 @@
+@inject HttpClient Http
+@implements IDisposable
+
+<div class="msd-wrapper" @ref="_wrapperRef">
+    <!-- Trigger / selected-chips display -->
+    <div class="msd-control @(_isOpen ? "msd-control--open" : string.Empty)"
+         @onclick="ToggleDropdown">
+        <div class="msd-chips">
+            @if (SelectedItems.Any())
+            {
+                @foreach (var item in SelectedItems)
+                {
+                    <span class="msd-chip">
+                        @item.Label
+                        <button class="msd-chip__remove"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => RemoveItem(item)">&#x2715;</button>
+                    </span>
+                }
+            }
+            else
+            {
+                <span class="msd-placeholder">@Placeholder</span>
+            }
+        </div>
+        <span class="msd-arrow @(_isOpen ? "msd-arrow--up" : string.Empty)">&#x25BE;</span>
+    </div>
+
+    <!-- Dropdown panel -->
+    @if (_isOpen)
+    {
+        <div class="msd-panel">
+            <!-- Search input -->
+            <div class="msd-search">
+                <input class="msd-search__input"
+                       type="text"
+                       placeholder="@SearchPlaceholder"
+                       value="@_searchText"
+                       @oninput="OnSearchInput"
+                       @onclick:stopPropagation="true" />
+                @if (_isLoading)
+                {
+                    <span class="msd-spinner"></span>
+                }
+            </div>
+
+            <!-- Hint when not enough chars typed yet -->
+            @if (_searchText.Length < MinSearchLength && !_items.Any())
+            {
+                <div class="msd-hint">
+                    Type at least @MinSearchLength character@(MinSearchLength == 1 ? string.Empty : "s") to search&hellip;
+                </div>
+            }
+
+            <!-- Results list -->
+            @if (_items.Any())
+            {
+                <ul class="msd-list" @onclick:stopPropagation="true">
+                    @foreach (var item in _items)
+                    {
+                        var isChecked = SelectedItems.Any(s => s.Value == item.Value);
+                        <li class="msd-list__item @(isChecked ? "msd-list__item--selected" : string.Empty)"
+                            @onclick="() => ToggleItem(item)">
+                            <span class="msd-checkbox @(isChecked ? "msd-checkbox--checked" : string.Empty)">
+                                @if (isChecked)
+                                {
+                                    <span class="msd-checkbox__tick">&#x2713;</span>
+                                }
+                            </span>
+                            <span class="msd-list__label">@item.Label</span>
+                        </li>
+                    }
+                </ul>
+            }
+            else if (_searchText.Length >= MinSearchLength && !_isLoading)
+            {
+                <div class="msd-hint">No results found.</div>
+            }
+        </div>
+    }
+</div>
+
+<!-- ─── Inline styles (move to your CSS/SCSS if preferred) ─── -->
+<style>
+    /* ── Tokens ── */
+    .msd-wrapper {
+        --msd-radius: 8px;
+        --msd-border: #d1d5db;
+        --msd-border-focus: #6366f1;
+        --msd-bg: #ffffff;
+        --msd-panel-shadow: 0 8px 24px rgba(0,0,0,.12);
+        --msd-chip-bg: #ede9fe;
+        --msd-chip-color: #4f46e5;
+        --msd-item-hover: #f5f3ff;
+        --msd-item-selected: #ede9fe;
+        --msd-accent: #6366f1;
+        --msd-text: #111827;
+        --msd-muted: #9ca3af;
+        --msd-font: 'Segoe UI', system-ui, sans-serif;
+        position: relative;
+        font-family: var(--msd-font);
+        width: 100%;
+        max-width: 480px;
+    }
+
+    /* ── Control bar ── */
+    .msd-control {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 6px 10px;
+        background: var(--msd-bg);
+        border: 1.5px solid var(--msd-border);
+        border-radius: var(--msd-radius);
+        cursor: pointer;
+        transition: border-color .2s, box-shadow .2s;
+        user-select: none;
+    }
+
+    .msd-control--open,
+    .msd-control:hover {
+        border-color: var(--msd-border-focus);
+        box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+    }
+
+    /* ── Chips ── */
+    .msd-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        flex: 1;
+    }
+
+    .msd-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background: var(--msd-chip-bg);
+        color: var(--msd-chip-color);
+        border-radius: 999px;
+        font-size: .78rem;
+        font-weight: 600;
+        letter-spacing: .01em;
+        animation: chipIn .15s ease;
+    }
+
+    @@keyframes chipIn {
+        from { opacity: 0; transform: scale(.85); }
+        to   { opacity: 1; transform: scale(1); }
+    }
+
+    .msd-chip__remove {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        color: var(--msd-chip-color);
+        font-size: .7rem;
+        opacity: .7;
+        line-height: 1;
+        transition: opacity .15s;
+    }
+
+    .msd-chip__remove:hover { opacity: 1; }
+
+    .msd-placeholder { color: var(--msd-muted); font-size: .9rem; }
+
+    .msd-arrow {
+        font-size: .7rem;
+        color: var(--msd-muted);
+        transition: transform .2s;
+        flex-shrink: 0;
+    }
+
+    .msd-arrow--up { transform: rotate(180deg); }
+
+    /* ── Panel ── */
+    .msd-panel {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        background: var(--msd-bg);
+        border: 1.5px solid var(--msd-border-focus);
+        border-radius: var(--msd-radius);
+        box-shadow: var(--msd-panel-shadow);
+        z-index: 1000;
+        animation: panelIn .15s ease;
+        overflow: hidden;
+    }
+
+    @@keyframes panelIn {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Search ── */
+    .msd-search {
+        display: flex;
+        align-items: center;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--msd-border);
+        gap: 8px;
+    }
+
+    .msd-search__input {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: .9rem;
+        font-family: var(--msd-font);
+        color: var(--msd-text);
+        background: transparent;
+    }
+
+    /* ── Spinner ── */
+    .msd-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--msd-border);
+        border-top-color: var(--msd-accent);
+        border-radius: 50%;
+        animation: spin .6s linear infinite;
+        flex-shrink: 0;
+    }
+
+    @@keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Hint ── */
+    .msd-hint {
+        padding: 12px 14px;
+        font-size: .85rem;
+        color: var(--msd-muted);
+        text-align: center;
+    }
+
+    /* ── List ── */
+    .msd-list {
+        list-style: none;
+        margin: 0;
+        padding: 4px 0;
+        max-height: 240px;
+        overflow-y: auto;
+    }
+
+    .msd-list__item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 14px;
+        cursor: pointer;
+        font-size: .9rem;
+        color: var(--msd-text);
+        transition: background .12s;
+    }
+
+    .msd-list__item:hover { background: var(--msd-item-hover); }
+    .msd-list__item--selected { background: var(--msd-item-selected); }
+
+    /* ── Checkbox ── */
+    .msd-checkbox {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--msd-border);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: border-color .15s, background .15s;
+        background: var(--msd-bg);
+    }
+
+    .msd-checkbox--checked {
+        background: var(--msd-accent);
+        border-color: var(--msd-accent);
+    }
+
+    .msd-checkbox__tick {
+        color: #fff;
+        font-size: .72rem;
+        line-height: 1;
+    }
+</style>
+
+

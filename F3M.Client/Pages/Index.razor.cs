@@ -1,3 +1,5 @@
+using F3M.Client.Business;
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Web;
 using System.Net.Http.Json;
@@ -6,24 +8,22 @@ namespace F3M.Client.Pages;
 
 public partial class Index
 {
+    private const string CategoryAll = "All Categories";
+    private string selectedCategory = CategoryAll;
     private ModListResult? result;
-    private List<string> categories = [];
+    private string[] categories = [];
     private bool loading = true;
     private string searchTerm = string.Empty;
-    private string selectedCategory = "All";
-    private string sortBy = "newest";
+    private Configuration.SortBy sortBy = Configuration.SortBy.Newest;
     private int currentPage = 1;
     private const int pageSize = 18;
     private System.Timers.Timer? _debounce;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadCategories();
+        categories = await Http.LoadCategoriesAsync();
         await LoadMods();
     }
-
-    private async Task LoadCategories()
-        => categories = await Http.GetFromJsonAsync<List<string>>("api/mods/categories") ?? [];
 
     private async Task LoadMods()
     {
@@ -31,10 +31,8 @@ public partial class Index
         StateHasChanged();
         try
         {
-            var url = $"api/mods?page={currentPage}&pageSize={pageSize}" +
-                      $"&search={Uri.EscapeDataString(searchTerm)}" +
-                      $"&category={Uri.EscapeDataString(selectedCategory)}&sort={sortBy}";
-            result = await Http.GetFromJsonAsync<ModListResult>(url);
+            var query = R.Mods.GetMods(currentPage, pageSize, searchTerm, selectedCategory, sortBy);
+            result = await Http.GetFromJsonAsync<ModListResult>(query);
         }
         catch { result = new ModListResult(); }
         finally { loading = false; }
@@ -42,6 +40,9 @@ public partial class Index
 
     private void OnSearchKeyUp(KeyboardEventArgs _)
     {
+        if (searchTerm.Length < 3)
+            return;
+
         _debounce?.Dispose();
         _debounce = new System.Timers.Timer(500);
         _debounce.Elapsed += async (_, _) =>
@@ -56,5 +57,5 @@ public partial class Index
 
     private async Task SelectCategory(string cat) { selectedCategory = cat; currentPage = 1; await LoadMods(); }
     private async Task GoToPage(int p) { currentPage = p; await LoadMods(); }
-    private async Task ClearFilters() { searchTerm = string.Empty; selectedCategory = "All"; sortBy = "newest"; currentPage = 1; await LoadMods(); }
+    private async Task ClearFilters() { searchTerm = string.Empty; selectedCategory = CategoryAll; sortBy = Configuration.SortBy.Newest; currentPage = 1; await LoadMods(); }
 }

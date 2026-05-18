@@ -16,7 +16,21 @@ public static class Configuration
 #endif
 
     public const string AppName = nameof(F3M);
-    public static readonly string[] Categories = ["BepInEx-Plugin", "Custom-Missions 1", "Custom-Missions 2", "Cosplay-Loader", "Texture Edits", "Others"];
+    public static readonly string[] DefaultCategories = ["BepInEx-Plugin", "Custom-Missions 1", "Custom-Missions 2", "Cosplay-Loader", "Texture Edits", "Others"];
     public static readonly string[] AllowedFileExtension = [".dll", ".zip", ".rar", ".7z", ".pak", ".mod"];
     public static readonly string[] AllowedThumbnailExtension = [".jpg", ".jpeg", ".png", ".webp"];
+
+    public const long MaxModSize = 512 * 1024 * 1024;
+    public const long MaxImageSize = 8 * 1024 * 1024;
+    public const long MaxTotalSize = 2L * 1024 * 1024 * 1024; // 2 GB total per upload
+
+    public enum SortBy
+    {
+        Newest,
+        Oldest,
+        DownloadsAsc,
+        DownloadsDesc,
+        NameAsc,
+        NameDesc
+    }
 }
