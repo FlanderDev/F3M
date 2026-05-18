@@ -39,7 +39,7 @@ public partial class PickerModFiles
         var f   = e.File;
         var ext = Path.GetExtension(f.Name).ToLowerInvariant();
 
-        if (!Configuration.AllowedFileFormat.Contains(ext))
+        if (!Configuration.AllowedFileExtension.Contains(ext))
         {
             Error = $"File type '{ext}' not allowed.";
             return;

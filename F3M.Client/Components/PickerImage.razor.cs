@@ -41,7 +41,7 @@ public partial class PickerImage
         var f   = e.File;
         var ext = Path.GetExtension(f.Name).ToLowerInvariant();
 
-        if (!Configuration.AllowedThumbnailFormat.Contains(ext))
+        if (!Configuration.AllowedThumbnailExtension.Contains(ext))
         {
             Error = $"Image type '{ext}' not allowed.";
             return;

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using F3M.Server.Data;
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,12 +9,11 @@ using Microsoft.EntityFrameworkCore;
 namespace F3M.Server.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route(R.Admin.Base)]
 [Authorize(Roles = "Admin")]
 public class AdminController(AppDbContext db, ILogger<AdminController> logger) : ControllerBase
 {
-    // GET /api/admin/users
-    [HttpGet("users")]
+    [HttpGet(R.Users)]
     public async Task<ActionResult<List<AdminUserDto>>> GetUsers()
     {
         var users = await db.Users.ToListAsync();
@@ -35,8 +35,7 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
         return Ok(result);
     }
 
-    // POST /api/admin/users/{id}/toggle-admin
-    [HttpPost("users/{id:int}/toggle-admin")]
+    [HttpPost($"{R.Users}/{{id:int}}")]
     public async Task<ActionResult<AdminUserDto>> ToggleAdmin(int id)
     {
         var callerIdStr = User.FindFirstValue("sub");
@@ -67,8 +66,7 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
         });
     }
 
-    // DELETE /api/admin/users/{id}  — remove a user account
-    [HttpDelete("users/{id:int}")]
+    [HttpDelete($"{R.Users}/{{id:int}}")]
     public async Task<IActionResult> DeleteUser(int id)
     {
         var callerIdStr = User.FindFirstValue("sub");
