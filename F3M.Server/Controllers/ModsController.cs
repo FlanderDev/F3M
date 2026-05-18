@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using F3M.Server.Data;
 using F3M.Server.Helpers;
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,17 +10,13 @@ using Microsoft.EntityFrameworkCore;
 namespace F3M.Server.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route(R.Mods.Base)]
 public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<ModsController> logger) : ControllerBase
 {
-    private static readonly string[] AllowedModExtensions = [".zip", ".rar", ".7z", ".pak", ".mod"];
-    private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
     private const long MaxModSize = 512 * 1024 * 1024;
     private const long MaxImageSize = 8 * 1024 * 1024;
     private const long MaxTotalSize = 2L * 1024 * 1024 * 1024; // 2 GB total per upload
 
-    // ── Browse: one row per group (latest version only) ───────────────────────
-    // GET /api/mods?page=1&pageSize=18&search=&category=&sort=newest
     [HttpGet]
     public async Task<ActionResult<ModListResult>> GetMods(
         [FromQuery] int page = 1,
@@ -61,7 +58,6 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         return Ok(new ModListResult { Items = items, TotalCount = total, Page = page, PageSize = pageSize });
     }
 
-    // GET /api/mods/{id}  — single version with files
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Mod>> GetMod(int id)
     {
@@ -69,8 +65,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         return mod is null ? NotFound() : Ok(mod);
     }
 
-    // GET /api/mods/group/{groupId}/versions  — all versions of a group
-    [HttpGet("group/{groupId:int}/versions")]
+    [HttpGet($"{R.Group}/{{groupId:int}}/{R.Versions}")]
     public async Task<ActionResult<ModVersionsResult>> GetVersions(int groupId)
     {
         var group = await db.ModGroups.FindAsync(groupId);
@@ -85,8 +80,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         return Ok(new ModVersionsResult { Group = group, Versions = versions });
     }
 
-    // GET /api/mods/categories
-    [HttpGet("categories")]
+    [HttpGet(R.Categories)]
     public async Task<ActionResult<List<ValueTuple<string, int>>>> GetCategories()
     {
         // Category of each group = category of its latest version
@@ -106,14 +100,13 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
     }
 
     // ── Upload: new mod OR new version ────────────────────────────────────────
-    // POST /api/mods/upload
     // Form fields:
     //   Name, Description, Version, Category, ModGroupId (optional)
     //   previewImage (optional IFormFile)
     //   files[]           — multiple mod files
     //   installPaths[]    — one install path per file (same index)
     //   originalNames[]   — original filenames (same index)
-    [HttpPost("upload")]
+    [HttpPost(R.Upload)]
     [Authorize]
     [RequestSizeLimit(MaxTotalSize)]
     public async Task<ActionResult<Mod>> Upload(
@@ -143,8 +136,8 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
                 return BadRequest($"File '{f.FileName}' exceeds 512 MB.");
 
             var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
-            if (!AllowedModExtensions.Contains(ext))
-                return BadRequest($"File type '{ext}' not allowed. Accepted: {string.Join(", ", AllowedModExtensions)}");
+            if (!Configuration.AllowedFileExtension.Contains(ext))
+                return BadRequest($"File type '{ext}' not allowed. Accepted: {string.Join(", ", Configuration.AllowedFileExtension)}");
         }
         
         // ── Check if user is in mod group ─────────────────────────────────────
@@ -177,7 +170,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         if (previewImage is { Length: > 0 })
         {
             var imgExt = Path.GetExtension(previewImage.FileName).ToLowerInvariant();
-            if (!AllowedImageExtensions.Contains(imgExt))
+            if (!Configuration.AllowedThumbnailExtension.Contains(imgExt))
                 return BadRequest($"Image type '{imgExt}' not allowed.");
             if (previewImage.Length > MaxImageSize)
                 return BadRequest("Preview image exceeds 8 MB.");
@@ -250,8 +243,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         return CreatedAtAction(nameof(GetMod), new { id = mod.Id }, uploadedMod);
     }
 
-    // POST /api/mods/{id}/download/{fileId}
-    [HttpPost("{id:int}/download/{fileId:int}")]
+    [HttpPost($"{{id:int}}/{R.Download}/{{fileId:int}}")]
     public async Task<IActionResult> Download(int id, int fileId)
     {
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
@@ -272,7 +264,6 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
     }
 
 
-    // PUT /api/mods/{id}  — edit metadata; owner or admin only
     [HttpPut("{id:int}")]
     [Authorize]
     public async Task<ActionResult<Mod>> Edit(int id, [FromBody] ModEditDto dto)
@@ -296,7 +287,6 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         return Ok(mod);
     }
 
-    // DELETE /api/mods/{id}  — owner or admin only
     [HttpDelete("{id:int}")]
     [Authorize]
     public async Task<IActionResult> Delete(int id)

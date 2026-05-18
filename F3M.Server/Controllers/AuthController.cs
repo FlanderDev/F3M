@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using F3M.Server.Data;
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,11 +12,11 @@ using Microsoft.IdentityModel.Tokens;
 namespace F3M.Server.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route(R.Auth.Base)]
 public class AuthController(AppDbContext db, IConfiguration config, ILogger<AuthController> logger) : ControllerBase
 {
     // POST /api/auth/register
-    [HttpPost("register")]
+    [HttpPost(R.Auth.Register)]
     public async Task<ActionResult<AuthResult>> Register([FromBody] RegisterDto dto)
     {
         if (!ModelState.IsValid)
@@ -50,7 +51,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
     }
 
     // POST /api/auth/login
-    [HttpPost("login")]
+    [HttpPost(R.Auth.Login)]
     public async Task<ActionResult<AuthResult>> Login([FromBody] LoginDto dto)
     {
         var user = await db.Users.FirstOrDefaultAsync(u =>
