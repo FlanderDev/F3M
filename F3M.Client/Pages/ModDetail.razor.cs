@@ -1,3 +1,4 @@
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -33,12 +34,11 @@ public partial class ModDetail
         try
         {
             // Load the requested version
-            selectedVersion = await Http.GetFromJsonAsync<Mod>($"api/mods/{Id}");
+            selectedVersion = await Http.GetFromJsonAsync<Mod>(R.Mods.GetMod(Id));
             if (selectedVersion is null) return;
 
             // Load all versions of the group
-            var result = await Http.GetFromJsonAsync<ModVersionsResult>(
-                $"api/mods/group/{selectedVersion.ModGroupId}/versions");
+            var result = await Http.GetFromJsonAsync<ModVersionsResult>(R.Mods.GetVersions(selectedVersion.ModGroupId));
             allVersions = result?.Versions ?? [selectedVersion];
 
             // Check ownership
@@ -69,7 +69,7 @@ public partial class ModDetail
         dlSuccess = false; dlError = false;
         try
         {
-            var resp = await Http.PostAsync($"api/mods/{modId}/download/{file.Id}", null);
+            var resp = await Http.PostAsync(R.Mods.Download(modId, file.Id), null);
             if (resp.IsSuccessStatusCode)
             {
                 var bytes = await resp.Content.ReadAsByteArrayAsync();
@@ -89,7 +89,7 @@ public partial class ModDetail
         deleting = true; deleteError = null;
         try
         {
-            var resp = await Http.DeleteAsync($"api/mods/{selectedVersion.Id}");
+            var resp = await Http.DeleteAsync(R.Mods.GetMod(selectedVersion.Id));
             if (resp.IsSuccessStatusCode)
             {
                 // If it was the last version, go home; otherwise reload versions
@@ -123,7 +123,7 @@ public partial class ModDetail
             bool anyError = false;
             foreach (var file in selectedVersion.Files)
             {
-                var resp = await Http.PostAsync($"api/mods/{selectedVersion.Id}/download/{file.Id}", null);
+                var resp = await Http.PostAsync(F3M.Shared.R.Mods.Download(selectedVersion.Id, file.Id), null);
                 if (resp.IsSuccessStatusCode)
                 {
                     var bytes = await resp.Content.ReadAsByteArrayAsync();

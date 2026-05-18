@@ -15,7 +15,6 @@ namespace F3M.Server.Controllers;
 [Route(R.Auth.Base)]
 public class AuthController(AppDbContext db, IConfiguration config, ILogger<AuthController> logger) : ControllerBase
 {
-    // POST /api/auth/register
     [HttpPost(R.Auth.Register)]
     public async Task<ActionResult<AuthResult>> Register([FromBody] RegisterDto dto)
     {
@@ -50,7 +49,6 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         });
     }
 
-    // POST /api/auth/login
     [HttpPost(R.Auth.Login)]
     public async Task<ActionResult<AuthResult>> Login([FromBody] LoginDto dto)
     {
@@ -68,8 +66,6 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
             User = new UserInfo { Id = user.Id, Username = user.Username, Email = user.Email, IsAdmin = user.IsAdmin }
         });
     }
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
 
     private string GenerateToken(AppUser user)
     {

@@ -13,17 +13,13 @@ namespace F3M.Server.Controllers;
 [Route(R.Mods.Base)]
 public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<ModsController> logger) : ControllerBase
 {
-    private const long MaxModSize = 512 * 1024 * 1024;
-    private const long MaxImageSize = 8 * 1024 * 1024;
-    private const long MaxTotalSize = 2L * 1024 * 1024 * 1024; // 2 GB total per upload
-
     [HttpGet]
     public async Task<ActionResult<ModListResult>> GetMods(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 18,
         [FromQuery] string? search = null,
         [FromQuery] string? category = null,
-        [FromQuery] string? sort = "newest")
+        [FromQuery] Configuration.SortBy sort = Configuration.SortBy.Newest)
     {
         // Latest version per group: pick the Mod row with the highest UploadedAt per ModGroupId
         var latestIds = db.Mods
@@ -42,13 +38,17 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
                 m.Description.Contains(search) ||
                 m.Author.Contains(search));
 
-        if (!string.IsNullOrWhiteSpace(category) && category != "All")
+        if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(m => m.Category == category);
 
         query = sort switch
         {
-            "popular" => query.OrderByDescending(m => m.DownloadCount),
-            "name" => query.OrderBy(m => m.Name),
+            Configuration.SortBy.Newest =>          query.OrderByDescending(m => m.UploadedAt),
+            Configuration.SortBy.Oldest =>          query.OrderBy(m => m.UploadedAt),
+            Configuration.SortBy.DownloadsDesc =>   query.OrderByDescending(m => m.DownloadCount),
+            Configuration.SortBy.DownloadsAsc =>    query.OrderBy(m => m.DownloadCount),
+            Configuration.SortBy.NameAsc =>         query.OrderBy(m => m.Name),
+            Configuration.SortBy.NameDesc =>        query.OrderByDescending(m => m.Name),
             _ => query.OrderByDescending(m => m.UploadedAt)
         };
 
@@ -108,7 +108,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
     //   originalNames[]   — original filenames (same index)
     [HttpPost(R.Upload)]
     [Authorize]
-    [RequestSizeLimit(MaxTotalSize)]
+    [RequestSizeLimit(Configuration.MaxTotalSize)]
     public async Task<ActionResult<Mod>> Upload(
         [FromForm] ModUploadDto dto,
         [FromForm] IFormFileCollection files,
@@ -132,7 +132,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
             if (f.Length == 0)
                 return BadRequest($"File '{f.FileName}' is empty.");
 
-            if (f.Length > MaxModSize)
+            if (f.Length > Configuration.MaxModSize)
                 return BadRequest($"File '{f.FileName}' exceeds 512 MB.");
 
             var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
@@ -172,7 +172,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
             var imgExt = Path.GetExtension(previewImage.FileName).ToLowerInvariant();
             if (!Configuration.AllowedThumbnailExtension.Contains(imgExt))
                 return BadRequest($"Image type '{imgExt}' not allowed.");
-            if (previewImage.Length > MaxImageSize)
+            if (previewImage.Length > Configuration.MaxImageSize)
                 return BadRequest("Preview image exceeds 8 MB.");
 
             previewName = $"{Guid.NewGuid():N}{imgExt}";
