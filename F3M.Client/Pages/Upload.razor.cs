@@ -40,24 +40,20 @@ public partial class Upload
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
+        Categories = [.. await Http.LoadCategoriesAsync(), .. Configuration.DefaultCategories];
+
         if (GroupId is not int groupId)
             return;
 
-        try
+        var result = await Http.LoadModVersionsAsync(groupId);
+        existingMod = result?.Versions.FirstOrDefault();
+        if (existingMod is not null)
         {
-            Categories = [.. await Http.LoadCategoriesAsync(), .. Configuration.DefaultCategories];
-            Console.WriteLine(string.Join('_', Categories));
-            var result = await Http.LoadModVersionsAsync(groupId);
-            existingMod = result?.Versions.FirstOrDefault();
-            if (existingMod is not null)
-            {
-                dto.Name = existingMod.Name;
-                dto.Category = existingMod.Category;
-                dto.Description = existingMod.Description;
-                dto.ModGroupId = groupId;
-            }
+            dto.Name = existingMod.Name;
+            dto.Category = existingMod.Category;
+            dto.Description = existingMod.Description;
+            dto.ModGroupId = groupId;
         }
-        catch { /* non-critical — page still renders without pre-fill */ }
     }
 
     // ── Submit ────────────────────────────────────────────────────────────────

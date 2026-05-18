@@ -41,12 +41,14 @@ public struct R
         public const string Upload = $"{Base}/upload";
         public const string Categories = $"{Base}/categories";
         public static string GetMod(int id) => $"{Base}/{id}";
-        public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, Configuration.SortBy sortBy) =>
-            Base +
-            $"page={currentPage}&pageSize={pageSize}" +
-            $"&search={Uri.EscapeDataString(searchTerm)}" +
-            $"&sort={sortBy}" +
-            (string.IsNullOrWhiteSpace(selectedCategory) ? string.Empty : $"&category={Uri.EscapeDataString(selectedCategory)}");
+        public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, Configuration.SortBy sortBy) => string.Join(string.Empty,
+            Base, "?",
+            $"page={currentPage}&pageSize={pageSize}",
+            $"&search={Uri.EscapeDataString(searchTerm)}",
+            $"&sort={sortBy}",
+            string.IsNullOrWhiteSpace(selectedCategory)
+            ? string.Empty
+            : $"&category={Uri.EscapeDataString(selectedCategory)}");
         public static string GetVersions(int groupId) => $"{Base}/{groupId}/versions";
         public static string Download(int versionId, int fileId) => $"{Base}/{versionId}/download/{fileId}";
     }

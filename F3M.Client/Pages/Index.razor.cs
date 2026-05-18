@@ -29,9 +29,11 @@ public partial class Index
     {
         loading = true;
         StateHasChanged();
+
         try
         {
-            var query = R.Mods.GetMods(currentPage, pageSize, searchTerm, selectedCategory, sortBy);
+            var specificCategory = selectedCategory == CategoryAll ? string.Empty : selectedCategory;
+            var query = R.Mods.GetMods(currentPage, pageSize, searchTerm, specificCategory, sortBy);
             result = await Http.GetFromJsonAsync<ModListResult>(query);
         }
         catch { result = new ModListResult(); }
