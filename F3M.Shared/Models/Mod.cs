@@ -89,7 +89,7 @@ public class ModUploadDto
     public string Version { get; set; } = "1.0.0";
 
     [MaxLength(50)]
-    public string Category { get; set; } = "General";
+    public string Category { get; set; } = "Unspecified";
 
     /// <summary>If set, this upload is a new version of an existing mod group.</summary>
     public int? ModGroupId { get; set; }
