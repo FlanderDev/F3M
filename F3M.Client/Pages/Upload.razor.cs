@@ -11,58 +11,52 @@ namespace F3M.Client.Pages;
 
 public partial class Upload
 {
-    [Parameter] 
+    [Parameter]
     public int? GroupId { get; set; }
 
     [CascadingParameter]
     private Task<AuthenticationState>? AuthState { get; set; }
 
-    private ModUploadDto dto = new();
-
     private bool IsNewVersion => GroupId.HasValue;
+    private ModUploadDto dto = new();
     private Mod? existingMod;
 
     // Passed directly into ModImagePicker via @bind-*
     private byte[]? imageBytes;
-    private string  imageFileName  = string.Empty;
     private string? previewDataUrl;
+    private string imageFileName = string.Empty;
+    private string[] Categories = [];
 
-    private string ImagePickerHint => IsNewVersion
-        ? "optional, leave blank to keep existing"
-        : "optional";
+    private string ImagePickerHint => IsNewVersion ? "optional, leave blank to keep existing" : "optional";
 
     // Passed by reference into ModFileList; the component mutates it in place.
     private readonly List<FileEntry> fileEntries = [];
-
     private string? uploadError;
-    private bool    uploading;
-    private bool    uploadSuccess;
-    private int     uploadedId;
-    private int     progress;
+    private bool uploading;
+    private bool uploadSuccess;
+    private int uploadedId;
+    private int progress;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
-
     protected override async Task OnInitializedAsync()
     {
-        if (!GroupId.HasValue) return;
+        Categories = [.. await Http.LoadCategoriesAsync(), .. Configuration.DefaultCategories];
 
-        try
+        if (GroupId is not int groupId)
+            return;
+
+        var result = await Http.LoadModVersionsAsync(groupId);
+        existingMod = result?.Versions.FirstOrDefault();
+        if (existingMod is not null)
         {
-            var result = await Http.GetFromJsonAsync<ModVersionsResult>($"api/mods/group/{GroupId}/versions");
-            existingMod = result?.Versions.FirstOrDefault();
-            if (existingMod is not null)
-            {
-                dto.Name        = existingMod.Name;
-                dto.Category    = existingMod.Category;
-                dto.Description = existingMod.Description;
-                dto.ModGroupId  = GroupId;
-            }
+            dto.Name = existingMod.Name;
+            dto.Category = existingMod.Category;
+            dto.Description = existingMod.Description;
+            dto.ModGroupId = groupId;
         }
-        catch { /* non-critical — page still renders without pre-fill */ }
     }
 
     // ── Submit ────────────────────────────────────────────────────────────────
-
     private async Task HandleSubmit()
     {
         bool isAuthed = await AuthState.IsAuthenticatedAsync();
@@ -71,19 +65,21 @@ public partial class Upload
             uploadError = "You must be signed in to upload mods.";
             return;
         }
-        if (fileEntries.Count == 0) return;
 
-        uploading   = true;
+        if (fileEntries.Count == 0)
+            return;
+
+        uploading = true;
         uploadError = null;
-        progress    = 10;
+        progress = 10;
         StateHasChanged();
 
         try
         {
             using var content = new MultipartFormDataContent();
-            content.Add(new StringContent(dto.Name),        nameof(ModUploadDto.Name));
-            content.Add(new StringContent(dto.Version),     nameof(ModUploadDto.Version));
-            content.Add(new StringContent(dto.Category),    nameof(ModUploadDto.Category));
+            content.Add(new StringContent(dto.Name), nameof(ModUploadDto.Name));
+            content.Add(new StringContent(dto.Version), nameof(ModUploadDto.Version));
+            content.Add(new StringContent(dto.Category), nameof(ModUploadDto.Category));
             content.Add(new StringContent(dto.Description), nameof(ModUploadDto.Description));
 
             if (dto.ModGroupId.HasValue)
@@ -102,22 +98,22 @@ public partial class Upload
             {
                 var filePart = new ByteArrayContent(entry.Bytes);
                 filePart.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-                content.Add(filePart, "files",         entry.OriginalName);
+                content.Add(filePart, "files", entry.OriginalName);
                 content.Add(new StringContent(entry.InstallPath ?? string.Empty), "installPaths");
-                content.Add(new StringContent(entry.OriginalName),                "originalNames");
+                content.Add(new StringContent(entry.OriginalName), "originalNames");
             }
 
             progress = 50; StateHasChanged();
 
-            var response = await Http.PostAsync("api/mods/upload", content);
+            var response = await Http.PostAsync(R.Mods.Upload, content);
             progress = 90; StateHasChanged();
 
             if (response.IsSuccessStatusCode)
             {
                 var uploaded = await response.Content.ReadFromJsonAsync<Mod>();
-                uploadedId   = uploaded?.Id ?? 0;
+                uploadedId = uploaded?.Id ?? 0;
                 uploadSuccess = true;
-                progress      = 100;
+                progress = 100;
             }
             else
             {
@@ -127,22 +123,21 @@ public partial class Upload
             }
         }
         catch (Exception ex) { uploadError = ex.Message; }
-        finally               { uploading  = false; }
+        finally { uploading = false; }
     }
 
     // ── Reset ─────────────────────────────────────────────────────────────────
-
     private void Reset()
     {
-        dto           = new();
+        dto = new();
         fileEntries.Clear();
-        imageBytes    = null;
+        imageBytes = null;
         imageFileName = string.Empty;
         previewDataUrl = null;
-        uploadError   = null;
+        uploadError = null;
         uploadSuccess = false;
-        uploading     = false;
-        progress      = 0;
-        uploadedId    = 0;
+        uploading = false;
+        progress = 0;
+        uploadedId = 0;
     }
 }

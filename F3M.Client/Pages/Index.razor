@@ -46,7 +46,7 @@
             </div>
             <div class="col-6 col-md-3">
                 <select class="form-select f3m-select" @bind="selectedCategory" @bind:after="LoadMods">
-                    <option value="All">All Categories</option>
+                    <option selected value="@CategoryAll">@CategoryAll</option>
                     @foreach (var cat in categories)
                     {
                         <option value="@cat">@cat</option>
@@ -55,9 +55,10 @@
             </div>
             <div class="col-6 col-md-3">
                 <select class="form-select f3m-select" @bind="sortBy" @bind:after="LoadMods">
-                    <option value="newest">Newest</option>
-                    <option value="popular">Most Downloaded</option>
-                    <option value="name">Name A–Z</option>
+                    @foreach (var option in Enum.GetValues<Configuration.SortBy>())
+                    {
+                        <option value="@option">@option</option>
+                    }
                 </select>
             </div>
             <div class="col-auto">
@@ -71,8 +72,8 @@
         @if (categories.Any())
         {
             <div class="d-flex flex-wrap gap-2 mt-3">
-                <button class="f3m-chip @(selectedCategory == "All" ? "active" : string.Empty)"
-                        @onclick='() => SelectCategory("All")'>
+                <button class="f3m-chip @(selectedCategory == CategoryAll ? "active" : string.Empty)"
+                        @onclick='() => SelectCategory(CategoryAll)'>
                     All
                 </button>
                 @foreach (var cat in categories)

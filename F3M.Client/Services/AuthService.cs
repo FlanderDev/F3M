@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Authorization;
 
@@ -12,7 +13,7 @@ public class AuthService(HttpClient http, AuthenticationStateProvider authProvid
     {
         try
         {
-            var response = await http.PostAsJsonAsync("api/auth/register", dto);
+            var response = await http.PostAsJsonAsync(R.Auth.Register, dto);
             var result   = await response.Content.ReadFromJsonAsync<AuthResult>();
             if (result?.Success == true && result.Token is not null)
                 await ((F3MAuthStateProvider)authProvider).SetTokenAsync(result.Token);
@@ -28,7 +29,7 @@ public class AuthService(HttpClient http, AuthenticationStateProvider authProvid
     {
         try
         {
-            var response = await http.PostAsJsonAsync("api/auth/login", dto);
+            var response = await http.PostAsJsonAsync(R.Auth.Login, dto);
             var result   = await response.Content.ReadFromJsonAsync<AuthResult>();
             if (result?.Success == true && result.Token is not null)
                 await ((F3MAuthStateProvider)authProvider).SetTokenAsync(result.Token);
