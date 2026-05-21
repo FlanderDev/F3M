@@ -1,3 +1,4 @@
+using F3M.Shared.Helpers;
 using Microsoft.AspNetCore.Components;
 using System.Net.Http.Json;
 
@@ -32,7 +33,7 @@ public partial class MultiSelectDropdown
     /// <summary>Backend endpoint. "{query}" is replaced with the search term.</summary>
     /// 
     [Parameter]
-    public string SearchEndpoint { get; set; } = F3M.Shared.R.Mods.Base;
+    public string SearchEndpoint { get; set; } = R.Mods.Base;
 
     [Parameter]
     public string Placeholder { get; set; } = "Select items…";

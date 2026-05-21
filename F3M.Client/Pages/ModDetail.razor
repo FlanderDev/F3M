@@ -36,7 +36,7 @@ else
                 @if (!string.IsNullOrEmpty(selectedVersion.PreviewImageName))
                 {
                     <div class="mod-detail-image mb-3">
-                        <img src="previews/@selectedVersion.PreviewImageName" alt="@selectedVersion.Name" />
+                        <img src="@selectedVersion.PreviewImageName.AssetPreview()" alt="@selectedVersion.Name" />
                     </div>
                 }
                 else
@@ -151,11 +151,11 @@ else
                             <div class="d-flex flex-column gap-2 mt-1">
                                 @if (isOwner)
                                 {
-                                    <a href="/upload/@selectedVersion.ModGroupId"
+                                    <a href="@P.Uploads.ModVersion(selectedVersion.ModGroupId)"
                                        class="btn btn-outline-warning fw-semibold">
                                         <i class="bi bi-arrow-up-circle me-2"></i>Upload New Version
                                     </a>
-                                    <a href="/mod/@selectedVersion.Id/edit"
+                                    <a href="@P.Mods.Edit(selectedVersion.Id)"
                                        class="btn btn-outline-secondary fw-semibold">
                                         <i class="bi bi-pencil me-2"></i>Edit This Version
                                     </a>
@@ -170,7 +170,7 @@ else
                             {
                                 <div class="mt-2 p-3 rounded-3 border border-danger" style="background:rgba(220,53,69,.08);">
                                     <p class="small mb-2 fw-semibold text-danger">
-                                        Delete <em>v@selectedVersion.Version</em>?
+                                        Delete <em>v@(selectedVersion.Version)</em>?
                                         @(allVersions.Count == 1 ? " This is the only version — the entire mod will be removed." : string.Empty)
                                     </p>
                                     <div class="d-flex gap-2">
@@ -210,7 +210,7 @@ else
                         <div class="dropdown">
                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle fw-semibold"
                                     type="button" data-bs-toggle="dropdown">
-                                v@selectedVersion.Version
+                                v@(selectedVersion.Version)
                             </button>
                             <ul class="dropdown-menu dropdown-menu-dark f3m-version-dropdown">
                                 @foreach (var ver in allVersions)
@@ -229,7 +229,7 @@ else
                     }
                     else
                     {
-                        <span class="badge bg-secondary">v@selectedVersion.Version</span>
+                        <span class="badge bg-secondary">v@(selectedVersion.Version)</span>
                     }
 
                     @if (allVersions.Count > 1 && selectedVersion.Id != allVersions[0].Id)
