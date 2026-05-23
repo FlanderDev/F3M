@@ -1,3 +1,4 @@
+using F3M.Shared.Interfaces;
 using System.ComponentModel.DataAnnotations;
 
 namespace F3M.Shared.Models;
@@ -14,7 +15,7 @@ public class ModGroup
 }
 
 // ── Mod (version record) ──────────────────────────────────────────────────────
-public class Mod
+public class Mod : IId, IName
 {
     public int Id { get; set; }
 

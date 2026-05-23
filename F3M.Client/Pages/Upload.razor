@@ -14,7 +14,7 @@
         {
             <p class="small mb-0">
                 Adding a new version to <span class="text-warning fw-semibold">@existingMod.Name</span>
-                &nbsp;·&nbsp; latest: <span>v@existingMod.Version</span>
+                &nbsp;·&nbsp; latest: <span>v@(existingMod.Version)</span>
             </p>
         }
         else
@@ -71,12 +71,16 @@
                     <ValidationMessage For="@(() => dto.Description)" class="text-danger small mt-1 d-block" />
                 </div>
 
+                <div class="mb-3">
+                    <MultiSelectDropdown TModel="Mod" LoadValuesAsync="async (c, e) => (await c.GetFromJsonAsync<ModListResult>(e))?.Items" />
+                </div>
+
                 <!-- Preview image -->
                 <div class="mb-3">
                     <PickerImage HintText="@ImagePickerHint"
-                                   @bind-ImageBytes="imageBytes"
-                                   @bind-ImageFileName="imageFileName"
-                                   @bind-PreviewDataUrl="previewDataUrl" />
+                                 @bind-ImageBytes="imageBytes"
+                                 @bind-ImageFileName="imageFileName"
+                                 @bind-PreviewDataUrl="previewDataUrl" />
                 </div>
 
                 <!-- Mod files -->
