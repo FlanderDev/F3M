@@ -54,6 +54,7 @@ jobs:
       # ── 6. Create the Git tag ────────────────────────────────────────────
       - name: Create tag
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "${{ steps.version.outputs.tag }}"
