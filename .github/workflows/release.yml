@@ -1,0 +1,74 @@
+name: Tag & Release
+
+on:
+  push:
+    branches:
+      - release
+
+permissions:
+  contents: write   # needed to create tags and GitHub Releases
+
+jobs:
+  release:
+    name: Build, Tag & Release
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Compute a datetime-based version tag ──────────────────────────
+      #       Format: release/YYYY.MM.DD.HHmm  (UTC)
+      - name: Compute version tag
+        id: version
+        run: |
+          TAG="release/$(date -u +'%Y.%m.%d.%H%M')"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=${TAG#release/}" >> "$GITHUB_OUTPUT"
+
+      # ── 3. Restore & Build (Release) ────────────────────────────────────
+      - name: Restore
+        run: dotnet restore src/F3M.sln
+
+      - name: Build
+        run: dotnet build src/F3M.sln --configuration Release --no-restore
+
+      # ── 4. Publish the server project ────────────────────────────────────
+      - name: Publish F3M.Server
+        run: |
+          dotnet publish src/F3M.Server/F3M.Server.csproj \
+            --configuration Release \
+            --no-build \
+            --output publish/
+
+      # ── 5. Zip the published output ──────────────────────────────────────
+      #       zip is not in Alpine by default — install it first
+      - name: Zip artifact
+        run: |
+          apk add --no-cache zip
+          cd publish
+          zip -r ../F3M-${{ steps.version.outputs.name }}.zip .
+
+      # ── 6. Create the Git tag ────────────────────────────────────────────
+      - name: Create tag
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      # ── 7. Create the GitHub Release and upload the artifact ─────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.name }}
+          body: |
+            Automated release from the `release` branch.
+
+            **Commit:** ${{ github.sha }}
+            **Built at:** ${{ steps.version.outputs.name }} UTC
+          files: F3M-${{ steps.version.outputs.name }}.zip
+          fail_on_unmatched_files: true
