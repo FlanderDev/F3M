@@ -1,4 +1,4 @@
-using F3M.Shared;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -51,7 +51,12 @@ public partial class ModDetail
                 isAdmin = state.User.IsInRole("Admin");
             }
         }
-        catch { selectedVersion = null; }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex.StackTrace);
+            selectedVersion = null;
+        }
         finally { loading = false; }
     }
 
@@ -123,7 +128,7 @@ public partial class ModDetail
             bool anyError = false;
             foreach (var file in selectedVersion.Files)
             {
-                var resp = await Http.PostAsync(F3M.Shared.R.Mods.Download(selectedVersion.Id, file.Id), null);
+                var resp = await Http.PostAsync(R.Mods.Download(selectedVersion.Id, file.Id), null);
                 if (resp.IsSuccessStatusCode)
                 {
                     var bytes = await resp.Content.ReadAsByteArrayAsync();

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using F3M.Server.Data;
 using F3M.Server.Helpers;
 using F3M.Shared;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -52,10 +53,8 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
             _ => query.OrderByDescending(m => m.UploadedAt)
         };
 
-        var total = await query.CountAsync();
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-
-        return Ok(new ModListResult { Items = items, TotalCount = total, Page = page, PageSize = pageSize });
+        return Ok(new ModListResult { Items = items, TotalCount = items.Count, Page = page, PageSize = pageSize });
     }
 
     [HttpGet("{id:int}")]

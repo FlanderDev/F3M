@@ -1,9 +1,7 @@
-using F3M.Shared;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Net.Http.Json;
-using System.Text.RegularExpressions;
-using static System.Net.WebRequestMethods;
 
 namespace F3M.Client.Business;
 

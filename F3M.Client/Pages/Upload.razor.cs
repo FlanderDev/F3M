@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using F3M.Client.Business;
 using F3M.Client.Models;
+using F3M.Shared.Helpers;
 
 namespace F3M.Client.Pages;
 

@@ -13,6 +13,8 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<Content Remove="wwwroot\.gitignore" />
+		<Content Remove="wwwroot\previews\.gitignore" />
+		<Content Remove="wwwroot\uploads\.gitignore" />
 	</ItemGroup>
 	
 	<ItemGroup>
@@ -34,5 +36,7 @@
 
 	<ItemGroup>
 		<None Include="wwwroot\.gitignore" />
+		<None Include="wwwroot\previews\.gitignore" />
+		<None Include="wwwroot\uploads\.gitignore" />
 	</ItemGroup>
 </Project>
