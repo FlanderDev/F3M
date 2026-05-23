@@ -2,7 +2,7 @@
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
-COPY . /source
+COPY ./src /source
 
 WORKDIR /source/F3M.Server
 
