@@ -71,10 +71,6 @@
                     <ValidationMessage For="@(() => dto.Description)" class="text-danger small mt-1 d-block" />
                 </div>
 
-                <div class="mb-3">
-                    <MultiSelectDropdown TModel="Mod" LoadValuesAsync="async (c, e) => (await c.GetFromJsonAsync<ModListResult>(e))?.Items" />
-                </div>
-
                 <!-- Preview image -->
                 <div class="mb-3">
                     <PickerImage HintText="@ImagePickerHint"
