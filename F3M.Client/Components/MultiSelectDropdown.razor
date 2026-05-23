@@ -1,20 +1,21 @@
 @inject HttpClient Http
-@implements IDisposable
+@typeparam TModel where TModel : IId, IName
 
-<div class="msd-wrapper" @ref="_wrapperRef">
+<div class="msd-wrapper">
     <!-- Trigger / selected-chips display -->
-    <div class="msd-control @(_isOpen ? "msd-control--open" : string.Empty)"
-         @onclick="ToggleDropdown">
+    <div class="msd-control @(_isOpen ? "msd-control--open" : string.Empty)" @onclick="ToggleDropdown">
         <div class="msd-chips">
             @if (SelectedItems.Any())
             {
                 @foreach (var item in SelectedItems)
                 {
                     <span class="msd-chip">
-                        @item.Label
+                        @item.Model.Name
                         <button class="msd-chip__remove"
                                 @onclick:stopPropagation="true"
-                                @onclick="() => RemoveItem(item)">&#x2715;</button>
+                                @onclick="() => RemoveItem(item)">
+                            &#x2715;
+                        </button>
                     </span>
                 }
             }
@@ -58,7 +59,7 @@
                 <ul class="msd-list" @onclick:stopPropagation="true">
                     @foreach (var item in _items)
                     {
-                        var isChecked = SelectedItems.Any(s => s.Value == item.Value);
+                        var isChecked = SelectedItems.Any(s => s.Model.Id == item.Model.Id);
                         <li class="msd-list__item @(isChecked ? "msd-list__item--selected" : string.Empty)"
                             @onclick="() => ToggleItem(item)">
                             <span class="msd-checkbox @(isChecked ? "msd-checkbox--checked" : string.Empty)">
@@ -67,7 +68,7 @@
                                     <span class="msd-checkbox__tick">&#x2713;</span>
                                 }
                             </span>
-                            <span class="msd-list__label">@item.Label</span>
+                            <span class="msd-list__label">@item.Model.Name</span>
                         </li>
                     }
                 </ul>
@@ -85,16 +86,16 @@
     /* ── Tokens ── */
     .msd-wrapper {
         --msd-radius: 8px;
-        --msd-border: #d1d5db;
+        --msd-border: #ffc107;
         --msd-border-focus: #6366f1;
-        --msd-bg: #ffffff;
+        --msd-bg: #0d0e10;
         --msd-panel-shadow: 0 8px 24px rgba(0,0,0,.12);
         --msd-chip-bg: #ede9fe;
         --msd-chip-color: #4f46e5;
-        --msd-item-hover: #f5f3ff;
-        --msd-item-selected: #ede9fe;
+        --msd-item-hover: #ffc107;
+        --msd-item-selected: #000000;
         --msd-accent: #6366f1;
-        --msd-text: #111827;
+        --msd-text: #fff;
         --msd-muted: #9ca3af;
         --msd-font: 'Segoe UI', system-ui, sans-serif;
         position: relative;
@@ -118,11 +119,11 @@
         user-select: none;
     }
 
-    .msd-control--open,
-    .msd-control:hover {
-        border-color: var(--msd-border-focus);
-        box-shadow: 0 0 0 3px rgba(99,102,241,.15);
-    }
+        .msd-control--open,
+        .msd-control:hover {
+            border-color: var(--msd-border-focus);
+            box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+        }
 
     /* ── Chips ── */
     .msd-chips {
@@ -147,8 +148,15 @@
     }
 
     @@keyframes chipIn {
-        from { opacity: 0; transform: scale(.85); }
-        to   { opacity: 1; transform: scale(1); }
+        from {
+            opacity: 0;
+            transform: scale(.85);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 
     .msd-chip__remove {
@@ -163,9 +171,14 @@
         transition: opacity .15s;
     }
 
-    .msd-chip__remove:hover { opacity: 1; }
+        .msd-chip__remove:hover {
+            opacity: 1;
+        }
 
-    .msd-placeholder { color: var(--msd-muted); font-size: .9rem; }
+    .msd-placeholder {
+        color: var(--msd-muted);
+        font-size: .9rem;
+    }
 
     .msd-arrow {
         font-size: .7rem;
@@ -174,7 +187,9 @@
         flex-shrink: 0;
     }
 
-    .msd-arrow--up { transform: rotate(180deg); }
+    .msd-arrow--up {
+        transform: rotate(180deg);
+    }
 
     /* ── Panel ── */
     .msd-panel {
@@ -192,8 +207,15 @@
     }
 
     @@keyframes panelIn {
-        from { opacity: 0; transform: translateY(-6px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     /* ── Search ── */
@@ -226,7 +248,11 @@
         flex-shrink: 0;
     }
 
-    @@keyframes spin { to { transform: rotate(360deg); } }
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
 
     /* ── Hint ── */
     .msd-hint {
@@ -256,8 +282,13 @@
         transition: background .12s;
     }
 
-    .msd-list__item:hover { background: var(--msd-item-hover); }
-    .msd-list__item--selected { background: var(--msd-item-selected); }
+        .msd-list__item:hover {
+            background: var(--msd-item-hover);
+        }
+
+    .msd-list__item--selected {
+        background: var(--msd-item-selected);
+    }
 
     /* ── Checkbox ── */
     .msd-checkbox {

@@ -1,24 +1,24 @@
 using F3M.Shared.Helpers;
 using Microsoft.AspNetCore.Components;
-using System.Net.Http.Json;
 
 namespace F3M.Client.Components;
 
-public partial class MultiSelectDropdown
+public partial class MultiSelectDropdown<TModel>
 {
-    /* ─── Parameters ─── */
+    [Parameter, EditorRequired]
+    public Func<HttpClient, string, Task<List<TModel>?>> LoadValuesAsync { get; set; }
 
     /// <summary>Items currently selected (two-way bindable).</summary>
     [Parameter]
-    public List<DropdownItem> SelectedItems { get; set; } = [];
+    public List<InternalItem> SelectedItems { get; set; } = [];
 
     [Parameter]
-    public EventCallback<List<DropdownItem>> SelectedItemsChanged { get; set; }
+    public EventCallback<List<InternalItem>> SelectedItemsChanged { get; set; }
 
     /// <summary>Called when the dropdown closes. Receives the current selection.</summary>
     /// 
     [Parameter]
-    public EventCallback<List<DropdownItem>> OnDropdownClosed { get; set; }
+    public EventCallback<List<InternalItem>> OnDropdownClosed { get; set; }
 
     /// <summary>Minimum characters before the backend is queried.</summary>
     /// 
@@ -45,12 +45,10 @@ public partial class MultiSelectDropdown
     private bool _isOpen;
     private bool _isLoading;
     private string _searchText = string.Empty;
-    private List<DropdownItem> _items = new();
+    private List<InternalItem> _items = [];
     private System.Timers.Timer? _debounce;
-    private ElementReference _wrapperRef;
 
     /* ─── Open / close ─── */
-
     private async Task ToggleDropdown()
     {
         if (_isOpen)
@@ -71,7 +69,6 @@ public partial class MultiSelectDropdown
     }
 
     /* ─── Search / debounce ─── */
-
     private void OnSearchInput(ChangeEventArgs e)
     {
         _searchText = e.Value?.ToString() ?? string.Empty;
@@ -89,13 +86,13 @@ public partial class MultiSelectDropdown
         _debounce.Elapsed += async (_, _) =>
         {
             _debounce?.Dispose();
-            await InvokeAsync(FetchItemsAsync);
+            await InvokeAsync(LoadItemsAsync);
         };
         _debounce.AutoReset = false;
         _debounce.Start();
     }
 
-    private async Task FetchItemsAsync()
+    private async Task LoadItemsAsync()
     {
         _isLoading = true;
         StateHasChanged();
@@ -103,8 +100,14 @@ public partial class MultiSelectDropdown
         try
         {
             var url = SearchEndpoint.Replace("{query}", Uri.EscapeDataString(_searchText));
-            var result = await Http.GetFromJsonAsync<List<DropdownItem>>(url);
-            _items = result ?? [];
+            //var result = await Http.GetFromJsonAsync<ModListResult>(url);
+            var result = await LoadValuesAsync(Http, url);
+            if (result == null)
+            {
+                return;
+            }
+
+            _items = [.. result.Select(s => new InternalItem(s, false))];
         }
         catch
         {
@@ -119,10 +122,9 @@ public partial class MultiSelectDropdown
     }
 
     /* ─── Selection ─── */
-
-    private async Task ToggleItem(DropdownItem item)
+    private async Task ToggleItem(InternalItem item)
     {
-        var existing = SelectedItems.FirstOrDefault(s => s.Value == item.Value);
+        var existing = SelectedItems.FirstOrDefault(s => s == item);
         if (existing is not null)
             SelectedItems.Remove(existing);
         else
@@ -131,19 +133,12 @@ public partial class MultiSelectDropdown
         await SelectedItemsChanged.InvokeAsync(SelectedItems);
     }
 
-    private async Task RemoveItem(DropdownItem item)
+    private async Task RemoveItem(InternalItem item)
     {
-        SelectedItems.RemoveAll(s => s.Value == item.Value);
+        SelectedItems.RemoveAll(s => s == item);
         await SelectedItemsChanged.InvokeAsync(SelectedItems);
     }
 
-    /* ─── Click-outside (JS interop alternative: lightweight CSS approach) ─── */
-    // For a full click-outside implementation inject IJSRuntime and call a small
-    // JS helper. The panel closes via ToggleDropdown or the chip-remove button.
-
-    public void Dispose() => _debounce?.Dispose();
-
     /* ─── Model ─── */
-
-    public record DropdownItem(string Value, string Label);
+    public record InternalItem(TModel Model, bool IsChecked);
 }
