@@ -51,6 +51,9 @@ public class Mod : IId, IName
 
     // Navigation
     public List<ModFile> Files { get; set; } = [];
+
+    /// <summary>Mods that this mod depends on.</summary>
+    public List<Mod> Dependencies { get; set; } = [];
 }
 
 // ── ModFile ───────────────────────────────────────────────────────────────────
@@ -85,6 +88,8 @@ public class ModUploadDto
 
     [Required, MaxLength(1000)]
     public string Description { get; set; } = string.Empty;
+
+    public List<Mod> Dependencies { get; set; } = [];
 
     [MaxLength(20)]
     public string Version { get; set; } = "1.0.0";

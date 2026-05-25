@@ -246,10 +246,12 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
     public async Task<IActionResult> Download(int id, int fileId)
     {
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        if (mod is null) return NotFound();
+        if (mod is null) 
+            return NotFound();
 
         var file = mod.Files.FirstOrDefault(f => f.Id == fileId);
-        if (file is null) return NotFound("File not found in this mod version.");
+        if (file is null) 
+            return NotFound("File not found in this mod version.");
 
         mod.DownloadCount++;
         await db.SaveChangesAsync();

@@ -18,12 +18,12 @@ public static class P
     public static class Uploads
     {
         public const string Base = $"/{Upload}";
-        public static string ModVersion(int modGroupId) => $"{Upload}/{modGroupId}";
+        public static string ModVersion(int modGroupId) => $"{Base}/{modGroupId}";
     }
 
     public static class Mods
     {
         public const string Base = $"/{Modifications}";
-        public static string Edit(int selectedVersionId) => $"{Modifications}/{selectedVersionId}/{P.Edit}";
+        public static string Edit(int selectedVersionId) => $"{Base}/{selectedVersionId}/{P.Edit}";
     }
 }

@@ -1,7 +1,7 @@
 {
   "profiles": {
     "F3M.Server": {
-      "launchBrowser": true,
+      "launchBrowser": false,
       "commandName": "Project",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
