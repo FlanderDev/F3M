@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore.Migrations;
 
-#nullable disable
-
 namespace F3M.Server.Migrations;
 
 public partial class AddIsAdmin : Migration

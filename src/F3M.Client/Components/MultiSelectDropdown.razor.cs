@@ -5,41 +5,29 @@ namespace F3M.Client.Components;
 
 public partial class MultiSelectDropdown<TModel>
 {
-    [Parameter, EditorRequired]
+    [Parameter, EditorRequired] 
     public Func<HttpClient, string, Task<List<TModel>?>> LoadValuesAsync { get; set; }
 
     /// <summary>Items currently selected (two-way bindable).</summary>
-    [Parameter]
-    public List<InternalItem> SelectedItems { get; set; } = [];
+    [Parameter] public List<InternalItem> SelectedItems { get; set; } = [];
 
-    [Parameter]
-    public EventCallback<List<InternalItem>> SelectedItemsChanged { get; set; }
+    [Parameter] public EventCallback<List<InternalItem>> SelectedItemsChanged { get; set; }
 
     /// <summary>Called when the dropdown closes. Receives the current selection.</summary>
-    /// 
-    [Parameter]
-    public EventCallback<List<InternalItem>> OnDropdownClosed { get; set; }
+    [Parameter] public EventCallback<List<InternalItem>> OnDropdownClosed { get; set; }
 
     /// <summary>Minimum characters before the backend is queried.</summary>
-    /// 
-    [Parameter]
-    public int MinSearchLength { get; set; } = 3;
+    [Parameter] public int MinSearchLength { get; set; } = 3;
 
     /// <summary>Debounce in milliseconds between keystrokes and the HTTP call.</summary>
-    /// 
-    [Parameter]
-    public int DebounceMs { get; set; } = 500;
+    [Parameter] public int DebounceMs { get; set; } = 500;
 
     /// <summary>Backend endpoint. "{query}" is replaced with the search term.</summary>
-    /// 
-    [Parameter]
-    public string SearchEndpoint { get; set; } = R.Mods.Base;
+    [Parameter] public string SearchEndpoint { get; set; } = R.Mods.Base;
 
-    [Parameter]
-    public string Placeholder { get; set; } = "Select items…";
+    [Parameter] public string Placeholder { get; set; } = "Select items…";
 
-    [Parameter]
-    public string SearchPlaceholder { get; set; } = "Search…";
+    [Parameter] public string SearchPlaceholder { get; set; } = "Search…";
 
     /* ─── Internal state ─── */
     private bool _isOpen;
@@ -59,7 +47,9 @@ public partial class MultiSelectDropdown<TModel>
 
     private async Task CloseDropdown()
     {
-        if (!_isOpen) return;
+        if (!_isOpen)
+            return;
+
         _isOpen = false;
         _searchText = string.Empty;
         _items.Clear();
@@ -100,7 +90,6 @@ public partial class MultiSelectDropdown<TModel>
         try
         {
             var url = SearchEndpoint.Replace("{query}", Uri.EscapeDataString(_searchText));
-            //var result = await Http.GetFromJsonAsync<ModListResult>(url);
             var result = await LoadValuesAsync(Http, url);
             if (result == null)
             {
@@ -121,7 +110,6 @@ public partial class MultiSelectDropdown<TModel>
         }
     }
 
-    /* ─── Selection ─── */
     private async Task ToggleItem(InternalItem item)
     {
         var existing = SelectedItems.FirstOrDefault(s => s == item);
@@ -139,6 +127,5 @@ public partial class MultiSelectDropdown<TModel>
         await SelectedItemsChanged.InvokeAsync(SelectedItems);
     }
 
-    /* ─── Model ─── */
     public record InternalItem(TModel Model, bool IsChecked);
 }
