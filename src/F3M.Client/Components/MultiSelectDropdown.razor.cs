@@ -22,9 +22,6 @@ public partial class MultiSelectDropdown<TModel>
     /// <summary>Debounce in milliseconds between keystrokes and the HTTP call.</summary>
     [Parameter] public int DebounceMs { get; set; } = 500;
 
-    /// <summary>Backend endpoint. "{query}" is replaced with the search term.</summary>
-    [Parameter] public string SearchEndpoint { get; set; } = R.Mods.Base;
-
     [Parameter] public string Placeholder { get; set; } = "Select items…";
 
     [Parameter] public string SearchPlaceholder { get; set; } = "Search…";
@@ -89,8 +86,9 @@ public partial class MultiSelectDropdown<TModel>
 
         try
         {
-            var url = SearchEndpoint.Replace("{query}", Uri.EscapeDataString(_searchText));
-            var result = await LoadValuesAsync(Http, url);
+            var url = SearchEndpoint;
+            var escapedQuery = Uri.EscapeDataString(_searchText);
+            var result = await LoadValuesAsync(Http, _searchText);
             if (result == null)
             {
                 return;

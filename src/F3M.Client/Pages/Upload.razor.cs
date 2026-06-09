@@ -141,4 +141,12 @@ public partial class Upload
         progress = 0;
         uploadedId = 0;
     }
+
+    private static async Task<List<Mod>> LoadMultiSelectDropdownValues(HttpClient http, string searchText)
+    {
+        var url = R.Mods.Base;
+        var escapedQuery = Uri.EscapeDataString(searchText);
+        var items = await http.GetFromJsonAsync<ModListResult>($"{url}{escapedQuery}");
+        return items?.Items ?? [];
+    }
 }
