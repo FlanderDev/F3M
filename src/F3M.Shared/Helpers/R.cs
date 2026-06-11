@@ -1,4 +1,6 @@
-﻿namespace F3M.Shared.Helpers;
+﻿using System.Text;
+
+namespace F3M.Shared.Helpers;
 
 /// <summary>
 /// Contains all API routes, to avoid magic strings in controllers and client code.
@@ -43,16 +45,17 @@ public static class R
         public const string Base = $"{Api}/{Modifications}";
         public const string Upload = $"{Base}/{R.Upload}";
         public const string Categories = $"{Base}/{R.Categories}";
-        public static string GetMod(int id) => $"{Base}/{id}";
-        public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, Configuration.SortBy sortBy)=> string.Join(string.Empty,
-            Base, "?",
-            $"page={currentPage}&pageSize={pageSize}",
-            $"&search={Uri.EscapeDataString(searchTerm)}",
-            $"&sort={sortBy}",
-            string.IsNullOrWhiteSpace(selectedCategory)
-            ? string.Empty
-            : $"&category={Uri.EscapeDataString(selectedCategory)}");
         public static string GetVersions(int groupId) => $"{Base}/{Group}/{groupId}/{Versions}";
-        public static string Download(int versionId, int fileId) => $"{Base}/{versionId}/{Download}/{fileId}";
+        public static string Download(int versionId, int fileId) => $"{Base}/{versionId}/{R.Download}/{fileId}";
+        public static string GetMod(int id) => $"{Base}/{id}";
+        public static string GetMods(string nameQuerry) => $"{Base}/{nameQuerry}";
+        public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, Configuration.SortBy sortBy) =>
+            new StringBuilder(Base)
+            .Append($"?page={currentPage}")
+            .Append($"&pageSize={pageSize}")
+            .Append($"&sort={sortBy}")
+            .Append($"&search={Uri.EscapeDataString(searchTerm)}")
+            .Append(string.IsNullOrWhiteSpace(selectedCategory) ? string.Empty : $"&category={Uri.EscapeDataString(selectedCategory)}")
+            .ToString();
     }
 }

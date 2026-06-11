@@ -34,22 +34,19 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(m =>
-                m.Name.Contains(search) ||
-                m.Description.Contains(search) ||
-                m.Author.Contains(search));
+            query = query.Where(m => m.Name.Contains(search));
 
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(m => m.Category == category);
 
         query = sort switch
         {
-            Configuration.SortBy.Newest =>          query.OrderByDescending(m => m.UploadedAt),
-            Configuration.SortBy.Oldest =>          query.OrderBy(m => m.UploadedAt),
-            Configuration.SortBy.DownloadsDesc =>   query.OrderByDescending(m => m.DownloadCount),
-            Configuration.SortBy.DownloadsAsc =>    query.OrderBy(m => m.DownloadCount),
-            Configuration.SortBy.NameAsc =>         query.OrderBy(m => m.Name),
-            Configuration.SortBy.NameDesc =>        query.OrderByDescending(m => m.Name),
+            Configuration.SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
+            Configuration.SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
+            Configuration.SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
+            Configuration.SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
+            Configuration.SortBy.NameAsc => query.OrderBy(m => m.Name),
+            Configuration.SortBy.NameDesc => query.OrderByDescending(m => m.Name),
             _ => query.OrderByDescending(m => m.UploadedAt)
         };
 
@@ -62,6 +59,13 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
     {
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
         return mod is null ? NotFound() : Ok(mod);
+    }
+
+    [HttpGet("{query}")]
+    public async Task<ActionResult<Mod>> GetMod(string query)
+    {
+        var mods = await db.Mods.Where(w => w.Name.Contains(query)).ToArrayAsync();
+        return mods is null ? NotFound() : Ok(mods);
     }
 
     [HttpGet($"{R.Group}/{{groupId:int}}/{R.Versions}")]
@@ -118,9 +122,9 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         var username = User.FindFirstValue("name") ?? "unknown";
         var userId = Helper.GetUserId(User);
         logger.LogInformation($"User ID: {userId}");
-        
+
         if (userId is null)
-            return BadRequest("User ID not found."); 
+            return BadRequest("User ID not found.");
 
         // ── Validate files ────────────────────────────────────────────────────
         if (files.Count == 0)
@@ -138,7 +142,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
             if (!Configuration.AllowedFileExtension.Contains(ext))
                 return BadRequest($"File type '{ext}' not allowed. Accepted: {string.Join(", ", Configuration.AllowedFileExtension)}");
         }
-        
+
         // ── Check if user is in mod group ─────────────────────────────────────
         ModGroup? group = null;
         if (dto.ModGroupId is { } modGroupId) // This is a new version of an existing mod
@@ -158,7 +162,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         {
             if (userId == null)
                 return Forbid();
-            
+
             group = new ModGroup { Author = username, OwnerId = userId.Value };
             db.ModGroups.Add(group);
             await db.SaveChangesAsync(); // need Id before creating Mod
@@ -246,10 +250,12 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
     public async Task<IActionResult> Download(int id, int fileId)
     {
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        if (mod is null) return NotFound();
+        if (mod is null)
+            return NotFound();
 
         var file = mod.Files.FirstOrDefault(f => f.Id == fileId);
-        if (file is null) return NotFound("File not found in this mod version.");
+        if (file is null)
+            return NotFound("File not found in this mod version.");
 
         mod.DownloadCount++;
         await db.SaveChangesAsync();
@@ -312,7 +318,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         var remaining = await db.Mods.CountAsync(m => m.ModGroupId == mod.ModGroupId && m.Id != id);
         if (remaining == 0 && group is not null)
             db.ModGroups.Remove(group);
-        
+
         await RecalculateLatestVersion(db, group?.Id, mod);
         await db.SaveChangesAsync();
         return NoContent();
