@@ -71,6 +71,14 @@
                     <ValidationMessage For="@(() => dto.Description)" class="text-danger small mt-1 d-block" />
                 </div>
 
+                <!-- Mod Dependencies -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Mods which this mods depense on<span class="text-danger"></span></label>
+                    <MultiSelectDropdown TModel="Mod"
+                                         LoadValuesAsync="LoadMultiSelectDropdownValues"
+                                         OnDropdownClosed="e => dto.Dependencies = e.Select(s => s.Model).ToList()" />
+                </div>
+
                 <!-- Preview image -->
                 <div class="mb-3">
                     <PickerImage HintText="@ImagePickerHint"
