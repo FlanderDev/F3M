@@ -48,6 +48,7 @@ public static class R
         public static string GetVersions(int groupId) => $"{Base}/{Group}/{groupId}/{Versions}";
         public static string Download(int versionId, int fileId) => $"{Base}/{versionId}/{R.Download}/{fileId}";
         public static string GetMod(int id) => $"{Base}/{id}";
+        public static string GetMods(string nameQuerry) => $"{Base}/{nameQuerry}";
         public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, Configuration.SortBy sortBy) =>
             new StringBuilder(Base)
             .Append($"?page={currentPage}")
