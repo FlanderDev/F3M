@@ -1,5 +1,7 @@
 using System.Text;
 using F3M.Server.Data;
+using F3M.Shared;
+using F3M.Shared.Helpers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -8,10 +10,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=Database/f3m.db";
-var dir = Directory.GetParent(connectionString.Replace("Data Source=", string.Empty));
-if (dir != null)
-    Directory.CreateDirectory(dir.FullName);
+#region FileSystemPreparation
+A.AssetDir = builder.Configuration["AssetPath"] ?? "/assets";
+Directory.CreateDirectory(A.FileDir);
+Directory.CreateDirectory(A.ImageDir);
+
+var databaseDirectory = Path.Combine(A.AssetDir, "Database");
+Directory.CreateDirectory(databaseDirectory);
+#endregion
+
+var connectionString = $"Data Source={Path.Combine(databaseDirectory, "f3m.db")}";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "f3m-super-secret-key-change-in-production-32chars!"; // TODO: You know.
@@ -62,6 +70,14 @@ app.UseHttpsRedirection();
 // browsers refuse to execute as modules.
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
+
+// Serve user-uploaded mod files and preview thumbnails from the persistent
+// asset directory (outside wwwroot) at the /assets URL prefix.
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(A.AssetDir), // FileSystem Path
+    RequestPath = "/assets" // Served Path
+});
 
 app.UseRouting();
 

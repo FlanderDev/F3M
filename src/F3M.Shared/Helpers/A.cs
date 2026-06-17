@@ -2,8 +2,10 @@
 
 public static class A
 {
-    public const string Thumbnails = "previews";
-    public const string Uploads = "uploads";
+    public static string AssetDir { get; set; } = Environment.GetEnvironmentVariable("ASSET_PATH") ?? "/assets";
+    public static string FileDir { get; set; } = Path.Combine(A.AssetDir, nameof(FileDir));
+    public static string ImageDir { get; set; } = Path.Combine(A.AssetDir, nameof(ImageDir));
 
-    public static string AssetPreview(this string fileName) => $"{Thumbnails}/{fileName}";
+    public static string FilePath(this string fileName) => $"{A.FileDir}/{fileName}";
+    public static string ImagePath(this string fileName) => $"{A.ImageDir}/{fileName}";
 }

@@ -16,6 +16,10 @@ WORKDIR /app
 
 COPY --from=build /app .
 
+# Create the persistent asset directories so the volume mount point exists.
+# Uploads (mod files) and previews (thumbnails) live here, outside wwwroot.
+RUN mkdir -p /assets/uploads /assets/previews
+
 USER $APP_UID
 
 ENTRYPOINT ["dotnet", "F3M.Server.dll"]

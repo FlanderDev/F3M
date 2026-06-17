@@ -12,7 +12,7 @@ namespace F3M.Server.Controllers;
 
 [ApiController]
 [Route(R.Mods.Base)]
-public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILogger<ModsController> logger) : ControllerBase
+public sealed class ModsController(AppDbContext db, ILogger<ModsController> logger) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<ModListResult>> GetMods(
@@ -179,9 +179,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
                 return BadRequest("Preview image exceeds 8 MB.");
 
             previewName = $"{Guid.NewGuid():N}{imgExt}";
-            var previewDir = Path.Combine(env.WebRootPath ?? "wwwroot", "previews");
-            Directory.CreateDirectory(previewDir);
-            await using var imgStream = System.IO.File.Create(Path.Combine(previewDir, previewName));
+            await using var imgStream = System.IO.File.Create(Path.Combine(A.ImageDir, previewName));
             await previewImage.CopyToAsync(imgStream);
         }
         else if (dto.ModGroupId.HasValue)
@@ -214,9 +212,6 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         await db.SaveChangesAsync(); // need mod.Id for ModFile FKs
 
         // ── Save each mod file ────────────────────────────────────────────────
-        var uploadsDir = Path.Combine(env.WebRootPath ?? "wwwroot", "uploads");
-        Directory.CreateDirectory(uploadsDir);
-
         for (int i = 0; i < files.Count; i++)
         {
             var f = files[i];
@@ -225,7 +220,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
             var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
             var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
 
-            await using var stream = System.IO.File.Create(Path.Combine(uploadsDir, safeName));
+            await using var stream = System.IO.File.Create(Path.Combine(A.FileDir, safeName));
             await f.CopyToAsync(stream);
 
             db.ModFiles.Add(new ModFile
@@ -260,7 +255,7 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         mod.DownloadCount++;
         await db.SaveChangesAsync();
 
-        var path = Path.Combine(env.WebRootPath ?? "wwwroot", "uploads", file.FileName);
+        var path = Path.Combine(A.FileDir, file.FileName);
         if (!System.IO.File.Exists(path))
             return NotFound("File not found on server.");
 
@@ -305,10 +300,9 @@ public sealed class ModsController(AppDbContext db, IWebHostEnvironment env, ILo
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
 
         // Delete uploaded files from disk
-        var uploadsDir = Path.Combine(env.WebRootPath ?? "wwwroot", "uploads");
         foreach (var f in mod.Files)
         {
-            var p = Path.Combine(uploadsDir, f.FileName);
+            var p = Path.Combine(A.FileDir, f.FileName);
             if (System.IO.File.Exists(p)) System.IO.File.Delete(p);
         }
 
