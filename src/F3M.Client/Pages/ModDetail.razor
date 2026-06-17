@@ -36,7 +36,7 @@ else
                 @if (!string.IsNullOrEmpty(selectedVersion.PreviewImageName))
                 {
                     <div class="mod-detail-image mb-3">
-                        <img src="@selectedVersion.PreviewImageName.AssetPreview()" alt="@selectedVersion.Name" />
+                        <img src="@selectedVersion.PreviewImageName.ImagePath()" alt="@selectedVersion.Name" />
                     </div>
                 }
                 else

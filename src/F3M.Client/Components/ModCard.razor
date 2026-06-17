@@ -4,7 +4,7 @@
     <div class="mod-card-image">
         @if (!string.IsNullOrEmpty(Mod.PreviewImageName))
         {
-            <img src="previews/@Mod.PreviewImageName" alt="@Mod.Name preview" loading="lazy" />
+            <img src="@A.ImagePath(Mod.PreviewImageName)" alt="@Mod.Name preview" loading="lazy" />
         }
         else
         {
