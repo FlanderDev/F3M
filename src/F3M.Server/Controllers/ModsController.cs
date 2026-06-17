@@ -179,7 +179,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
                 return BadRequest("Preview image exceeds 8 MB.");
 
             previewName = $"{Guid.NewGuid():N}{imgExt}";
-            await using var imgStream = System.IO.File.Create(Path.Combine(Configuration.Thumbnails, previewName));
+            await using var imgStream = System.IO.File.Create(Path.Combine(A.ImageDir, previewName));
             await previewImage.CopyToAsync(imgStream);
         }
         else if (dto.ModGroupId.HasValue)
@@ -220,7 +220,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
             var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
             var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
 
-            await using var stream = System.IO.File.Create(Path.Combine(Configuration.ModFiles, safeName));
+            await using var stream = System.IO.File.Create(Path.Combine(A.FileDir, safeName));
             await f.CopyToAsync(stream);
 
             db.ModFiles.Add(new ModFile
@@ -255,7 +255,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         mod.DownloadCount++;
         await db.SaveChangesAsync();
 
-        var path = Path.Combine(Configuration.ModFiles, file.FileName);
+        var path = Path.Combine(A.FileDir, file.FileName);
         if (!System.IO.File.Exists(path))
             return NotFound("File not found on server.");
 
@@ -302,7 +302,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         // Delete uploaded files from disk
         foreach (var f in mod.Files)
         {
-            var p = Path.Combine(Configuration.ModFiles, f.FileName);
+            var p = Path.Combine(A.FileDir, f.FileName);
             if (System.IO.File.Exists(p)) System.IO.File.Delete(p);
         }
 

@@ -12,12 +12,6 @@
 		<EFVersion>9.*-*</EFVersion>
 	</PropertyGroup>
 	<ItemGroup>
-		<Content Remove="wwwroot\.gitignore" />
-		<Content Remove="wwwroot\previews\.gitignore" />
-		<Content Remove="wwwroot\uploads\.gitignore" />
-	</ItemGroup>
-	
-	<ItemGroup>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.6" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.6">
 			<PrivateAssets>all</PrivateAssets>
@@ -32,11 +26,5 @@
 	<ItemGroup>
 		<ProjectReference Include="..\F3M.Shared\F3M.Shared.csproj" />
 		<ProjectReference Include="..\F3M.Client\F3M.Client.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<None Include="wwwroot\.gitignore" />
-		<None Include="wwwroot\previews\.gitignore" />
-		<None Include="wwwroot\uploads\.gitignore" />
 	</ItemGroup>
 </Project>
