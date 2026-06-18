@@ -14,15 +14,17 @@ jobs:
     name: Compute version
     runs-on: ubuntu-latest
     outputs:
-      tag:  ${{ steps.version.outputs.tag }}
-      name: ${{ steps.version.outputs.name }}
+      tag:       ${{ steps.version.outputs.tag }}
+      name:      ${{ steps.version.outputs.name }}
+      started:   ${{ steps.version.outputs.started }}
     steps:
       - name: Compute version tag
         id: version
         run: |
           TAG="release/$(date -u +'%Y.%m.%d.%H%M')"
-          echo "tag=$TAG"  >> "$GITHUB_OUTPUT"
-          echo "name=${TAG#release/}" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"                      >> "$GITHUB_OUTPUT"
+          echo "name=${TAG#release/}"          >> "$GITHUB_OUTPUT"
+          echo "started=$(date -u +'%s')"      >> "$GITHUB_OUTPUT"
 
   # ── Job 2: Linux (Alpine container) build ─────────────────────────────────
   build-linux:
@@ -34,6 +36,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-linux-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: nuget-linux-
 
       - name: Restore
         run: dotnet restore src/F3M.sln
@@ -75,6 +84,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\NuGet\Cache
+          key: nuget-windows-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: nuget-windows-
+
       - name: Restore
         run: dotnet restore src/F3M.sln
 
@@ -101,8 +117,7 @@ jobs:
   release:
     name: Tag & Release
     needs: [version, build-linux, build-windows]
-    runs-on: ubuntu-latest
-    container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+    runs-on: ubuntu-latest   # no container needed — Git is pre-installed
 
     steps:
       - name: Checkout
@@ -118,10 +133,18 @@ jobs:
         with:
           name: windows-build
 
+      - name: Compute pipeline duration
+        id: duration
+        run: |
+          STARTED=${{ needs.version.outputs.started }}
+          NOW=$(date -u +'%s')
+          ELAPSED=$(( NOW - STARTED ))
+          MINUTES=$(( ELAPSED / 60 ))
+          SECONDS=$(( ELAPSED % 60 ))
+          echo "summary=${MINUTES}m ${SECONDS}s" >> "$GITHUB_OUTPUT"
+
       - name: Create tag
         run: |
-          apk add --no-cache git
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "${{ needs.version.outputs.tag }}"
@@ -137,6 +160,7 @@ jobs:
 
             **Commit:** ${{ github.sha }}
             **Built at:** ${{ needs.version.outputs.name }} UTC
+            **Pipeline duration:** ${{ steps.duration.outputs.summary }}
           files: |
             F3M-linux-${{ needs.version.outputs.name }}.zip
             F3M-windows-${{ needs.version.outputs.name }}.zip
