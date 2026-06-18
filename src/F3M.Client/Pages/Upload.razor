@@ -7,7 +7,7 @@
 
 <PageTitle>F3M - Upload</PageTitle>
 
-<div class="container py-5" style="max-width:720px;">
+<div class="container py-5">
     <div class="mb-4">
         <h1 class="fw-black mb-1 fs-2">@(IsNewVersion ? "Upload New Version" : "Upload a Mod")</h1>
         @if (IsNewVersion && existingMod is not null)
@@ -64,10 +64,7 @@
                 <!-- Description -->
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Description <span class="text-danger">*</span></label>
-                    <InputTextArea class="form-control f3m-input" rows="3"
-                                   placeholder="What does your mod do? Include compatibility notes."
-                                   @bind-Value="dto.Description" />
-                    <div style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
+                    <ManualMarkdown @bind-Value="dto.Description" />
                     <ValidationMessage For="@(() => dto.Description)" class="text-danger small mt-1 d-block" />
                 </div>
 

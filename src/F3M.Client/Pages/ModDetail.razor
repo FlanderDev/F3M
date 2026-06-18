@@ -1,13 +1,13 @@
 @page "/mod/{Id:int}"
+@inject NavigationManager Nav
 @inject HttpClient Http
 @inject IJSRuntime JS
-@inject NavigationManager Nav
 
 <PageTitle>F3M - @(selectedVersion?.Name ?? "Name-Unavailable")</PageTitle>
 
 @if (loading)
 {
-    <div class="container py-5">
+    <div class="py-5 mx-5">
         <div class="placeholder-glow">
             <div class="placeholder col-5 mb-3" style="height:2rem;border-radius:6px;"></div>
             <div class="placeholder col-12 mb-2" style="height:1rem;border-radius:4px;"></div>
@@ -25,7 +25,7 @@ else if (selectedVersion is null)
 }
 else
 {
-    <div class="container py-4" style="max-width:960px;">
+    <div class="container py-4 mx-5">
         <a href="/" class="small d-inline-flex align-items-center gap-1 mb-4">
             <i class="bi bi-arrow-left"></i> Back to Browse
         </a>
@@ -268,7 +268,7 @@ else
                 </div>
 
                 <h6 class="fw-bold mb-2">Description</h6>
-                <p class="lh-lg" style="white-space:pre-wrap;">@selectedVersion.Description</p>
+                <div>@((MarkupString)HelperExtensions.SanatizeMarkdownToHtml(selectedVersion.Description))</div>
 
                 <!-- All versions timeline (compact, only shown if > 1) -->
                 @if (allVersions.Count > 1)

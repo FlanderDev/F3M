@@ -11,7 +11,7 @@ public static class P
 {
     #region Parts of paths
     public const string Upload = "upload";
-    public const string Modifications = "mods";
+    public const string Modification = "mod";
     public const string Edit = "edit";
     #endregion
 
@@ -23,7 +23,7 @@ public static class P
 
     public static class Mods
     {
-        public const string Base = $"/{Modifications}";
+        public const string Base = $"/{Modification}";
         public static string Edit(int selectedVersionId) => $"{Base}/{selectedVersionId}/{P.Edit}";
     }
 }

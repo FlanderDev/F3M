@@ -1,0 +1,173 @@
+@using Microsoft.AspNetCore.Components
+@using Markdig
+
+<div class="f3m-md-editor @(IsFullscreen ? "f3m-md-editor--fullscreen" : string.Empty)">
+
+    @* ── Toolbar ──────────────────────────────────────────── *@
+    <div class="f3m-md-toolbar">
+        <div class="f3m-md-toolbar-left">
+            <button type="button" class="f3m-md-tb-btn" title="Bold" @onclick='() => InsertWrapped("**", "**", "bold text")'>
+                <i class="bi bi-type-bold"></i>
+            </button>
+            <button type="button" class="f3m-md-tb-btn" title="Italic" @onclick='() => InsertWrapped("*", "*", "italic text")'>
+                <i class="bi bi-type-italic"></i>
+            </button>
+            <button type="button" class="f3m-md-tb-btn" title="Strikethrough" @onclick='() => InsertWrapped("~~", "~~", "strikethrough")'>
+                <i class="bi bi-type-strikethrough"></i>
+            </button>
+            <span class="f3m-md-tb-sep"></span>
+            <button type="button" class="f3m-md-tb-btn" title="Heading" @onclick='() => InsertLinePrefix("## ", "Heading")'>
+                <i class="bi bi-type-h2"></i>
+            </button>
+            <button type="button" class="f3m-md-tb-btn" title="Bullet list" @onclick='() => InsertLinePrefix("- ", "List item")'>
+                <i class="bi bi-list-ul"></i>
+            </button>
+            <button type="button" class="f3m-md-tb-btn" title="Numbered list" @onclick='() => InsertLinePrefix("1. ", "List item")'>
+                <i class="bi bi-list-ol"></i>
+            </button>
+            <span class="f3m-md-tb-sep"></span>
+            <button type="button" class="f3m-md-tb-btn" title="Code" @onclick='() => InsertWrapped("`", "`", "code")'>
+                <i class="bi bi-code"></i>
+            </button>
+            <button type="button" class="f3m-md-tb-btn" title="Code block" @onclick='() => InsertBlock("```\\n", "\\n```", "code block")'>
+                <i class="bi bi-code-square"></i>
+            </button>
+            <button type="button" class="f3m-md-tb-btn" title="Blockquote" @onclick='() => InsertLinePrefix("> ", "quote")'>
+                <i class="bi bi-quote"></i>
+            </button>
+            <span class="f3m-md-tb-sep"></span>
+            <button type="button" class="f3m-md-tb-btn" title="Link" @onclick='() => InsertSnippet("[link text](https://example.com)")'>
+                <i class="bi bi-link-45deg"></i>
+            </button>
+            <button type="button" class="f3m-md-tb-btn" title="Horizontal rule" @onclick='() => InsertSnippet("\\n---\\n")'>
+                <i class="bi bi-dash-lg"></i>
+            </button>
+        </div>
+
+        <div class="f3m-md-toolbar-right">
+            <div class="f3m-md-view-toggle">
+                <button type="button"
+                        class="f3m-md-view-btn @(ActiveView == View.Editor ? "active" : string.Empty)"
+                        @onclick="() => ActiveView = View.Editor"
+                        title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button"
+                        class="f3m-md-view-btn @(ActiveView == View.Split ? "active" : string.Empty)"
+                        @onclick="() => ActiveView = View.Split"
+                        title="Split view">
+                    <i class="bi bi-layout-split"></i>
+                </button>
+                <button type="button"
+                        class="f3m-md-view-btn @(ActiveView == View.Preview ? "active" : string.Empty)"
+                        @onclick="() => ActiveView = View.Preview"
+                        title="Preview">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </div>
+            <button type="button"
+                    class="f3m-md-tb-btn ms-1"
+                    title="@(IsFullscreen ? "Exit fullscreen" : "Fullscreen")"
+                    @onclick="ToggleFullscreen">
+                <i class="bi @(IsFullscreen ? "bi-fullscreen-exit" : "bi-fullscreen")"></i>
+            </button>
+        </div>
+    </div>
+
+    @* ── Panes ────────────────────────────────────────────── *@
+    <div class="f3m-md-body f3m-md-body--@ActiveView.ToString().ToLower()">
+
+        @if (ActiveView != View.Preview)
+        {
+            <div class="f3m-md-pane f3m-md-pane--editor">
+                <textarea class="f3m-md-textarea"
+                          id="@_textareaId"
+                          placeholder="@Placeholder"
+                          value="@Value"
+                          @oninput="OnInput"
+                          rows="@Rows"
+                          spellcheck="true"></textarea>
+                <div class="f3m-md-char-count">
+                    @Value.Length chars
+                </div>
+            </div>
+        }
+
+        @if (ActiveView != View.Editor)
+        {
+            <div class="f3m-md-pane f3m-md-pane--preview">
+                <div class="f3m-md-preview-label">Preview</div>
+                <div class="f3m-md-preview-content markdown-body">
+                    @((MarkupString)RenderMarkdown())
+                </div>
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    // ── Parameters ─────────────────────────────────────────
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Write a description using **Markdown**…";
+    [Parameter] public int Rows { get; set; } = 10;
+
+    // ── State ───────────────────────────────────────────────
+    private enum View { Editor, Split, Preview }
+    private View ActiveView { get; set; } = View.Split;
+    private bool IsFullscreen { get; set; }
+    private readonly string _textareaId = $"md-editor-{Guid.NewGuid():N}";
+
+    // ── Markdown pipeline ───────────────────────────────────
+    private static readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .Build();
+
+    private string RenderMarkdown()
+    {
+        if (string.IsNullOrWhiteSpace(Value))
+            return "<p class=\"f3m-md-preview-empty\">Nothing to preview yet…</p>";
+        return Markdig.Markdown.ToHtml(Value, _pipeline);
+    }
+
+    // ── Events ──────────────────────────────────────────────
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString() ?? string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private void ToggleFullscreen() => IsFullscreen = !IsFullscreen;
+
+    // ── Toolbar helpers (pure string insertion) ─────────────
+    // Because Blazor WASM doesn't expose textarea selection positions without JS interop,
+    // these helpers append to the end of the current text.
+    // For proper cursor-aware insertion, see the optional JS interop section below.
+
+    private async Task InsertWrapped(string open, string close, string placeholder)
+    {
+        Value += $"{open}{placeholder}{close}";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertLinePrefix(string prefix, string placeholder)
+    {
+        var needsNewline = Value.Length > 0 && !Value.EndsWith('\n');
+        Value += $"{(needsNewline ? "\n" : "")}{prefix}{placeholder}";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertBlock(string open, string close, string placeholder)
+    {
+        var needsNewline = Value.Length > 0 && !Value.EndsWith('\n');
+        Value += $"{(needsNewline ? "\n" : "")}{open}{placeholder}{close}";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertSnippet(string snippet)
+    {
+        Value += snippet;
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
