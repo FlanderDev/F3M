@@ -15,18 +15,16 @@
 
 # Intro
 **F**lander's **M**anaka **M**od **M**anager is a Website for hosting mods for any game.  
-Feel free to test the demo-site however you want, just know I might wipe it anytime:  
-http://f3m-dev.runasp.net
 
-## Features
+## Planned Features
 - [x] User registration/login
 - [x] Mod upload/download
 - [x] Mod versioning
-- [ ] Mod dependencies
+- [x] Mod dependencies
 - [ ] Rich Text Editor for mod descriptions
 - [ ] Mod packs
 - [ ] User profiles
-- [ ] A Desktop application working in tandem with this server
+- [ ] A Desktop application working in tandem with this project [Big project]
 
 # F3M
 **F3M** is a full-stack web application built with **Blazor WebAssembly** on .NET 10. It follows the standard Blazor Hosted architecture, splitting responsibilities across three projects: a browser-side Blazor client, an ASP.NET Core server, and a shared class library for common models and contracts.
