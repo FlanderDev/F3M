@@ -38,6 +38,8 @@ public partial class Upload
     private int uploadedId;
     private int progress;
 
+    private string MarkdownPreview = string.Empty;
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {

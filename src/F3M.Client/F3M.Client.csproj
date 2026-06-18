@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <!-- These MUST all resolve to the same version as the runtime -->
+    <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
+    <PackageReference Include="Markdig" Version="1.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="$(AspNetCoreVersion)" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="$(AspNetCoreVersion)" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="$(AspNetCoreVersion)" />

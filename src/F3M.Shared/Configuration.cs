@@ -21,6 +21,8 @@ public static class Configuration
     public static readonly string[] AllowedFileExtension = [".dll", ".zip", ".rar", ".7z", ".pak", ".mod"];
     public static readonly string[] AllowedThumbnailExtension = [".jpg", ".jpeg", ".png", ".webp"];
 
+    public const int ModDescriptionMaxSize = 10_000;
+
     public const long MaxModSize = 512 * 1024 * 1024;
     public const long MaxImageSize = 8 * 1024 * 1024;
     public const long MaxTotalSize = 2L * 1024 * 1024 * 1024; // 2 GB total per upload
