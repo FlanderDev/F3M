@@ -5,7 +5,7 @@
 
 <PageTitle>F3M - EditMod</PageTitle>
 
-<div class="container py-5" style="max-width:680px;">
+<div class="py-4 mx-4">
 
     @if (loading)
     {
@@ -38,7 +38,7 @@
             <h1 class="fw-black mb-1 fs-2">Edit Mod</h1>
             <p class="small mb-0">
                 Editing <span class="text-warning fw-semibold">@mod.Name</span>
-                &nbsp;·&nbsp; v@mod.Version
+                &nbsp;·&nbsp; v@(mod.Version)
             </p>
         </div>
 
@@ -77,7 +77,8 @@
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold small">Description</label>
-                    <InputTextArea class="form-control f3m-input" rows="4" @bind-Value="dto.Description" />
+                    @* <InputTextArea class="form-control f3m-input" rows="4" @bind-Value="dto.Description" /> *@
+                    <ManualMarkdown @bind-Value="dto.Description" />
                     <div  style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
                 </div>
 

@@ -1,0 +1,28 @@
+﻿<InputTextArea class="form-control f3m-input" rows="3"
+               placeholder="What does your mod do? Include compatibility notes."
+               @oninput="OnInput"
+               @bind-Value="Value" />
+<div style="font-size:.72rem;">@Value.Length/@F3M.Shared.Configuration.ModDescriptionMaxSize</div>
+@((MarkupString)RenderMarkdown())
+
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    private string RenderMarkdown()
+    {
+        if (string.IsNullOrWhiteSpace(Value))
+            return "<p class=\"f3m-md-preview-empty\">Nothing to preview yet…</p>";
+        return HelperExtensions.SanatizeMarkdownToHtml(Value);
+    }
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        if (e.Value is not string newValue)
+            return;
+
+        Value = newValue;
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
