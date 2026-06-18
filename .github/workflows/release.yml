@@ -1,0 +1,167 @@
+name: Tag & Release
+
+on:
+  push:
+    branches:
+      - release
+
+permissions:
+  contents: write   # needed to create tags and GitHub Releases
+
+jobs:
+  # ── Job 1: compute the shared version tag ─────────────────────────────────
+  version:
+    name: Compute version
+    runs-on: ubuntu-latest
+    outputs:
+      tag:       ${{ steps.version.outputs.tag }}
+      name:      ${{ steps.version.outputs.name }}
+      started:   ${{ steps.version.outputs.started }}
+    steps:
+      - name: Compute version tag
+        id: version
+        run: |
+          TAG="release/$(date -u +'%Y.%m.%d.%H%M')"
+          echo "tag=$TAG"                      >> "$GITHUB_OUTPUT"
+          echo "name=${TAG#release/}"          >> "$GITHUB_OUTPUT"
+          echo "started=$(date -u +'%s')"      >> "$GITHUB_OUTPUT"
+
+  # ── Job 2: Linux (Alpine container) build ─────────────────────────────────
+  build-linux:
+    name: Build (Linux)
+    needs: version
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-linux-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: nuget-linux-
+
+      - name: Restore
+        run: dotnet restore src/F3M.sln
+
+      - name: Build
+        run: dotnet build src/F3M.sln --configuration Release --no-restore
+
+      - name: Publish F3M.Server
+        run: |
+          dotnet publish src/F3M.Server/F3M.Server.csproj \
+            --configuration Release \
+            --no-build \
+            --output publish/
+
+      - name: Zip artifact
+        run: |
+          apk add --no-cache zip
+          cd publish
+          zip -r ../F3M-linux-${{ needs.version.outputs.name }}.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: F3M-linux-${{ needs.version.outputs.name }}.zip
+
+  # ── Job 3: Windows build ───────────────────────────────────────────────────
+  build-windows:
+    name: Build (Windows)
+    needs: version
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\NuGet\Cache
+          key: nuget-windows-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+          restore-keys: nuget-windows-
+
+      - name: Restore
+        run: dotnet restore src/F3M.sln
+
+      - name: Build
+        run: dotnet build src/F3M.sln --configuration Release --no-restore
+
+      - name: Publish F3M.Server
+        run: |
+          dotnet publish src/F3M.Server/F3M.Server.csproj `
+            --configuration Release `
+            --no-build `
+            --output publish/
+
+      - name: Zip artifact
+        run: Compress-Archive -Path publish/* -DestinationPath F3M-windows-${{ needs.version.outputs.name }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: F3M-windows-${{ needs.version.outputs.name }}.zip
+
+  # ── Job 4: tag & release (waits for both builds) ──────────────────────────
+  release:
+    name: Tag & Release
+    needs: [version, build-linux, build-windows]
+    runs-on: ubuntu-latest   # no container needed — Git is pre-installed
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+
+      - name: Compute pipeline duration
+        id: duration
+        run: |
+          STARTED=${{ needs.version.outputs.started }}
+          NOW=$(date -u +'%s')
+          ELAPSED=$(( NOW - STARTED ))
+          MINUTES=$(( ELAPSED / 60 ))
+          SECONDS=$(( ELAPSED % 60 ))
+          echo "summary=${MINUTES}m ${SECONDS}s" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ needs.version.outputs.tag }}"
+          git push origin "${{ needs.version.outputs.tag }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: ${{ needs.version.outputs.name }}
+          body: |
+            Automated release from the `release` branch.
+
+            **Commit:** ${{ github.sha }}
+            **Built at:** ${{ needs.version.outputs.name }} UTC
+            **Pipeline duration:** ${{ steps.duration.outputs.summary }}
+          files: |
+            F3M-linux-${{ needs.version.outputs.name }}.zip
+            F3M-windows-${{ needs.version.outputs.name }}.zip
+          fail_on_unmatched_files: true
