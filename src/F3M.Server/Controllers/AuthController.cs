@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using F3M.Server.Data;
+using F3M.Shared;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -84,8 +85,8 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         };
 
         var token = new JwtSecurityToken(
-            issuer: "f3m",
-            audience: "f3m",
+            issuer: Configuration.AppName,
+            audience: Configuration.AppName,
             claims: claims,
             expires: DateTime.UtcNow.AddDays(30),
             signingCredentials: creds);
@@ -98,7 +99,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         var salt = RandomNumberGenerator.GetBytes(16);
         var hash = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password), salt,
-            iterations: 100_000, HashAlgorithmName.SHA256, outputLength: 32);
+            iterations: 300_000, HashAlgorithmName.SHA256, outputLength: 32);
         return $"{Convert.ToBase64String(salt)}:{Convert.ToBase64String(hash)}";
     }
 
@@ -110,7 +111,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         var expected = Convert.FromBase64String(parts[1]);
         var actual = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password), salt,
-            iterations: 100_000, HashAlgorithmName.SHA256, outputLength: 32);
+            iterations: 300_000, HashAlgorithmName.SHA256, outputLength: 32);
         return CryptographicOperations.FixedTimeEquals(actual, expected);
     }
 }
