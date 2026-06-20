@@ -1,6 +1,6 @@
+using F3M.Shared;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
-using F3M.Shared;
 
 namespace F3M.Client.Components;
 
@@ -16,13 +16,13 @@ public partial class PickerImage
 
     // Two-way bindable outputs so the parent can read the chosen image without
     // subscribing to a callback if it prefers the simpler bind-* syntax.
-    [Parameter] public byte[]?  ImageBytes    { get; set; }
-    [Parameter] public string   ImageFileName { get; set; } = string.Empty;
-    [Parameter] public string?  PreviewDataUrl { get; set; }
+    [Parameter] public byte[]? ImageBytes { get; set; }
+    [Parameter] public string ImageFileName { get; set; } = string.Empty;
+    [Parameter] public string? PreviewDataUrl { get; set; }
 
-    [Parameter] public EventCallback<byte[]?>  ImageBytesChanged    { get; set; }
-    [Parameter] public EventCallback<string>   ImageFileNameChanged { get; set; }
-    [Parameter] public EventCallback<string?>  PreviewDataUrlChanged { get; set; }
+    [Parameter] public EventCallback<byte[]?> ImageBytesChanged { get; set; }
+    [Parameter] public EventCallback<string> ImageFileNameChanged { get; set; }
+    [Parameter] public EventCallback<string?> PreviewDataUrlChanged { get; set; }
 
     /// <summary>Fired after a valid image is selected or cleared. Null = cleared.</summary>
     [Parameter] public EventCallback<SelectedImageInfo?> OnImageChanged { get; set; }
@@ -38,7 +38,7 @@ public partial class PickerImage
     private async Task OnFileSelected(InputFileChangeEventArgs e)
     {
         Error = null;
-        var f   = e.File;
+        var f = e.File;
         var ext = Path.GetExtension(f.Name).ToLowerInvariant();
 
         if (!Configuration.AllowedThumbnailExtension.Contains(ext))
@@ -53,12 +53,12 @@ public partial class PickerImage
         }
 
         await using var stream = f.OpenReadStream(MaxImage);
-        using  var ms     = new MemoryStream((int)f.Size);
+        using var ms = new MemoryStream((int)f.Size);
         await stream.CopyToAsync(ms);
 
         var bytes = ms.ToArray();
-        var mime  = ext is ".jpg" or ".jpeg" ? "image/jpeg"
-                  : ext == ".png"            ? "image/png"
+        var mime = ext is ".jpg" or ".jpeg" ? "image/jpeg"
+                  : ext == ".png" ? "image/png"
                                              : "image/webp";
         var dataUrl = $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
 
