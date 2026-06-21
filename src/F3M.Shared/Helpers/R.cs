@@ -5,9 +5,6 @@ namespace F3M.Shared.Helpers;
 /// <summary>
 /// Contains all API routes, to avoid magic strings in controllers and client code.
 /// </summary>
-/// <remarks>
-/// Really want to avoid magic values.
-/// </remarks>
 public static class R
 {
     #region Parts of paths

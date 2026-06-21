@@ -1,12 +1,8 @@
 ﻿namespace F3M.Shared.Helpers;
 
 /// <summary>
-/// Contains all Pages routes, to avoid magic strings in controllers and client code.
+/// Contains page routes, to avoid magic strings in controllers and client code.
 /// </summary>
-/// <remarks>
-/// Really want to avoid magic values.
-/// Page directives are an exception.
-/// </remarks>
 public static class P
 {
     #region Parts of paths
