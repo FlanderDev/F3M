@@ -70,7 +70,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
 
     private string GenerateToken(AppUser user)
     {
-        var secret = config["Jwt:Secret"] ?? "f3m-super-secret-key-change-in-production-32chars!";
+        var secret = config["Jwt:Secret"] ?? throw new InvalidOperationException("JWT secret is not configured.");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -88,7 +88,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
             issuer: Configuration.AppName,
             audience: Configuration.AppName,
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(30),
+            expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

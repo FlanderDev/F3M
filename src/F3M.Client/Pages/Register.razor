@@ -29,8 +29,8 @@
             </div>
             <div class="mb-3">
                 @* TODO-feature/Email *@
-                <label class="form-label fw-semibold small text-warning">E-Mail dosen't do anything right now, will be implemented later.</label> 
                 <label class="form-label fw-semibold small">Email</label> 
+                <label class="form-label fw-semibold small text-warning">E-Mail dosen't do anything right now, will be implemented later.</label> 
                 <InputText class="form-control f3m-input" type="email" placeholder="your@email.com"
                            @bind-Value="dto.Email" />
                 <ValidationMessage For="@(() => dto.Email)" class="text-danger small mt-1 d-block" />
