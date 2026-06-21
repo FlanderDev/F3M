@@ -1,6 +1,5 @@
 services:
   server:
-    user: 0:0
     build:
       context: .
       target: final

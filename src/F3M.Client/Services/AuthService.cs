@@ -1,9 +1,7 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Net.Http.Json;
-using System.Security.Claims;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Authorization;
+using System.Net.Http.Json;
 
 namespace F3M.Client.Services;
 
@@ -14,7 +12,7 @@ public class AuthService(HttpClient http, AuthenticationStateProvider authProvid
         try
         {
             var response = await http.PostAsJsonAsync(R.Auth.Register, dto);
-            var result   = await response.Content.ReadFromJsonAsync<AuthResult>();
+            var result = await response.Content.ReadFromJsonAsync<AuthResult>();
             if (result?.Success == true && result.Token is not null)
                 await ((F3MAuthStateProvider)authProvider).SetTokenAsync(result.Token);
             return result ?? new AuthResult { Success = false, Error = "Unknown error." };
@@ -30,7 +28,7 @@ public class AuthService(HttpClient http, AuthenticationStateProvider authProvid
         try
         {
             var response = await http.PostAsJsonAsync(R.Auth.Login, dto);
-            var result   = await response.Content.ReadFromJsonAsync<AuthResult>();
+            var result = await response.Content.ReadFromJsonAsync<AuthResult>();
             if (result?.Success == true && result.Token is not null)
                 await ((F3MAuthStateProvider)authProvider).SetTokenAsync(result.Token);
             return result ?? new AuthResult { Success = false, Error = "Unknown error." };
@@ -41,12 +39,7 @@ public class AuthService(HttpClient http, AuthenticationStateProvider authProvid
         }
     }
 
-    public async Task LogoutAsync()
-        => await ((F3MAuthStateProvider)authProvider).ClearTokenAsync();
-
-    public string? GetToken()
-        => ((F3MAuthStateProvider)authProvider).Token;
-
-    public bool IsAdmin
-        => ((F3MAuthStateProvider)authProvider).IsAdmin;
+    public async Task LogoutAsync() => await ((F3MAuthStateProvider)authProvider).ClearTokenAsync();
+    public string? GetToken() => ((F3MAuthStateProvider)authProvider).Token;
+    public bool IsAdmin => ((F3MAuthStateProvider)authProvider).IsAdmin;
 }
