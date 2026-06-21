@@ -2,6 +2,10 @@
 
 namespace F3M.Shared;
 
+/// <remarks>
+/// Provides configuration settings for the application.
+/// DO NOT CHANGE FROM CLIENT OR SERVER SIDE, AS THEY ARE SEPERATE!
+/// </remarks>
 public static class Configuration
 {
     public static readonly string BuildTimeStamp = Assembly.GetExecutingAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>() is { } aiva
