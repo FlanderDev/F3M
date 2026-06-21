@@ -1,5 +1,5 @@
 services:
-  server:
+  f3m-server:
     build:
       context: .
       target: final
@@ -8,7 +8,6 @@ services:
       - 443:443
     volumes:
       - f3m_Storage:/Storage
-      - ./appsettings.json:/app/appsettings.json
 
 volumes:
   f3m_Storage:

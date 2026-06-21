@@ -16,7 +16,7 @@ public static class Configuration
 #if DEBUG
         $"DEVELOPMENT {BuildTimeStamp}";
 #else
-        "Public Alpha {BuildTimeStamp}";
+        $"Public Alpha {BuildTimeStamp}";
 #endif
 
     public const string AppName = nameof(F3M);
