@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 
 #if !DEBUG
@@ -18,7 +17,6 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
 #region FileSystemPreparation
-A.AssetDir = builder.Configuration["AssetPath"] ?? "assets";
 Directory.CreateDirectory(A.FileDir);
 Directory.CreateDirectory(A.ImageDir);
 
@@ -88,7 +86,7 @@ app.UseStaticFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, A.AssetDir)), // FileSystem Path
-    RequestPath = "/assets" // Served Path
+    RequestPath = A.AssetDir // Served Path
 });
 
 app.UseRouting();
@@ -116,12 +114,14 @@ static async Task<string> CreateDefaultJwtSecret()
     var node = JsonNode.Parse(json);
     node!["Jwt"]!["Secret"] = secret;
 
+#if !DEBUG
     await File.WriteAllTextAsync(
         path,
         node.ToJsonString(new JsonSerializerOptions
         {
             WriteIndented = true
         }));
+#endif
 
     return secret;
 }
