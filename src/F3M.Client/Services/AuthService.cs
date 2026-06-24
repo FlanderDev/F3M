@@ -11,7 +11,7 @@ public class AuthService(HttpClient http, AuthenticationStateProvider authProvid
     {
         try
         {
-            var response = await http.PostAsJsonAsync(R.Auth.Register, dto);
+            var response = await http.PostAsJsonAsync(Endpoints.Auth.Register, dto);
             var result = await response.Content.ReadFromJsonAsync<AuthResult>();
             if (result?.Success == true && result.Token is not null)
                 await ((F3MAuthStateProvider)authProvider).SetTokenAsync(result.Token);
@@ -27,7 +27,7 @@ public class AuthService(HttpClient http, AuthenticationStateProvider authProvid
     {
         try
         {
-            var response = await http.PostAsJsonAsync(R.Auth.Login, dto);
+            var response = await http.PostAsJsonAsync(Endpoints.Auth.Login, dto);
             var result = await response.Content.ReadFromJsonAsync<AuthResult>();
             if (result?.Success == true && result.Token is not null)
                 await ((F3MAuthStateProvider)authProvider).SetTokenAsync(result.Token);

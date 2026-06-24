@@ -19,10 +19,10 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
 #region FileSystemPreparation
-Directory.CreateDirectory(A.FileDir);
-Directory.CreateDirectory(A.ImageDir);
+Directory.CreateDirectory(Assets.FileDir);
+Directory.CreateDirectory(Assets.ImageDir);
 
-var databaseDirectory = Path.Combine(A.ServerStorage, "Database");
+var databaseDirectory = Path.Combine(Assets.ServerStorage, "Database");
 Directory.CreateDirectory(databaseDirectory);
 #endregion
 
@@ -87,7 +87,7 @@ app.UseStaticFiles();
 // asset directory (outside wwwroot) at the /assets URL prefix.
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, A.PublicDir)), // FileSystem Path
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.PublicDir)), // FileSystem Path
     RequestPath = "/assets" // Served Path
 });
 
@@ -116,7 +116,7 @@ static async Task<string> CreateDefaultJwtSecret()
     var node = JsonNode.Parse(json);
     node!["Jwt"]!["Secret"] = secret;
 
-    var secreatStoragePath = Path.Combine(A.ServerStorage, "secret.txt");
+    var secreatStoragePath = Path.Combine(Assets.ServerStorage, "secret.txt");
     await File.WriteAllLinesAsync(secreatStoragePath, [DateTime.Now.ToString(), secret]);
 
 #if !DEBUG

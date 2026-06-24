@@ -9,11 +9,11 @@ using System.Security.Claims;
 namespace F3M.Server.Controllers;
 
 [ApiController]
-[Route(R.Admin.Base)]
+[Route(Endpoints.Admin.Base)]
 [Authorize(Roles = "Admin")]
 public class AdminController(AppDbContext db, ILogger<AdminController> logger) : ControllerBase
 {
-    [HttpGet(R.Users)]
+    [HttpGet(Endpoints.Users)]
     public async Task<ActionResult<List<AdminUserDto>>> GetUsers()
     {
         var users = await db.Users.ToListAsync();
@@ -35,7 +35,7 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
         return Ok(result);
     }
 
-    [HttpPost($"{R.Users}/{{id:int}}")]
+    [HttpPost($"{Endpoints.Users}/{{id:int}}")]
     public async Task<ActionResult<AdminUserDto>> ToggleAdmin(int id)
     {
         var callerIdStr = User.FindFirstValue("sub");
@@ -66,7 +66,7 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
         });
     }
 
-    [HttpDelete($"{R.Users}/{{id:int}}")]
+    [HttpDelete($"{Endpoints.Users}/{{id:int}}")]
     public async Task<IActionResult> DeleteUser(int id)
     {
         var callerIdStr = User.FindFirstValue("sub");

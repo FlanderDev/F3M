@@ -29,7 +29,7 @@ public static class Configuration
 
     public const long MaxModSize = 512 * 1024 * 1024;
     public const long MaxImageSize = 8 * 1024 * 1024;
-    public const long MaxTotalSize = 2L * 1024 * 1024 * 1024; // 2 GB total per upload
+    public const long MaxTotalSize = 1L * 1024 * 1024 * 1024; // 1 GB total per upload
 
     public enum SortBy
     {

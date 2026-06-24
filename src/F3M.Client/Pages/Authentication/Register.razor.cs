@@ -1,6 +1,6 @@
 using F3M.Shared.Models;
 
-namespace F3M.Client.Pages;
+namespace F3M.Client.Pages.Authentication;
 
 public partial class Register
 {

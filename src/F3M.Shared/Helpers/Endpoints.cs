@@ -5,7 +5,7 @@ namespace F3M.Shared.Helpers;
 /// <summary>
 /// Contains all API routes, to avoid magic strings in controllers and client code.
 /// </summary>
-public static class R
+public static class Endpoints
 {
     #region Parts of paths
     public const string Api = "api";
@@ -33,17 +33,17 @@ public static class R
     public static class Auth
     {
         public const string Base = $"{Api}/{Authentication}";
-        public const string Register = $"{Base}/{R.Register}";
-        public const string Login = $"{Base}/{R.Login}";
+        public const string Register = $"{Base}/{Endpoints.Register}";
+        public const string Login = $"{Base}/{Endpoints.Login}";
     }
 
     public static class Mods
     {
         public const string Base = $"{Api}/{Modifications}";
-        public const string Upload = $"{Base}/{R.Upload}";
-        public const string Categories = $"{Base}/{R.Categories}";
+        public const string Upload = $"{Base}/{Endpoints.Upload}";
+        public const string Categories = $"{Base}/{Endpoints.Categories}";
         public static string GetVersions(int groupId) => $"{Base}/{Group}/{groupId}/{Versions}";
-        public static string Download(int versionId, int fileId) => $"{Base}/{versionId}/{R.Download}/{fileId}";
+        public static string Download(int versionId, int fileId) => $"{Base}/{versionId}/{Endpoints.Download}/{fileId}";
         public static string GetMod(int id) => $"{Base}/{id}";
         public static string GetMods(string nameQuerry) => $"{Base}/{nameQuerry}";
         public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, Configuration.SortBy sortBy) =>

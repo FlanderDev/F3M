@@ -3,7 +3,7 @@
 /// <summary>
 /// Assets and file paths used by both client and server.
 /// </summary>
-public static class A
+public static class Assets
 {
     public static string ServerStorage => "Storage";
     public static string PublicDir => Path.Combine(ServerStorage, nameof(PublicDir));
