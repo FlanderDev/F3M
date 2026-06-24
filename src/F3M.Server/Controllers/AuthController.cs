@@ -13,10 +13,10 @@ using System.Text;
 namespace F3M.Server.Controllers;
 
 [ApiController]
-[Route(R.Auth.Base)]
+[Route(Endpoints.Auth.Base)]
 public class AuthController(AppDbContext db, IConfiguration config, ILogger<AuthController> logger) : ControllerBase
 {
-    [HttpPost(R.Register)]
+    [HttpPost(Endpoints.Register)]
     public async Task<ActionResult<AuthResult>> Register([FromBody] RegisterDto dto)
     {
         if (!ModelState.IsValid)
@@ -50,7 +50,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         });
     }
 
-    [HttpPost(R.Login)]
+    [HttpPost(Endpoints.Login)]
     public async Task<ActionResult<AuthResult>> Login([FromBody] LoginDto dto)
     {
         var user = await db.Users.FirstOrDefaultAsync(u =>

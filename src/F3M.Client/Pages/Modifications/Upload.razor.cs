@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
-namespace F3M.Client.Pages;
+namespace F3M.Client.Pages.Modifications;
 
 public partial class Upload
 {
@@ -108,7 +108,7 @@ public partial class Upload
 
             progress = 50; StateHasChanged();
 
-            var response = await Http.PostAsync(R.Mods.Upload, content);
+            var response = await Http.PostAsync(Endpoints.Mods.Upload, content);
             progress = 90; StateHasChanged();
 
             if (response.IsSuccessStatusCode)
@@ -147,7 +147,7 @@ public partial class Upload
     private static async Task<List<Mod>> LoadMultiSelectDropdownValues(HttpClient http, string searchText)
     {
         var escapedQuery = Uri.EscapeDataString(searchText);
-        var url = R.Mods.GetMods(escapedQuery);
+        var url = Endpoints.Mods.GetMods(escapedQuery);
         var items = await http.GetFromJsonAsync<List<Mod>>(url);
         return items ?? [];
     }
