@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Net.Http.Json;
 
-namespace F3M.Client.Pages;
+namespace F3M.Client.Pages.Modifications;
 
 public partial class EditMod
 {
@@ -26,7 +26,7 @@ public partial class EditMod
         try
         {
             Categories = await Http.LoadCategoriesAsync();
-            mod = await Http.GetFromJsonAsync<Mod>(R.Mods.GetMod(Id));
+            mod = await Http.GetFromJsonAsync<Mod>(Endpoints.Mods.GetMod(Id));
             if (mod is null)
                 return;
 
@@ -40,7 +40,7 @@ public partial class EditMod
                 if (!isAdmin)
                 {
                     // Need to check group ownership
-                    var group = await Http.GetFromJsonAsync<ModVersionsResult>(R.Mods.GetVersions(mod.ModGroupId));
+                    var group = await Http.GetFromJsonAsync<ModVersionsResult>(Endpoints.Mods.GetVersions(mod.ModGroupId));
                     var ownerId = group?.Group.OwnerId;
                     if (!int.TryParse(userIdStr, out var userId) || ownerId != userId)
                     {
@@ -67,7 +67,7 @@ public partial class EditMod
         saving = true; saveError = null; saved = false;
         try
         {
-            var resp = await Http.PutAsJsonAsync(R.Mods.GetMod(Id), dto);
+            var resp = await Http.PutAsJsonAsync(Endpoints.Mods.GetMod(Id), dto);
             if (resp.IsSuccessStatusCode)
             {
                 saved = true;

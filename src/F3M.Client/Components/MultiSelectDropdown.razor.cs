@@ -1,11 +1,10 @@
-using F3M.Shared.Helpers;
 using Microsoft.AspNetCore.Components;
 
 namespace F3M.Client.Components;
 
 public partial class MultiSelectDropdown<TModel>
 {
-    [Parameter, EditorRequired] 
+    [Parameter, EditorRequired]
     public Func<HttpClient, string, Task<List<TModel>?>> LoadValuesAsync { get; set; }
 
     /// <summary>Items currently selected (two-way bindable).</summary>
