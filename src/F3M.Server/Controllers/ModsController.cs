@@ -11,7 +11,7 @@ using System.Security.Claims;
 namespace F3M.Server.Controllers;
 
 [ApiController]
-[Route(R.Mods.Base)]
+[Route(Endpoints.Mods.Base)]
 public sealed class ModsController(AppDbContext db, ILogger<ModsController> logger) : ControllerBase
 {
     [HttpGet]
@@ -68,7 +68,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         return mods is null ? NotFound() : Ok(mods);
     }
 
-    [HttpGet($"{R.Group}/{{groupId:int}}/{R.Versions}")]
+    [HttpGet($"{Endpoints.Group}/{{groupId:int}}/{Endpoints.Versions}")]
     public async Task<ActionResult<ModVersionsResult>> GetVersions(int groupId)
     {
         var group = await db.ModGroups.FindAsync(groupId);
@@ -83,7 +83,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         return Ok(new ModVersionsResult { Group = group, Versions = versions });
     }
 
-    [HttpGet(R.Categories)]
+    [HttpGet(Endpoints.Categories)]
     public async Task<ActionResult<List<ValueTuple<string, int>>>> GetCategories()
     {
         // Category of each group = category of its latest version
@@ -109,7 +109,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
     //   files[]           — multiple mod files
     //   installPaths[]    — one install path per file (same index)
     //   originalNames[]   — original filenames (same index)
-    [HttpPost(R.Upload)]
+    [HttpPost(Endpoints.Upload)]
     [Authorize]
     [RequestSizeLimit(Configuration.MaxTotalSize)]
     public async Task<ActionResult<Mod>> Upload(
@@ -179,7 +179,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
                 return BadRequest("Preview image exceeds 8 MB.");
 
             previewName = $"{Guid.NewGuid():N}{imgExt}";
-            await using var imgStream = System.IO.File.Create(Path.Combine(A.ImageDir, previewName));
+            await using var imgStream = System.IO.File.Create(Path.Combine(Assets.ImageDir, previewName));
             await previewImage.CopyToAsync(imgStream);
         }
         else if (dto.ModGroupId.HasValue)
@@ -220,7 +220,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
             var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
             var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
 
-            await using var stream = System.IO.File.Create(Path.Combine(A.FileDir, safeName));
+            await using var stream = System.IO.File.Create(Path.Combine(Assets.FileDir, safeName));
             await f.CopyToAsync(stream);
 
             db.ModFiles.Add(new ModFile
@@ -241,7 +241,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         return CreatedAtAction(nameof(GetMod), new { id = mod.Id }, uploadedMod);
     }
 
-    [HttpPost($"{{id:int}}/{R.Download}/{{fileId:int}}")]
+    [HttpPost($"{{id:int}}/{Endpoints.Download}/{{fileId:int}}")]
     public async Task<IActionResult> Download(int id, int fileId)
     {
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
@@ -255,7 +255,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         mod.DownloadCount++;
         await db.SaveChangesAsync();
 
-        var path = Path.Combine(A.FileDir, file.FileName);
+        var path = Path.Combine(Assets.FileDir, file.FileName);
         if (!System.IO.File.Exists(path))
             return NotFound("File not found on server.");
 
@@ -302,7 +302,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         // Delete uploaded files from disk
         foreach (var f in mod.Files)
         {
-            var p = Path.Combine(A.FileDir, f.FileName);
+            var p = Path.Combine(Assets.FileDir, f.FileName);
             if (System.IO.File.Exists(p)) System.IO.File.Delete(p);
         }
 

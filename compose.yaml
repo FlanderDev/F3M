@@ -1,5 +1,5 @@
 services:
-  server:
+  f3m-server:
     build:
       context: .
       target: final
@@ -7,7 +7,7 @@ services:
       - 8081:8080
       - 443:443
     volumes:
-      - f3m_assets:/assets
+      - f3m_Storage:/Storage
 
 volumes:
-  f3m_assets:
+  f3m_Storage:

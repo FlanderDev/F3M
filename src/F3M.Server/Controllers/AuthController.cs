@@ -13,10 +13,10 @@ using System.Text;
 namespace F3M.Server.Controllers;
 
 [ApiController]
-[Route(R.Auth.Base)]
+[Route(Endpoints.Auth.Base)]
 public class AuthController(AppDbContext db, IConfiguration config, ILogger<AuthController> logger) : ControllerBase
 {
-    [HttpPost(R.Register)]
+    [HttpPost(Endpoints.Register)]
     public async Task<ActionResult<AuthResult>> Register([FromBody] RegisterDto dto)
     {
         if (!ModelState.IsValid)
@@ -50,7 +50,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         });
     }
 
-    [HttpPost(R.Login)]
+    [HttpPost(Endpoints.Login)]
     public async Task<ActionResult<AuthResult>> Login([FromBody] LoginDto dto)
     {
         var user = await db.Users.FirstOrDefaultAsync(u =>
@@ -70,7 +70,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
 
     private string GenerateToken(AppUser user)
     {
-        var secret = config["Jwt:Secret"] ?? "f3m-super-secret-key-change-in-production-32chars!";
+        var secret = config["Jwt:Secret"] ?? throw new InvalidOperationException("JWT secret is not configured.");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -88,7 +88,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
             issuer: Configuration.AppName,
             audience: Configuration.AppName,
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(30),
+            expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

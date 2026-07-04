@@ -2,7 +2,7 @@ using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using System.Net.Http.Json;
 
-namespace F3M.Client.Pages;
+namespace F3M.Client.Pages.Managment;
 
 public partial class Admin
 {
@@ -24,7 +24,7 @@ public partial class Admin
     {
         try
         {
-            users = await Http.GetFromJsonAsync<List<AdminUserDto>>(R.Admin.GetUsers) ?? [];
+            users = await Http.GetFromJsonAsync<List<AdminUserDto>>(Endpoints.Admin.GetUsers) ?? [];
         }
         catch (Exception ex) { loadError = ex.Message; }
         finally { loading = false; }
@@ -35,7 +35,7 @@ public partial class Admin
         busyId = user.Id; actionError = null;
         try
         {
-            var resp = await Http.PostAsync(R.Admin.ToggleAdmin(user.Id), null);
+            var resp = await Http.PostAsync(Endpoints.Admin.ToggleAdmin(user.Id), null);
             if (resp.IsSuccessStatusCode)
             {
                 var updated = await resp.Content.ReadFromJsonAsync<AdminUserDto>();
@@ -66,7 +66,7 @@ public partial class Admin
         busyId = deleteTarget.Id; actionError = null;
         try
         {
-            var resp = await Http.DeleteAsync(R.Admin.DeleteUser(deleteTarget.Id));
+            var resp = await Http.DeleteAsync(Endpoints.Admin.DeleteUser(deleteTarget.Id));
             if (resp.IsSuccessStatusCode)
             {
                 users.RemoveAll(u => u.Id == deleteTarget.Id);
