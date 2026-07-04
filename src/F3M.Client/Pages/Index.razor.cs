@@ -34,7 +34,7 @@ public partial class Index
         try
         {
             var specificCategory = selectedCategory == CategoryAll ? string.Empty : selectedCategory;
-            var query = R.Mods.GetMods(currentPage, pageSize, searchTerm, specificCategory, sortBy);
+            var query = Endpoints.Mods.GetMods(currentPage, pageSize, searchTerm, specificCategory, sortBy);
             result = await Http.GetFromJsonAsync<ModListResult>(query);
         }
         catch { result = new ModListResult(); }
