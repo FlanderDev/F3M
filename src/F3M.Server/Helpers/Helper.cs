@@ -2,7 +2,7 @@ using System.Security.Claims;
 
 namespace F3M.Server.Helpers;
 
-public class Helper
+public static class Helper
 {
     internal static int? GetUserId(ClaimsPrincipal User)
     {

@@ -23,8 +23,9 @@ public static class Paths
     public static class Mods
     {
         public const string Base = $"/{Modification}";
+        public const string Upload = $"/{Modification}/{Paths.Upload}";
         public static string Edit(int selectedVersionId) => $"{Base}/{selectedVersionId}/{Paths.Edit}";
-        public static string UploadVersion(int modGroupId) => $"{Base}/{Upload}/{modGroupId}";
+        public static string UploadVersion(int modGroupId) => $"{Upload}/{modGroupId}";
 
     }
 }

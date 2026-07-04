@@ -3,12 +3,14 @@
 ## Table of Contents
 
 - [Intro](#intro)
-	- [Planned features/changes](#planned-features/changes)
-- [F3M](#F3M)
+	- [Planned Features](#planned-features)
+- [F3M](#f3m)
 	- [Project Structure](#project-structure)
 	- [Prerequisites](#prerequisites)
 	- [Getting Started](#getting-started)
-		- [Building for Production](#building-for-production)
+		- [Run locally](#run-locally)
+		- [Run with Docker Compose](#run-with-docker-compose)
+	- [Building for Production](#building-for-production)
 - [Contributing](#contributing)
 
 ---
@@ -21,7 +23,7 @@
 - [x] Mod upload/download
 - [x] Mod versioning
 - [x] Mod dependencies
-- [ ] Rich Text Editor for mod descriptions
+- [x] Markdown for mod descriptions
 - [ ] Mod packs
 - [ ] User profiles
 - [ ] A Desktop application working in tandem with this project [Big project]
