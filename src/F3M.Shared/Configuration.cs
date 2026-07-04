@@ -2,6 +2,10 @@
 
 namespace F3M.Shared;
 
+/// <remarks>
+/// Provides configuration settings for the application.
+/// DO NOT CHANGE FROM CLIENT OR SERVER SIDE, AS THEY ARE SEPERATE!
+/// </remarks>
 public static class Configuration
 {
     public static readonly string BuildTimeStamp = Assembly.GetExecutingAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>() is { } aiva
@@ -12,7 +16,7 @@ public static class Configuration
 #if DEBUG
         $"DEVELOPMENT {BuildTimeStamp}";
 #else
-        "Public Alpha {BuildTimeStamp}";
+        $"Public Alpha {BuildTimeStamp}";
 #endif
 
     public const string AppName = nameof(F3M);
@@ -25,7 +29,7 @@ public static class Configuration
 
     public const long MaxModSize = 512 * 1024 * 1024;
     public const long MaxImageSize = 8 * 1024 * 1024;
-    public const long MaxTotalSize = 2L * 1024 * 1024 * 1024; // 2 GB total per upload
+    public const long MaxTotalSize = 1L * 1024 * 1024 * 1024; // 1 GB total per upload
 
     public enum SortBy
     {

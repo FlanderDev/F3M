@@ -1,21 +1,22 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using F3M.Server.Data;
+using F3M.Shared;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace F3M.Server.Controllers;
 
 [ApiController]
-[Route(R.Auth.Base)]
+[Route(Endpoints.Auth.Base)]
 public class AuthController(AppDbContext db, IConfiguration config, ILogger<AuthController> logger) : ControllerBase
 {
-    [HttpPost(R.Register)]
+    [HttpPost(Endpoints.Register)]
     public async Task<ActionResult<AuthResult>> Register([FromBody] RegisterDto dto)
     {
         if (!ModelState.IsValid)
@@ -49,7 +50,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         });
     }
 
-    [HttpPost(R.Login)]
+    [HttpPost(Endpoints.Login)]
     public async Task<ActionResult<AuthResult>> Login([FromBody] LoginDto dto)
     {
         var user = await db.Users.FirstOrDefaultAsync(u =>
@@ -69,7 +70,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
 
     private string GenerateToken(AppUser user)
     {
-        var secret = config["Jwt:Secret"] ?? "f3m-super-secret-key-change-in-production-32chars!";
+        var secret = config["Jwt:Secret"] ?? throw new InvalidOperationException("JWT secret is not configured.");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -84,10 +85,10 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         };
 
         var token = new JwtSecurityToken(
-            issuer: "f3m",
-            audience: "f3m",
+            issuer: Configuration.AppName,
+            audience: Configuration.AppName,
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(30),
+            expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
@@ -98,7 +99,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         var salt = RandomNumberGenerator.GetBytes(16);
         var hash = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password), salt,
-            iterations: 100_000, HashAlgorithmName.SHA256, outputLength: 32);
+            iterations: 300_000, HashAlgorithmName.SHA256, outputLength: 32);
         return $"{Convert.ToBase64String(salt)}:{Convert.ToBase64String(hash)}";
     }
 
@@ -110,7 +111,7 @@ public class AuthController(AppDbContext db, IConfiguration config, ILogger<Auth
         var expected = Convert.FromBase64String(parts[1]);
         var actual = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password), salt,
-            iterations: 100_000, HashAlgorithmName.SHA256, outputLength: 32);
+            iterations: 300_000, HashAlgorithmName.SHA256, outputLength: 32);
         return CryptographicOperations.FixedTimeEquals(actual, expected);
     }
 }

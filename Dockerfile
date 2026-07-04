@@ -1,24 +1,20 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
 COPY ./src /source
 
 WORKDIR /source/F3M.Server
 
-ARG TARGETARCH
-
-RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet publish -a ${TARGETARCH/amd64/x64} --self-contained false -o /app
+RUN dotnet publish --self-contained false -o /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
 
 COPY --from=build /app .
 
-# Create the persistent asset directories so the volume mount point exists.
-# Uploads (mod files) and previews (thumbnails) live here, outside wwwroot.
-RUN mkdir -p /assets/uploads /assets/previews
+RUN mkdir -p /app/Storage 
+chown -R $APP_UID:$APP_UID /app
 
 USER $APP_UID
 
