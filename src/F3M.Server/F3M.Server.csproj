@@ -12,6 +12,7 @@
 		<EFVersion>9.*-*</EFVersion>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="HtmlAgilityPack" Version="1.11.71" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
 			<PrivateAssets>all</PrivateAssets>

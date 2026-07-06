@@ -15,14 +15,31 @@ partial class AppDbContextModelSnapshot : ModelSnapshot
         {
             b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
             b.Property<string>("Username").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
-            b.Property<string>("Email").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+            b.Property<string>("Email").HasMaxLength(200).HasColumnType("TEXT");
             b.Property<string>("PasswordHash").IsRequired().HasColumnType("TEXT");
             b.Property<DateTime>("RegisteredAt").HasColumnType("TEXT");
             b.Property<bool>("IsAdmin").HasDefaultValue(false).HasColumnType("INTEGER");
+            b.Property<string>("F95UserId").HasMaxLength(30).HasColumnType("TEXT");
+            b.Property<string>("F95Username").HasMaxLength(50).HasColumnType("TEXT");
             b.HasKey("Id");
             b.HasIndex("Username").IsUnique();
-            b.HasIndex("Email").IsUnique();
+            b.HasIndex("F95UserId").IsUnique().HasFilter("\"F95UserId\" IS NOT NULL");
             b.ToTable("Users");
+        });
+
+        modelBuilder.Entity("F3M.Server.Models.F95PendingVerification", b =>
+        {
+            b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
+            b.Property<string>("F95UserId").IsRequired().HasMaxLength(30).HasColumnType("TEXT");
+            b.Property<string>("F95Username").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+            b.Property<string>("VerificationGuid").IsRequired().HasMaxLength(40).HasColumnType("TEXT");
+            b.Property<long>("ProfilePostId").HasColumnType("INTEGER");
+            b.Property<DateTime>("CreatedAt").HasColumnType("TEXT");
+            b.Property<string>("Status").IsRequired().HasColumnType("TEXT");
+            b.HasKey("Id");
+            b.HasIndex("F95UserId");
+            b.HasIndex("Status");
+            b.ToTable("F95PendingVerifications");
         });
 
         modelBuilder.Entity("F3M.Shared.Models.ModGroup", b =>
@@ -44,6 +61,7 @@ partial class AppDbContextModelSnapshot : ModelSnapshot
             b.Property<int>("DownloadCount").HasColumnType("INTEGER");
             b.Property<string>("PreviewImageName").HasColumnType("TEXT");
             b.Property<bool>("IsApproved").HasColumnType("INTEGER");
+            b.Property<bool>("IsLatestVersion").HasColumnType("INTEGER");
             b.Property<string>("Name").IsRequired().HasMaxLength(120).HasColumnType("TEXT");
             b.Property<DateTime>("UploadedAt").HasColumnType("TEXT");
             b.Property<int?>("UserId").HasColumnType("INTEGER");
@@ -52,6 +70,7 @@ partial class AppDbContextModelSnapshot : ModelSnapshot
             b.HasIndex("Category");
             b.HasIndex("Name");
             b.HasIndex("ModGroupId");
+            b.HasIndex("IsLatestVersion");
             b.ToTable("Mods");
         });
 
