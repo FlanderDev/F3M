@@ -193,17 +193,15 @@ public partial class F95LinkController(
             db.Users.Add(user);
             await db.SaveChangesAsync(ct);
 
-            logger.LogInformation(
-                "Created new F3M account '{Username}' linked to F95 user {F95UserId}.",
-                username, f95UserId);
+            logger.LogInformation("Created new F3M account '{Username}' linked to F95 user {F95UserId}.", username, f95UserId);
+
+            await ClaimModAuthorshipByNameAsync(user);
         }
         else
         {
             // Returning user re-linking — update their password.
             user.PasswordHash = passwordHash;
-
-            logger.LogInformation(
-                "Existing F3M account '{Username}' re-linked via F95 and password updated.", user.Username);
+            logger.LogInformation("Existing F3M account '{Username}' re-linked via F95 and password updated.", user.Username);
         }
 
         verification.Status = F95VerificationStatus.Verified;
@@ -229,6 +227,15 @@ public partial class F95LinkController(
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+    private async Task ClaimModAuthorshipByNameAsync(AppUser appUser)
+    {
+        var modsToClaim = db.ModGroups.Where(w => w.Author == appUser.Username).ToArray();
+        foreach (var mod in modsToClaim)
+            mod.OwnerId = appUser.Id;
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("User '{username}' claimed mod authorship for: {mods}", appUser.Username, string.Join(", ", modsToClaim.Select(m => m.Id)));
+    }
 
     private async Task<string> ResolveUniqueUsernameAsync(
         string f95Username, string f95UserId, CancellationToken ct)

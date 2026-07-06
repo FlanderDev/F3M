@@ -5,12 +5,11 @@ using F3M.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
-using static System.Net.WebRequestMethods;
 
 namespace F3M.Server.Controllers;
 
 [ApiController]
-public sealed class DebugController(AppDbContext db, ILogger<ModsController> logger) : ControllerBase
+public sealed class DebugController(AppDbContext db) : ControllerBase
 {
     private static bool IsLocalNetwork(IPAddress? ip)
     {
