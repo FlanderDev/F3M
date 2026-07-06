@@ -2,63 +2,122 @@
 @inject AuthService Auth
 @inject NavigationManager Nav
 
-<PageTitle>F3M - Register</PageTitle>
+<PageTitle>F3M – Link F95zone Account</PageTitle>
 
 <div class="f3m-auth-page">
     <div class="f3m-auth-card">
+
         <div class="f3m-auth-logo">
             <span class="f3m-logo-badge" style="width:48px;height:48px;font-size:1.1rem;">F3M</span>
         </div>
-        <h2 class="fw-black text-center mb-1">Create account</h2>
-        <p class="text-center small mb-4">Join the Manaka modding community</p>
 
-        @if (error is not null)
+        @if (step == Step.EnterUrl)
         {
-            <div class="alert alert-danger py-2 small mb-3">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
-            </div>
-        }
+            <h2 class="fw-black text-center mb-1">Link F95zone Account</h2>
+            <p class="text-center small mb-4" style="color:var(--f3m-muted)">
+                New users are registered automatically. Returning users are logged in.
+            </p>
 
-        <EditForm Model="dto" OnValidSubmit="HandleRegister">
-            <DataAnnotationsValidator />
+            @if (error is not null)
+            {
+                <div class="alert alert-danger py-2 small mb-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                </div>
+            }
+
             <div class="mb-3">
-                <label class="form-label fw-semibold small">Username</label>
-                <InputText class="form-control f3m-input" placeholder="Choose a username"
-                           @bind-Value="dto.Username" />
-                <ValidationMessage For="@(() => dto.Username)" class="text-danger small mt-1 d-block" />
+                <label class="form-label fw-semibold small">F95zone Profile URL</label>
+                <input class="form-control f3m-input"
+                       placeholder="https://f95zone.to/members/yourname.12345/"
+                       @bind="profileUrl"
+                       @bind:event="oninput" />
+                <div class="form-text" style="color:var(--f3m-muted)">
+                    Find your URL by clicking your username → View profile.
+                </div>
             </div>
-            <div class="mb-3">
-                @* TODO-feature/Email *@
-                <label class="form-label fw-semibold small">Email</label> 
-                <label class="form-label fw-semibold small text-warning">E-Mail dosen't do anything right now, will be implemented later.</label> 
-                <InputText class="form-control f3m-input" type="email" placeholder="your@email.com"
-                           @bind-Value="dto.Email" />
-                <ValidationMessage For="@(() => dto.Email)" class="text-danger small mt-1 d-block" />
-            </div>
+
             <div class="mb-3">
                 <label class="form-label fw-semibold small">Password</label>
-                <InputText class="form-control f3m-input" type="password" placeholder="At least 8 characters"
-                           @bind-Value="dto.Password" />
-                <ValidationMessage For="@(() => dto.Password)" class="text-danger small mt-1 d-block" />
+                <input type="password"
+                       class="form-control f3m-input"
+                       placeholder="At least 8 characters"
+                       @bind="password"
+                       @bind:event="oninput" />
             </div>
+
             <div class="mb-4">
                 <label class="form-label fw-semibold small">Confirm Password</label>
-                <InputText class="form-control f3m-input" type="password" placeholder="Repeat your password"
-                           @bind-Value="dto.ConfirmPassword" />
-                <ValidationMessage For="@(() => dto.ConfirmPassword)" class="text-danger small mt-1 d-block" />
+                <input type="password"
+                       class="form-control f3m-input @(passwordMismatch ? "is-invalid" : "")"
+                       placeholder="Repeat your password"
+                       @bind="confirmPassword"
+                       @bind:event="oninput"
+                       @onkeydown="OnConfirmKeyDown" />
+                @if (passwordMismatch)
+                {
+                    <div class="invalid-feedback">Passwords do not match.</div>
+                }
             </div>
-            <button type="submit" class="btn btn-warning fw-bold w-100" disabled="@loading">
+
+            <button class="btn btn-warning fw-bold w-100" @onclick="HandleStart" disabled="@loading">
                 @if (loading)
                 {
                     <span class="spinner-border spinner-border-sm me-2"></span>
                 }
-                Create Account
+                <i class="bi bi-link-45deg me-1"></i>Start Verification
             </button>
-        </EditForm>
-        <p class="text-center small mt-4 mb-0">
-            Already have an account? <a href="/login" class="text-warning fw-semibold">Sign In</a>
-        </p>
+
+            <p class="text-center small mt-4 mb-0">
+                Admin account?
+                <a href="/login" class="text-warning fw-semibold">Sign in with password</a>
+            </p>
+        }
+        else
+        {
+            <h2 class="fw-black text-center mb-1">Verify Ownership</h2>
+            <p class="text-center small mb-4" style="color:var(--f3m-muted)">
+                Reply to the bot's post on F95zone with the code below.
+            </p>
+
+            @if (error is not null)
+            {
+                <div class="alert alert-danger py-2 small mb-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                </div>
+            }
+
+            <div class="f3m-guid-box mb-3">
+                <div class="small fw-semibold mb-2" style="color:var(--f3m-muted)">
+                    <i class="bi bi-key-fill me-1 text-warning"></i>Your verification code
+                </div>
+                <div class="f3m-guid-code">@LinkF95StartResponse.VerificationGuid</div>
+                <div class="small mt-2" style="color:var(--f3m-muted)">
+                    <i class="bi bi-clock me-1"></i>Expires in 24 hours
+                </div>
+            </div>
+
+            <ol class="small mb-4" style="color:var(--f3m-muted); padding-left:1.2rem; line-height:1.8">
+                <li>
+                    Go to this post:
+                    <a href="@($"https://f95zone.to/profile-posts/{LinkF95StartResponse.PostId}/")" target="_blank" class="text-warning">
+                        Your Verification Post
+                    </a>
+                </li>
+                <li>Reply to that post with the code shown above.</li>
+                <li>Click <strong>Check Verification</strong> below.</li>
+            </ol>
+
+            <button class="btn btn-warning fw-bold w-100 mb-2" @onclick="HandleCheck" disabled="@loading">
+                @if (loading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                <i class="bi bi-arrow-repeat me-1"></i>Check Verification
+            </button>
+
+            <button class="btn btn-outline-secondary w-100 btn-sm" @onclick="ResetToStart">
+                <i class="bi bi-arrow-left me-1"></i>Start over
+            </button>
+        }
     </div>
 </div>
-
-

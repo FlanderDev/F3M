@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 
 namespace F3M.Shared.Helpers;
 
@@ -20,6 +20,9 @@ public static class Endpoints
     public const string Login = "login";
     public const string Register = "register";
     public const string Authentication = "auth";
+    public const string F95 = "f95";
+    public const string Start = "start";
+    public const string Check = "check";
     #endregion
 
     public static class Admin
@@ -35,6 +38,13 @@ public static class Endpoints
         public const string Base = $"{Api}/{Authentication}";
         public const string Register = $"{Base}/{Endpoints.Register}";
         public const string Login = $"{Base}/{Endpoints.Login}";
+    }
+
+    public static class F95Link
+    {
+        public const string Base = $"{Api}/{Authentication}/{F95}";
+        public const string Start = $"{Base}/{Endpoints.Start}";
+        public static string Check(string f95UserId) => $"{Base}/{Endpoints.Check}/{f95UserId}";
     }
 
     public static class Mods
