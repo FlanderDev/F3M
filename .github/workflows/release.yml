@@ -75,8 +75,7 @@ jobs:
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
-            -p:PublishSingleFile=true \
-            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:PublishSingleFile=false \
             --output publish-sc/
 
       - name: Zip self-contained artifact
@@ -140,8 +139,7 @@ jobs:
             --configuration Release `
             --runtime win-x64 `
             --self-contained true `
-            -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishSingleFile=false `
             --output publish-sc/
 
       - name: Zip self-contained artifact
