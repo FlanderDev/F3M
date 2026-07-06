@@ -9,14 +9,20 @@ public class AppUser
     [Required, MaxLength(50)]
     public string Username { get; set; } = string.Empty;
 
-    [Required, MaxLength(200)]
+    // Empty string for F95-linked accounts (no email registration).
+    [MaxLength(200)]
     public string Email { get; set; } = string.Empty;
 
+    // Empty string for F95-linked accounts (no password).
     public string PasswordHash { get; set; } = string.Empty;
 
     public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
 
     public bool IsAdmin { get; set; } = false;
+
+    // F95zone account link — null for legacy password accounts.
+    public string? F95UserId { get; set; }
+    public string? F95Username { get; set; }
 }
 
 public class RegisterDto
@@ -85,4 +91,42 @@ public class ModEditDto
 
     [MaxLength(50)]
     public string Category { get; set; } = "General";
+}
+
+// ── F95zone account linking DTOs ──────────────────────────────────────────────
+
+/// <summary>Sent by the client to kick off a verification flow.</summary>
+public class LinkF95StartRequest
+{
+    [Required]
+    public string ProfileUrl { get; set; } = string.Empty;
+}
+
+/// <summary>Returned after the bot has posted the challenge.</summary>
+public class LinkF95StartResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public string? VerificationGuid { get; set; }
+    public string? F95UserId { get; set; }
+    public long PostId { get; set; }
+}
+
+/// <summary>Sent by the client when polling for a GUID reply.</summary>
+public class LinkF95PollRequest
+{
+    [Required, MinLength(8), MaxLength(100)]
+    public string Password { get; set; } = string.Empty;
+}
+
+/// <summary>Returned each time the client polls for a GUID reply.</summary>
+public class LinkF95PollResponse
+{
+    /// <summary>One of: Pending, Verified, Expired, NotFound.</summary>
+    public string Status { get; set; } = string.Empty;
+    public string? Message { get; set; }
+
+    // Populated only when Status == "Verified".
+    public string? Token { get; set; }
+    public UserInfo? User { get; set; }
 }
