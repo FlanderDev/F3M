@@ -1,4 +1,5 @@
 using F3M.Server.Data;
+using F3M.Server.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -28,6 +29,9 @@ Directory.CreateDirectory(databaseDirectory);
 
 var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+
+// F95Service holds the XenForo login session (cookie jar) — must be singleton.
+builder.Services.AddSingleton<F95Service>();
 
 var jwtSecret = builder.Configuration["Jwt:Secret"];
 if (string.IsNullOrWhiteSpace(jwtSecret))

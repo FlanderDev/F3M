@@ -1,4 +1,5 @@
 using F3M.Server.Controllers;
+using F3M.Server.Models;
 using F3M.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Mod> Mods => Set<Mod>();
     public DbSet<ModFile> ModFiles => Set<ModFile>();
     public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<F95PendingVerification> F95PendingVerifications => Set<F95PendingVerification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,12 +34,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.HasIndex(m => m.Category);
             e.HasIndex(m => m.ModGroupId);
             e.HasIndex(m => m.IsLatestVersion);
-            // Navigation: a Mod has many ModFiles
             e.HasMany(m => m.Files)
              .WithOne()
              .HasForeignKey(f => f.ModId)
              .OnDelete(DeleteBehavior.Cascade);
-            // Self-referencing many-to-many: a Mod can depend on many other Mods
             e.HasMany(m => m.Dependencies)
              .WithMany()
              .UsingEntity<Dictionary<string, object>>(
@@ -62,23 +62,37 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             e.HasKey(u => u.Id);
             e.Property(u => u.Username).IsRequired().HasMaxLength(50);
-            e.Property(u => u.Email).IsRequired().HasMaxLength(200);
+            // Email is empty string for F95-linked accounts; unique constraint removed.
+            e.Property(u => u.Email).HasMaxLength(200);
             e.Property(u => u.IsAdmin).HasDefaultValue(false);
+            e.Property(u => u.F95UserId).HasMaxLength(30);
+            e.Property(u => u.F95Username).HasMaxLength(50);
             e.HasIndex(u => u.Username).IsUnique();
-            e.HasIndex(u => u.Email).IsUnique();
+            // Partial unique index: only enforce uniqueness when F95UserId is set.
+            e.HasIndex(u => u.F95UserId).IsUnique().HasFilter("\"F95UserId\" IS NOT NULL");
         });
 
+        modelBuilder.Entity<F95PendingVerification>(e =>
+        {
+            e.HasKey(v => v.Id);
+            e.Property(v => v.F95UserId).IsRequired().HasMaxLength(30);
+            e.Property(v => v.F95Username).IsRequired().HasMaxLength(50);
+            e.Property(v => v.VerificationGuid).IsRequired().HasMaxLength(40);
+            e.Property(v => v.Status).HasConversion<string>();
+            e.HasIndex(v => v.F95UserId);
+            e.HasIndex(v => v.Status);
+        });
 
 #if DEBUG
         var name = nameof(F3M);
         modelBuilder.Entity<AppUser>().HasData(
             new AppUser
             {
-                Id = 1,
-                Username = name,
+                Id           = 1,
+                Username     = name,
                 PasswordHash = AuthController.HashPassword(name),
-                IsAdmin = true,
-                Email = $"{name}-admin@example.com",
+                IsAdmin      = true,
+                Email        = $"{name}-admin@example.com",
                 RegisteredAt = DateTime.UtcNow
             }
         );
