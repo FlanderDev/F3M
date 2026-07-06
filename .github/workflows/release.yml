@@ -69,6 +69,27 @@ jobs:
           name: linux-build
           path: F3M-linux-${{ needs.version.outputs.name }}.zip
 
+      - name: Publish F3M.Server (self-contained, linux-x64)
+        run: |
+          dotnet publish src/F3M.Server/F3M.Server.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            --output publish-sc/
+
+      - name: Zip self-contained artifact
+        run: |
+          cd publish-sc
+          zip -r ../F3M-linux-x64-selfcontained-${{ needs.version.outputs.name }}.zip .
+
+      - name: Upload self-contained artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-selfcontained-build
+          path: F3M-linux-x64-selfcontained-${{ needs.version.outputs.name }}.zip
+
   # ── Job 3: Windows build ───────────────────────────────────────────────────
   build-windows:
     name: Build (Windows)
@@ -113,6 +134,25 @@ jobs:
           name: windows-build
           path: F3M-windows-${{ needs.version.outputs.name }}.zip
 
+      - name: Publish F3M.Server (self-contained, win-x64)
+        run: |
+          dotnet publish src/F3M.Server/F3M.Server.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            --output publish-sc/
+
+      - name: Zip self-contained artifact
+        run: Compress-Archive -Path publish-sc/* -DestinationPath F3M-windows-x64-selfcontained-${{ needs.version.outputs.name }}.zip
+
+      - name: Upload self-contained artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-selfcontained-build
+          path: F3M-windows-x64-selfcontained-${{ needs.version.outputs.name }}.zip
+
   # ── Job 4: tag & release (waits for both builds) ──────────────────────────
   release:
     name: Tag & Release
@@ -132,6 +172,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: windows-build
+
+      - name: Download Linux self-contained artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-selfcontained-build
+
+      - name: Download Windows self-contained artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-selfcontained-build
 
       - name: Compute pipeline duration
         id: duration
@@ -164,4 +214,6 @@ jobs:
           files: |
             F3M-linux-${{ needs.version.outputs.name }}.zip
             F3M-windows-${{ needs.version.outputs.name }}.zip
+            F3M-linux-x64-selfcontained-${{ needs.version.outputs.name }}.zip
+            F3M-windows-x64-selfcontained-${{ needs.version.outputs.name }}.zip
           fail_on_unmatched_files: true
