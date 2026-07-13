@@ -15,125 +15,125 @@ try
 {
 #endif
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllersWithViews();
-builder.Services.AddRazorPages();
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Services.AddControllersWithViews();
+    builder.Services.AddRazorPages();
 
-#region FileSystemPreparation
-Directory.CreateDirectory(Assets.FileDir);
-Directory.CreateDirectory(Assets.ImageDir);
+    #region FileSystemPreparation
+    Directory.CreateDirectory(Assets.FileDir);
+    Directory.CreateDirectory(Assets.ImageDir);
 
-var databaseDirectory = Path.Combine(Assets.ServerStorage, "Database");
-Directory.CreateDirectory(databaseDirectory);
-#endregion
+    var databaseDirectory = Path.Combine(Assets.ServerStorage, "Database");
+    Directory.CreateDirectory(databaseDirectory);
+    #endregion
 
-var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+    var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
-// F95Service holds the XenForo login session (cookie jar) — must be singleton.
-builder.Services.AddSingleton<F95Service>();
+    // F95Service holds the XenForo login session (cookie jar) — must be singleton.
+    builder.Services.AddSingleton<F95Service>();
 
-var jwtSecret = builder.Configuration["Jwt:Secret"];
-if (string.IsNullOrWhiteSpace(jwtSecret))
-    jwtSecret = await CreateDefaultJwtSecret();
+    var jwtSecret = builder.Configuration["Jwt:Secret"];
+    if (string.IsNullOrWhiteSpace(jwtSecret))
+        jwtSecret = await CreateDefaultJwtSecret();
 
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = Configuration.AppName,
-            ValidAudience = Configuration.AppName,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-            // Keep claim names as written in the JWT ("role", "sub", etc.)
-            // instead of remapping to long CLR URIs. Matches client-side parsing.
-            RoleClaimType = "role",
-            NameClaimType = "name"
-        };
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = Configuration.AppName,
+                ValidAudience = Configuration.AppName,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+                // Keep claim names as written in the JWT ("role", "sub", etc.)
+                // instead of remapping to long CLR URIs. Matches client-side parsing.
+                RoleClaimType = "role",
+                NameClaimType = "name"
+            };
+        });
+
+    builder.Services.AddAuthorization();
+
+    var app = builder.Build();
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.EnsureCreated();
+        db.Database.Migrate();
+    }
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseWebAssemblyDebugging();
+    }
+    else
+    {
+        app.UseExceptionHandler("/Error");
+        app.UseHsts();
+    }
+
+    app.UseHttpsRedirection();
+
+    // IMPORTANT: UseBlazorFrameworkFiles must come before UseStaticFiles and UseRouting.
+    // It registers the /_framework/* routes that serve the WASM boot files with the
+    // correct application/wasm and text/javascript MIME types. Without this ordering,
+    // those requests fall through to MapFallbackToFile and return text/html, which
+    // browsers refuse to execute as modules.
+    app.UseBlazorFrameworkFiles();
+    app.UseStaticFiles();
+
+    // Serve user-uploaded mod files and preview thumbnails from the persistent
+    // asset directory (outside wwwroot) at the /assets URL prefix.
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.PublicDir)), // FileSystem Path
+        RequestPath = "/assets" // Served Path
     });
 
-builder.Services.AddAuthorization();
+    app.UseRouting();
 
-var app = builder.Build();
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
-    db.Database.Migrate();
-}
+    app.UseAuthentication();
+    app.UseAuthorization();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseWebAssemblyDebugging();
-}
-else
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-}
+    app.MapRazorPages();
+    app.MapControllers();
+    app.MapFallbackToFile("index.html");
 
-app.UseHttpsRedirection();
+    app.Run();
+    return 0;
 
-// IMPORTANT: UseBlazorFrameworkFiles must come before UseStaticFiles and UseRouting.
-// It registers the /_framework/* routes that serve the WASM boot files with the
-// correct application/wasm and text/javascript MIME types. Without this ordering,
-// those requests fall through to MapFallbackToFile and return text/html, which
-// browsers refuse to execute as modules.
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+    static async Task<string> CreateDefaultJwtSecret()
+    {
+        using var rng = RandomNumberGenerator.Create();
+        var bytes = new byte[32]; // 256 bits
+        rng.GetBytes(bytes);
+        var secret = Convert.ToBase64String(bytes);
 
-// Serve user-uploaded mod files and preview thumbnails from the persistent
-// asset directory (outside wwwroot) at the /assets URL prefix.
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.PublicDir)), // FileSystem Path
-    RequestPath = "/assets" // Served Path
-});
+        const string path = "appsettings.json";
+        var json = await File.ReadAllTextAsync(path);
 
-app.UseRouting();
+        var node = JsonNode.Parse(json);
+        node!["Jwt"]!["Secret"] = secret;
 
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapRazorPages();
-app.MapControllers();
-app.MapFallbackToFile("index.html");
-
-app.Run();
-return 0;
-
-static async Task<string> CreateDefaultJwtSecret()
-{
-    using var rng = RandomNumberGenerator.Create();
-    var bytes = new byte[32]; // 256 bits
-    rng.GetBytes(bytes);
-    var secret = Convert.ToBase64String(bytes);
-
-    const string path = "appsettings.json";
-    var json = await File.ReadAllTextAsync(path);
-
-    var node = JsonNode.Parse(json);
-    node!["Jwt"]!["Secret"] = secret;
-
-    var secreatStoragePath = Path.Combine(Assets.ServerStorage, "secret.txt");
-    await File.WriteAllLinesAsync(secreatStoragePath, [DateTime.Now.ToString(), secret]);
+        var secreatStoragePath = Path.Combine(Assets.ServerStorage, "secret.txt");
+        await File.WriteAllLinesAsync(secreatStoragePath, [DateTime.Now.ToString(), secret]);
 
 #if !DEBUG
-    await File.WriteAllTextAsync(
-        path,
-        node.ToJsonString(new JsonSerializerOptions
-        {
-            WriteIndented = true
-        }));
+        await File.WriteAllTextAsync(
+            path,
+            node.ToJsonString(new JsonSerializerOptions
+            {
+                WriteIndented = true
+            }));
 #endif
 
-    return secret;
-}
+        return secret;
+    }
 
 #if !DEBUG
 
