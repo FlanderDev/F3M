@@ -1,3 +1,5 @@
+@inject HttpClient httpClient
+
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
@@ -37,3 +39,16 @@
         </NotFound>
     </Router>
 </CascadingAuthenticationState>
+
+@code {
+    private async Task HandleErrorAsync(Exception ex)
+    {
+        Console.WriteLine("====================================");
+        Console.WriteLine(ex.Message);
+        Console.WriteLine("====================================");
+
+        var error = Telemetry.ErrorReport.FromException(ex);
+        var jsonContent = JsonContent.Create(error);
+        await httpClient.PostAsync(Endpoints.Tele.Error, jsonContent);
+    }
+}
