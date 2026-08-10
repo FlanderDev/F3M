@@ -18,10 +18,10 @@ try
     builder.Services.AddRazorPages();
 
     #region FileSystemPreparation
-    Directory.CreateDirectory(Assets.FileDir);
-    Directory.CreateDirectory(Assets.ImageDir);
+    Directory.CreateDirectory(Assets.Files);
+    Directory.CreateDirectory(Assets.Images);
 
-    var databaseDirectory = Path.Combine(Assets.ServerStorage, "Database");
+    var databaseDirectory = Path.Combine(Assets.StorageRoot, "Database");
     Directory.CreateDirectory(databaseDirectory);
     #endregion
 
@@ -35,7 +35,7 @@ try
     string? jwtSecret = builder.Configuration["Jwt:Secret"];
     if (string.IsNullOrWhiteSpace(jwtSecret))
     {
-        var secretPath = Path.Combine(Assets.ServerStorage, "secret.txt");
+        var secretPath = Path.Combine(Assets.StorageRoot, "secret.txt");
         if (File.Exists(secretPath))
         {
             jwtSecret = (await File.ReadAllLinesAsync(secretPath)).LastOrDefault() ?? throw new InvalidOperationException("Failed to read JWT secret from file.");
@@ -99,12 +99,11 @@ try
     app.UseBlazorFrameworkFiles();
     app.UseStaticFiles();
 
-    // Serve user-uploaded mod files and preview thumbnails from the persistent
-    // asset directory (outside wwwroot) at the /assets URL prefix.
+    // Serve user-uploaded mod files and preview thumbnails from the persistent asset directory (outside wwwroot)
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.PublicDir)), // FileSystem Path
-        RequestPath = "/assets" // Served Path
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.PublicContent)), // FileSystem Path
+        RequestPath = Assets.ServedPath // Served Path
     });
 
     app.UseRouting();
