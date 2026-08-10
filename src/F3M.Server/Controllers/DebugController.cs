@@ -120,7 +120,7 @@ public sealed class DebugController(AppDbContext db) : ControllerBase
             var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
             var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
 
-            await using var stream = System.IO.File.Create(Path.Combine(Assets.FileDir, safeName));
+            await using var stream = System.IO.File.Create(Path.Combine(Assets.Files, safeName));
             await f.CopyToAsync(stream);
 
             db.ModFiles.Add(new ModFile
