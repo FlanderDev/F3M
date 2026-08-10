@@ -7,8 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 
 #if !DEBUG
 try
@@ -33,9 +31,23 @@ try
     // F95Service holds the XenForo login session (cookie jar) — must be singleton.
     builder.Services.AddSingleton<F95Service>();
 
-    var jwtSecret = builder.Configuration["Jwt:Secret"];
+
+    string? jwtSecret = builder.Configuration["Jwt:Secret"];
     if (string.IsNullOrWhiteSpace(jwtSecret))
-        jwtSecret = await CreateDefaultJwtSecret();
+    {
+        var secretPath = Path.Combine(Assets.ServerStorage, "secret.txt");
+        if (File.Exists(secretPath))
+        {
+            jwtSecret = (await File.ReadAllLinesAsync(secretPath)).LastOrDefault() ?? throw new InvalidOperationException("Failed to read JWT secret from file.");
+            return -1;
+        }
+
+        using var rng = RandomNumberGenerator.Create();
+        var bytes = new byte[32]; // 256 bits
+        rng.GetBytes(bytes);
+        jwtSecret = Convert.ToBase64String(bytes);
+        await File.WriteAllLinesAsync(secretPath, [DateTime.Now.ToString(), jwtSecret]);
+    }
 
     builder.Services
         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -107,36 +119,7 @@ try
     app.Run();
     return 0;
 
-    static async Task<string> CreateDefaultJwtSecret()
-    {
-        using var rng = RandomNumberGenerator.Create();
-        var bytes = new byte[32]; // 256 bits
-        rng.GetBytes(bytes);
-        var secret = Convert.ToBase64String(bytes);
-
-        const string path = "appsettings.json";
-        var json = await File.ReadAllTextAsync(path);
-
-        var node = JsonNode.Parse(json);
-        node!["Jwt"]!["Secret"] = secret;
-
-        var secreatStoragePath = Path.Combine(Assets.ServerStorage, "secret.txt");
-        await File.WriteAllLinesAsync(secreatStoragePath, [DateTime.Now.ToString(), secret]);
-
 #if !DEBUG
-        await File.WriteAllTextAsync(
-            path,
-            node.ToJsonString(new JsonSerializerOptions
-            {
-                WriteIndented = true
-            }));
-#endif
-
-        return secret;
-    }
-
-#if !DEBUG
-
 }
 catch (Exception ex)
 {

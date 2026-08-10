@@ -102,14 +102,14 @@ public class LinkF95StartRequest
     public string ProfileUrl { get; set; } = string.Empty;
 }
 
-/// <summary>Returned after the bot has posted the challenge.</summary>
+/// <summary>Returned after a verification has been started — tells the client what code to post and where.</summary>
 public class LinkF95StartResponse
 {
     public bool Success { get; set; }
     public string? Error { get; set; }
     public string? VerificationGuid { get; set; }
     public string? F95UserId { get; set; }
-    public long PostId { get; set; }
+    public string? F95Username { get; set; }
 }
 
 /// <summary>Sent by the client when polling for a GUID reply.</summary>
