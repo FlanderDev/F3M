@@ -18,8 +18,8 @@ public class F95PendingVerification
     public string VerificationGuid { get; set; } = string.Empty;
 
     /// <summary>
-    /// The ID of the profile-post the bot made on its own wall.
-    /// Used to fetch comments and look for the matching reply.
+    /// The ID of the user's own profile-wall post that matched the verification GUID.
+    /// Populated only once verification succeeds (0 until then) — kept for audit purposes.
     /// </summary>
     public long ProfilePostId { get; set; }
 

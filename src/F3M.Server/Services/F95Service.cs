@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 
 namespace F3M.Server.Services;
@@ -61,44 +60,18 @@ public sealed class F95Service : IDisposable
     // ── Public API ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Posts a verification challenge on the bot's own profile wall mentioning the target user.
-    /// Returns the profile post ID needed to later check for replies.
+    /// Fetches the target user's profile wall and returns the (PostId, Text) of every
+    /// top-level profile post authored by them. The caller checks these for the verification GUID.
     /// </summary>
-    public async Task<long> PostVerificationChallengeAsync(
+    public async Task<List<(long PostId, string Text)>> GetProfilePostsAsync(
         string targetUsername,
         string targetUserId,
-        string guid,
         CancellationToken ct = default)
     {
         await EnsureLoggedInAsync(ct);
 
-        var message =
-            string.Join('\n', [
-                $"User: '{targetUsername}'",
-                $"Id: '{targetUserId}'",
-                "Your F3M account verification code is:",
-                guid,
-                "\n",
-                "Please reply to this post with your verification code to complete linking your F95zone account to F3M.",
-                "This code expires in 24 hours."
-                ]);
-
-        return await PostOnOwnProfileWallAsync(message, ct);
-    }
-
-    /// <summary>
-    /// Fetches all comments on a specific profile post and returns the text
-    /// of those whose author matches <paramref name="targetF95UserId"/>.
-    /// </summary>
-    public async Task<List<string>> GetCommentsFromUserAsync(
-        long profilePostId,
-        string targetF95UserId,
-        CancellationToken ct = default)
-    {
-        await EnsureLoggedInAsync(ct);
-
-        var html = await FetchWithReloginAsync($"profile-posts/{profilePostId}/", ct);
-        return ParseCommentsFromUser(html, targetF95UserId);
+        var html = await FetchWithReloginAsync($"members/{targetUsername}.{targetUserId}/", ct);
+        return ParseProfilePosts(html, targetUsername);
     }
 
     // ── Login & Session ───────────────────────────────────────────────────────
@@ -159,137 +132,59 @@ public sealed class F95Service : IDisposable
         _logger.LogInformation("Successfully logged into F95zone.");
     }
 
-    // ── Profile Wall ──────────────────────────────────────────────────────────
-
-    private async Task<long> PostOnOwnProfileWallAsync(string message, CancellationToken ct)
-    {
-        await RefreshXfTokenAsync(ct);
-
-        var url = $"members/{_config.UserId}/post";
-
-        var formData = new Dictionary<string, string>
-        {
-            ["message"] = message,
-            ["_xfToken"] = _xfToken!,
-            ["_xfResponseType"] = "json"
-        };
-
-        var response = await _httpClient.PostAsync(
-            url, new FormUrlEncodedContent(formData), ct);
-
-        if (response.StatusCode == HttpStatusCode.Forbidden || IsRedirectToLogin(response))
-        {
-            _isLoggedIn = false;
-            await EnsureLoggedInAsync(ct);
-            return await PostOnOwnProfileWallAsync(message, ct);
-        }
-
-        response.EnsureSuccessStatusCode();
-
-        var body = await response.Content.ReadAsStringAsync(ct);
-
-        // Expected: { "status": "ok", "profilePost": { "profilePostId": 12345 } }
-        // NOTE: If F95zone returns a different shape, update the property path here.
-        using var jsonDoc = JsonDocument.Parse(body);
-
-        if (!jsonDoc.RootElement.TryGetProperty("redirect", out var postUrl))
-        {
-            throw new InvalidOperationException(
-                $"Unexpected profile-post response shape. Body: {body}");
-        }
-
-        var postId = long.Parse(postUrl.GetString()?.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault() ?? throw new InvalidOperationException($"Could not extract profile post ID from redirect URL: {postUrl}"));
-        _logger.LogInformation("Created profile post {PostId} on bot wall.", postId);
-        return postId;
-    }
-
     #region Helper
 
+    // ── Profile Wall Parsing ──────────────────────────────────────────────────
+
     /// <summary>
-    /// Deletes a profile post by ID using XenForo's delete endpoint.
-    /// The bot account must be the author of the post (or have moderation rights).
+    /// Parses top-level profile posts (the user's profile posts, excluding
+    /// comments on that post) from a rendered member profile page, filtered to those authored by
+    /// <paramref name="targetUsername"/>.
+    ///
+    /// NOTE: This assumes XenForo 2's default markup:
+    ///   &lt;div class="message ... js-profilePost-{id}" data-author="{username}"&gt;
+    ///     &lt;article class="message-body"&gt;
+    ///       &lt;div class="bbWrapper"&gt;...text...&lt;/div&gt;
+    ///     &lt;/article&gt;
+    ///   &lt;/div&gt;
+    /// This has NOT been verified against a live page capture yet — if matching keeps coming
+    /// back empty, inspect an actual profile page's HTML and adjust the selectors below.
     /// </summary>
-    public async Task DeleteProfilePostAsync(long profilePostId, CancellationToken ct = default)
-    {
-        await EnsureLoggedInAsync(ct);
-        await RefreshXfTokenAsync(ct);
-
-        var url = $"profile-posts/{profilePostId}/delete";
-
-        var formData = new Dictionary<string, string>
-        {
-            ["_xfToken"] = _xfToken!,
-            ["_xfResponseType"] = "json"
-        };
-
-        var response = await _httpClient.PostAsync(
-            url, new FormUrlEncodedContent(formData), ct);
-
-        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
-            IsRedirectToLogin(response))
-        {
-            _isLoggedIn = false;
-            await EnsureLoggedInAsync(ct);
-            await DeleteProfilePostAsync(profilePostId, ct);
-            return;
-        }
-
-        response.EnsureSuccessStatusCode();
-
-        var body = await response.Content.ReadAsStringAsync(ct);
-        using var doc = System.Text.Json.JsonDocument.Parse(body);
-
-        if (doc.RootElement.TryGetProperty("status", out var status) &&
-            status.GetString() == "ok")
-        {
-            _logger.LogInformation("Deleted profile post {PostId}.", profilePostId);
-            return;
-        }
-
-        var error = doc.RootElement.TryGetProperty("errors", out var errors)
-            ? errors.ToString()
-            : body;
-
-        throw new InvalidOperationException(
-            $"F95zone returned an error when deleting post {profilePostId}: {error}");
-    }
-
-
-
-    // ── Comment Parsing ───────────────────────────────────────────────────────
-
-    private List<string> ParseCommentsFromUser(string html, string targetUserId)
+    private List<(long PostId, string Text)> ParseProfilePosts(string html, string targetUsername)
     {
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
 
-        var commentNodes = doc.DocumentNode.SelectNodes("//div[starts-with(@id, 'js-profilePostComment-')]");
+        // Top-level posts use id="js-profilePost-{id}"; comments use the
+        // "js-profilePostComment-{id}" prefix, so explicitly exclude those.
+        var postNodes = doc.DocumentNode.SelectNodes(
+            "//div[starts-with(@id, 'js-profilePost-') and not(starts-with(@id, 'js-profilePostComment-'))]");
 
-        if (commentNodes is null)
+        if (postNodes is null)
         {
-            _logger.LogWarning("No comment nodes found on profile post page.");
+            _logger.LogWarning("No profile post nodes found on member profile page for {Username}.", targetUsername);
             return [];
         }
 
-        var results = new List<string>();
+        var results = new List<(long, string)>();
 
-        foreach (var node in commentNodes)
+        foreach (var node in postNodes)
         {
-            // Author is on the <a class="comment-user"> element via data-user-id.
-            var authorNode = node.SelectSingleNode(
-                ".//*[contains(@class,'comment-user') and @data-user-id]");
+            var author = node.GetAttributeValue("data-author", null);
+            if (!string.Equals(author, targetUsername, StringComparison.OrdinalIgnoreCase))
+                continue;
 
-            var authorId = authorNode?.GetAttributeValue("data-user-id", null);
+            var idAttr = node.GetAttributeValue("id", string.Empty);
+            var idPart = idAttr.Replace("js-profilePost-", string.Empty);
+            if (!long.TryParse(idPart, out var postId))
+                continue;
 
-            if (authorId != targetUserId) continue;
-
-            // Content is inside <article class="comment-body">.
-            var bodyNode = node.SelectSingleNode(
-                ".//article[contains(@class,'comment-body')]");
+            // Content is inside <div class="bbWrapper"> within the message body.
+            var bodyNode = node.SelectSingleNode(".//div[contains(@class,'bbWrapper')]");
 
             var text = bodyNode?.InnerText?.Trim();
             if (!string.IsNullOrEmpty(text))
-                results.Add(text);
+                results.Add((postId, text));
         }
 
         return results;
