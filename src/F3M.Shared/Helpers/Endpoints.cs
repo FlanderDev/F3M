@@ -23,6 +23,8 @@ public static class Endpoints
     public const string F95 = "f95";
     public const string Start = "start";
     public const string Check = "check";
+    public const string Telemetry = "telemetry";
+    public const string Error = "error";
     #endregion
 
     public static class Admin
@@ -45,6 +47,13 @@ public static class Endpoints
         public const string Base = $"{Api}/{Authentication}/{F95}";
         public const string Start = $"{Base}/{Endpoints.Start}";
         public static string Check(string f95UserId) => $"{Base}/{Endpoints.Check}/{f95UserId}";
+    }
+
+    public static class Tele
+    {
+        public const string Base = $"{Api}/{Telemetry}";
+        public const string Error = $"{Base}/{Endpoints.Error}";
+
     }
 
     public static class Mods

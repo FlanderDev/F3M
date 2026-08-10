@@ -3,21 +3,19 @@ using Microsoft.AspNetCore.Components.Web;
 
 namespace F3M.Client.Pages.Authentication;
 
-public partial class Register
+public partial class LinkAccount
 {
     private enum Step { EnterUrl, AwaitingReply }
 
-    private LinkF95StartResponse LinkF95StartResponse = new();
-    private Step   step           = Step.EnterUrl;
-    private string profileUrl     = string.Empty;
-    private string password       = string.Empty;
+    private LinkF95StartResponse dto = new();
+    private string profileUrl = string.Empty;
+    private string password = string.Empty;
     private string confirmPassword = string.Empty;
 
-    private bool    loading;
+    private bool loading;
     private string? error;
 
-    private bool passwordMismatch =>
-        !string.IsNullOrEmpty(confirmPassword) && password != confirmPassword;
+    private bool PasswordMismatch => !string.IsNullOrEmpty(confirmPassword) && password != confirmPassword;
 
     private async Task OnConfirmKeyDown(KeyboardEventArgs e)
     {
@@ -57,19 +55,18 @@ public partial class Register
             return;
         }
 
-        LinkF95StartResponse = result;
-        step = Step.AwaitingReply;
+        dto = result;
     }
 
     private async Task HandleCheck()
     {
-        error   = null;
+        error = null;
         loading = true;
 
-        if (string.IsNullOrWhiteSpace(LinkF95StartResponse.F95UserId))
+        if (string.IsNullOrWhiteSpace(dto.F95UserId))
             return;
 
-        var result = await Auth.LinkF95PollAsync(LinkF95StartResponse.F95UserId, password);
+        var result = await Auth.LinkF95PollAsync(dto.F95UserId, password);
         loading = false;
 
         switch (result.Status)
@@ -85,7 +82,7 @@ public partial class Register
 
             case "Expired":
                 error = "Verification expired. Please start over.";
-                step  = Step.EnterUrl;
+                dto = new();
                 break;
 
             default:
@@ -96,11 +93,10 @@ public partial class Register
 
     private void ResetToStart()
     {
-        step              = Step.EnterUrl;
-        LinkF95StartResponse = new();
-        error             = null;
-        profileUrl        = string.Empty;
-        password          = string.Empty;
-        confirmPassword   = string.Empty;
+        dto = new();
+        error = null;
+        profileUrl = string.Empty;
+        password = string.Empty;
+        confirmPassword = string.Empty;
     }
 }

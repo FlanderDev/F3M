@@ -6,20 +6,12 @@
 public static class Paths
 {
     #region Parts of paths
-    public const string Authentication = "auth";
     public const string Upload = "upload";
     public const string Modification = "mod";
     public const string Edit = "edit";
-
+    public const string LinkAccount = $"/link-account";
     #endregion
 
-    public static class Auth
-    {
-        public const string Base = $"/{Authentication}/";
-        public const string Login = $"/{Authentication}/login";
-        public const string Register = $"/{Authentication}/register";
-
-    }
     public static class Mods
     {
         public const string Base = $"/{Modification}";

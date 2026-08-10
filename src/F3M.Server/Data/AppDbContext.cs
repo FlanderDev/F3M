@@ -12,6 +12,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<ModFile> ModFiles => Set<ModFile>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<F95PendingVerification> F95PendingVerifications => Set<F95PendingVerification>();
+    public DbSet<Telemetry.ErrorReport> TelemetryErrorReports => Set<Telemetry.ErrorReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
