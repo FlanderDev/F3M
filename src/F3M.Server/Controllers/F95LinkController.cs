@@ -23,8 +23,7 @@ public partial class F95LinkController(
     ILogger<F95LinkController> logger) : ControllerBase
 {
     // Matches: https://f95zone.to/members/username.12345/
-    [GeneratedRegex(@"^https?://f95zone\.to/members/([a-zA-Z0-9_.\-]+?)\.(\d+)/?$",
-        RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^https?://f95zone\.to/members/([a-zA-Z0-9_.\-]+?)\.(\d+)/?$", RegexOptions.IgnoreCase)]
     private static partial Regex F95ProfileUrlRegex();
 
     private static readonly TimeSpan ExpiryWindow = TimeSpan.FromHours(24);
@@ -71,27 +70,11 @@ public partial class F95LinkController(
 
         var guid = Guid.NewGuid().ToString("D").ToUpper();
 
-        long profilePostId;
-        try
-        {
-            profilePostId = await f95.PostVerificationChallengeAsync(f95Username, f95UserId, guid, ct);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to post verification challenge for F95 user {UserId}.", f95UserId);
-            return StatusCode(502, new LinkF95StartResponse
-            {
-                Success = false,
-                Error = $"The verification failed to post. Please contact an administrator (FlanDev)."
-            });
-        }
-
         var verification = new F95PendingVerification
         {
             F95UserId = f95UserId,
             F95Username = f95Username,
             VerificationGuid = guid,
-            ProfilePostId = profilePostId,
             CreatedAt = DateTime.UtcNow,
             Status = F95VerificationStatus.Pending
         };
@@ -99,14 +82,14 @@ public partial class F95LinkController(
         db.F95PendingVerifications.Add(verification);
         await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("Started F95 verification for {Username} ({UserId}), post ID {PostId}.", f95Username, f95UserId, profilePostId);
+        logger.LogInformation("Started F95 verification for {Username} ({UserId}).", f95Username, f95UserId);
 
         return Ok(new LinkF95StartResponse
         {
             Success = true,
             VerificationGuid = guid,
             F95UserId = f95UserId,
-            PostId = profilePostId
+            F95Username = f95Username
         });
     }
 
@@ -142,15 +125,15 @@ public partial class F95LinkController(
             });
         }
 
-        List<string> comments;
+        List<(long PostId, string Text)> posts;
         try
         {
-            comments = await f95.GetCommentsFromUserAsync(verification.ProfilePostId, f95UserId, ct);
+            posts = await f95.GetProfilePostsAsync(verification.F95Username, f95UserId, ct);
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                "Failed to fetch profile post comments for verification {Id}.", verification.Id);
+                "Failed to fetch profile wall for verification {Id}.", verification.Id);
             return StatusCode(502, new LinkF95PollResponse
             {
                 Status = "Error",
@@ -158,20 +141,21 @@ public partial class F95LinkController(
             });
         }
 
-        var matched = comments.Any(c =>
-            c.Contains(verification.VerificationGuid, StringComparison.OrdinalIgnoreCase));
+        var (postId, text) = posts.FirstOrDefault(p =>
+            p.Text.Contains(verification.VerificationGuid, StringComparison.OrdinalIgnoreCase));
 
-        if (!matched)
+        if (text is null)
             return Ok(new LinkF95PollResponse
             {
                 Status = "Pending",
-                Message = "Reply not found yet. Make sure you replied to the bot's profile post."
+                Message = "Post not found yet. Make sure you posted the code on your own profile wall."
             });
 
         // GUID matched — find or create the F3M account.
         var user = await db.Users.FirstOrDefaultAsync(u => u.F95UserId == f95UserId, ct);
 
-        _ = Task.Run(async () => await f95.DeleteProfilePostAsync(verification.ProfilePostId, ct), ct);
+        // Record which post matched, for audit purposes.
+        verification.ProfilePostId = postId;
 
         var passwordHash = AuthController.HashPassword(request.Password);
 

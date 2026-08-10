@@ -1,4 +1,4 @@
-@page "/register"
+@page "/link-account"
 @inject AuthService Auth
 @inject NavigationManager Nav
 
@@ -11,7 +11,7 @@
             <span class="f3m-logo-badge" style="width:48px;height:48px;font-size:1.1rem;">F3M</span>
         </div>
 
-        @if (step == Step.EnterUrl)
+        @if (dto.VerificationGuid == null)
         {
             <h2 class="fw-black text-center mb-1">Link F95zone Account</h2>
             <p class="text-center small mb-4" style="color:var(--f3m-muted)">
@@ -28,7 +28,7 @@
             <div class="mb-3">
                 <label class="form-label fw-semibold small">F95zone Profile URL</label>
                 <input class="form-control f3m-input"
-                       placeholder="https://f95zone.to/members/yourname.12345/"
+                       placeholder="https://f95zone.to/members/YourUserName.12345/"
                        @bind="profileUrl"
                        @bind:event="oninput" />
                 <div class="form-text" style="color:var(--f3m-muted)">
@@ -48,12 +48,12 @@
             <div class="mb-4">
                 <label class="form-label fw-semibold small">Confirm Password</label>
                 <input type="password"
-                       class="form-control f3m-input @(passwordMismatch ? "is-invalid" : "")"
+                       class="form-control f3m-input @(PasswordMismatch ? "is-invalid" : "")"
                        placeholder="Repeat your password"
                        @bind="confirmPassword"
                        @bind:event="oninput"
                        @onkeydown="OnConfirmKeyDown" />
-                @if (passwordMismatch)
+                @if (PasswordMismatch)
                 {
                     <div class="invalid-feedback">Passwords do not match.</div>
                 }
@@ -76,7 +76,7 @@
         {
             <h2 class="fw-black text-center mb-1">Verify Ownership</h2>
             <p class="text-center small mb-4" style="color:var(--f3m-muted)">
-                Reply to the bot's post on F95zone with the code below.
+                Post the code below on your own F95zone profile wall.
             </p>
 
             @if (error is not null)
@@ -90,7 +90,7 @@
                 <div class="small fw-semibold mb-2" style="color:var(--f3m-muted)">
                     <i class="bi bi-key-fill me-1 text-warning"></i>Your verification code
                 </div>
-                <div class="f3m-guid-code">@LinkF95StartResponse.VerificationGuid</div>
+                <div class="f3m-guid-code">@dto.VerificationGuid</div>
                 <div class="small mt-2" style="color:var(--f3m-muted)">
                     <i class="bi bi-clock me-1"></i>Expires in 24 hours
                 </div>
@@ -98,12 +98,12 @@
 
             <ol class="small mb-4" style="color:var(--f3m-muted); padding-left:1.2rem; line-height:1.8">
                 <li>
-                    Go to this post:
-                    <a href="@($"https://f95zone.to/profile-posts/{LinkF95StartResponse.PostId}/")" target="_blank" class="text-warning">
-                        Your Verification Post
+                    Go to your own profile:
+                    <a href="@($"https://f95zone.to/members/{dto.F95Username}.{dto.F95UserId}/")" target="_blank" class="text-warning">
+                        Your F95zone Profile
                     </a>
                 </li>
-                <li>Reply to that post with the code shown above.</li>
+                <li>Post a new message on your wall containing the code shown above.</li>
                 <li>Click <strong>Check Verification</strong> below.</li>
             </ol>
 
