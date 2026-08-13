@@ -81,14 +81,6 @@
 </div>
 
 @code {
-
-    private bool IsDebug =
-#if DEBUG
-        true;
-#else
-        false;
-#endif
-
     protected async Task LogoutAsync()
     {
         if (await Acct.CheckAuthenticatedAsync())

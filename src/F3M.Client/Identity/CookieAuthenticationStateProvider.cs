@@ -1,10 +1,10 @@
+using F3M.Client.Identity.Models;
+using Microsoft.AspNetCore.Components.Authorization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Components.Authorization;
-using F3M.Client.Identity.Models;
 
 namespace F3M.Client.Identity;
 
@@ -51,7 +51,7 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
     /// </returns>
     public async Task<FormResult> RegisterAsync(string email, string password)
     {
-        string[] defaultDetail = [ "An unknown error prevented registration from succeeding." ];
+        string[] defaultDetail = ["An unknown error prevented registration from succeeding."];
 
         try
         {
@@ -147,7 +147,7 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
         return new FormResult
         {
             Succeeded = false,
-            ErrorList = [ "Invalid email and/or password." ]
+            ErrorList = ["Invalid email and/or password."]
         };
     }
 
