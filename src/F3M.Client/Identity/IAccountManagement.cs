@@ -10,10 +10,10 @@ public interface IAccountManagement
     /// <summary>
     /// Login service.
     /// </summary>
-    /// <param name="email">User's email.</param>
+    /// <param name="usernameOrEmail">User's username or email.</param>
     /// <param name="password">User's password.</param>
     /// <returns>The result of the request serialized to <see cref="FormResult"/>.</returns>
-    public Task<FormResult> LoginAsync(string email, string password);
+    public Task<FormResult> LoginAsync(string usernameOrEmail, string password);
 
     /// <summary>
     /// Log out the logged in user.

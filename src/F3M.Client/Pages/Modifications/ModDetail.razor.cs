@@ -1,3 +1,4 @@
+using F3M.Shared;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
@@ -48,7 +49,7 @@ public partial class ModDetail
                 var userIdStr = state.User.FindFirst("sub")?.Value;
                 if (int.TryParse(userIdStr, out var userId))
                     isOwner = result?.Group.OwnerId == userId;
-                isAdmin = state.User.IsInRole("Admin");
+                isAdmin = state.User.IsInRole(AppRoles.Admin);
             }
         }
         catch (Exception ex)

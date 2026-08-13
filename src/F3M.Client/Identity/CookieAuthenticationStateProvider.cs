@@ -113,18 +113,18 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
     /// <summary>
     /// User login.
     /// </summary>
-    /// <param name="email">The user's email address.</param>
+    /// <param name="usernameOrEmail">The user's username or email address.</param>
     /// <param name="password">The user's password.</param>
     /// <returns>The result of the login request serialized to a <see cref="FormResult"/>.</returns>
-    public async Task<FormResult> LoginAsync(string email, string password)
+    public async Task<FormResult> LoginAsync(string usernameOrEmail, string password)
     {
         try
         {
             // login with cookies
             var result = await httpClient.PostAsJsonAsync(
-                "login?useCookies=true", new
+                "login", new
                 {
-                    email,
+                    usernameOrEmail,
                     password
                 });
 
@@ -180,17 +180,14 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
 
             if (userInfo != null)
             {
-                // in this example app, name and email are the same
                 var claims = new List<Claim>
                 {
-                    new(ClaimTypes.Name, userInfo.Email),
-                    new(ClaimTypes.Email, userInfo.Email),
+                    new(ClaimTypes.Name, userInfo.UserName),
                 };
 
-                // add any additional claims
-                claims.AddRange(
-                    userInfo.Claims.Where(c => c.Key != ClaimTypes.Name && c.Key != ClaimTypes.Email)
-                        .Select(c => new Claim(c.Key, c.Value)));
+                // F95-linked accounts have no email — only add the claim when there is one.
+                if (!string.IsNullOrEmpty(userInfo.Email))
+                    claims.Add(new Claim(ClaimTypes.Email, userInfo.Email));
 
                 // request the roles endpoint for the user's roles
                 using var rolesResponse = await httpClient.GetAsync("roles");
