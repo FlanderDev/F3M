@@ -4,12 +4,9 @@ using F3M.Server.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace F3M.Server.Controllers;
@@ -19,7 +16,8 @@ namespace F3M.Server.Controllers;
 public partial class F95LinkController(
     AppDbContext db,
     F95Service f95,
-    IConfiguration config,
+    UserManager<AppUser> userManager,
+    TokenService tokenService,
     ILogger<F95LinkController> logger) : ControllerBase
 {
     // Matches: https://f95zone.to/members/username.12345/
@@ -157,7 +155,7 @@ public partial class F95LinkController(
         // Record which post matched, for audit purposes.
         verification.ProfilePostId = postId;
 
-        var passwordHash = AuthController.HashPassword(request.Password);
+        bool isNewUser = user is null;
 
         if (user is null)
         {
@@ -166,16 +164,22 @@ public partial class F95LinkController(
 
             user = new AppUser
             {
-                Username = username,
+                UserName = username,
                 Email = string.Empty,
-                PasswordHash = passwordHash,
                 F95UserId = f95UserId,
                 F95Username = verification.F95Username,
                 RegisteredAt = DateTime.UtcNow
             };
 
-            db.Users.Add(user);
-            await db.SaveChangesAsync(ct);
+            var createResult = await userManager.CreateAsync(user, request.Password);
+            if (!createResult.Succeeded)
+                return BadRequest(new LinkF95PollResponse
+                {
+                    Status = VerificationState.Error,
+                    Message = string.Join(" ", createResult.Errors.Select(e => e.Description))
+                });
+
+            await userManager.AddToRoleAsync(user, AppRoles.User);
 
             logger.LogInformation("Created new F3M account '{Username}' linked to F95 user {F95UserId}.", username, f95UserId);
 
@@ -183,82 +187,60 @@ public partial class F95LinkController(
         }
         else
         {
-            // Returning user re-linking — update their password.
-            user.PasswordHash = passwordHash;
-            logger.LogInformation("Existing F3M account '{Username}' re-linked via F95 and password updated.", user.Username);
+            // Returning user re-linking — reset their password via Identity's own flow
+            // (remove + re-add, since we don't have their old password to hand to
+            // ChangePasswordAsync — proof of F95 ownership stands in for that here).
+            if (await userManager.HasPasswordAsync(user))
+                await userManager.RemovePasswordAsync(user);
+
+            var addPasswordResult = await userManager.AddPasswordAsync(user, request.Password);
+            if (!addPasswordResult.Succeeded)
+                return BadRequest(new LinkF95PollResponse
+                {
+                    Status = VerificationState.Error,
+                    Message = string.Join(" ", addPasswordResult.Errors.Select(e => e.Description))
+                });
+
+            logger.LogInformation("Existing F3M account '{Username}' re-linked via F95 and password updated.", user.UserName);
         }
 
         verification.Status = F95VerificationStatus.Verified;
         await db.SaveChangesAsync(ct);
 
-        var token = GenerateToken(user);
-
         return Ok(new LinkF95PollResponse
         {
             Status = VerificationState.Verified,
-            Message = user.RegisteredAt == DateTime.UtcNow
+            Message = isNewUser
                 ? "Account created and linked successfully."
                 : "Logged in via F95zone account.",
-            Token = token,
-            User = new UserInfo
-            {
-                Id = user.Id,
-                Username = user.Username,
-                Email = user.Email,
-                IsAdmin = user.IsAdmin
-            }
+            Token = await tokenService.GenerateTokenAsync(user),
+            User = await tokenService.BuildUserInfoAsync(user)
         });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     private async Task ClaimModAuthorshipByNameAsync(AppUser appUser)
     {
-        var modsToClaim = db.ModGroups.Where(w => w.Author == appUser.Username).ToArray();
+        var modsToClaim = db.ModGroups.Where(w => w.Author == appUser.UserName).ToArray();
         foreach (var mod in modsToClaim)
             mod.OwnerId = appUser.Id;
 
         await db.SaveChangesAsync();
-        logger.LogInformation("User '{username}' claimed mod authorship for: {mods}", appUser.Username, string.Join(", ", modsToClaim.Select(m => m.Id)));
+        logger.LogInformation("User '{username}' claimed mod authorship for: {mods}", appUser.UserName, string.Join(", ", modsToClaim.Select(m => m.Id)));
     }
 
     private async Task<string> ResolveUniqueUsernameAsync(
         string f95Username, string f95UserId, CancellationToken ct)
     {
         // Try the bare F95 username first; fall back to username_userId if taken.
-        if (!await db.Users.AnyAsync(u => u.Username == f95Username, ct))
+        if (!await db.Users.AnyAsync(u => u.UserName == f95Username, ct))
             return f95Username;
 
         var fallback = $"{f95Username}_{f95UserId}";
-        if (!await db.Users.AnyAsync(u => u.Username == fallback, ct))
+        if (!await db.Users.AnyAsync(u => u.UserName == fallback, ct))
             return fallback;
 
         // Last resort: append a random suffix.
         return $"{f95Username}_{Guid.NewGuid():N}"[..Math.Min(50, f95Username.Length + 33)];
-    }
-
-    private string GenerateToken(AppUser user)
-    {
-        var secret = config["Jwt:Secret"]
-            ?? throw new InvalidOperationException("JWT secret is not configured.");
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
-        {
-            new Claim("sub",   user.Id.ToString()),
-            new Claim("name",  user.Username),
-            new Claim("email", user.Email),
-            new Claim("role",  user.IsAdmin ? "Admin" : "User"),
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: Configuration.AppName,
-            audience: Configuration.AppName,
-            claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
-            signingCredentials: creds);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }

@@ -1,8 +1,10 @@
 using F3M.Server.Data;
+using F3M.Server.Models;
 using F3M.Server.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
@@ -28,8 +30,24 @@ try
     var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
     builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
+    // AddIdentityCore (not AddIdentity) — this is an API, so we don't want the cookie
+    // auth scheme, external login providers, or Razor Pages UI that AddIdentity wires up.
+    // Password/lockout policy stays close to what the old hand-rolled hasher enforced.
+    builder.Services
+        .AddIdentityCore<AppUser>(options =>
+        {
+            options.Password.RequiredLength = 8;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequireUppercase = false;
+            options.User.RequireUniqueEmail = false; // F95-linked accounts have no email.
+        })
+        .AddRoles<IdentityRole<int>>()
+        .AddEntityFrameworkStores<AppDbContext>()
+        .AddDefaultTokenProviders();
+
     // F95Service holds the XenForo login session (cookie jar) — must be singleton.
     builder.Services.AddSingleton<F95Service>();
+    builder.Services.AddScoped<TokenService>();
 
 
     string? jwtSecret = builder.Configuration["Jwt:Secret"];
@@ -75,8 +93,27 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.Database.EnsureCreated();
         db.Database.Migrate();
+
+#if DEBUG // Seed a debug admin user for local development/testing
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var name = nameof(F3M);
+        if (await userManager.FindByNameAsync(name) is null)
+        {
+            var admin = new AppUser
+            {
+                UserName = name,
+                Email = $"{name}-admin@example.com",
+                RegisteredAt = DateTime.UtcNow
+            };
+
+            var createResult = await userManager.CreateAsync(admin, name);
+            if (createResult.Succeeded)
+                await userManager.AddToRoleAsync(admin, AppRoles.Admin);
+            else
+                Console.WriteLine($"Failed to seed debug admin: {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
+        }
+#endif
     }
 
     if (app.Environment.IsDevelopment())

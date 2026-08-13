@@ -1,7 +1,9 @@
 using F3M.Server.Data;
+using F3M.Server.Models;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -10,8 +12,11 @@ namespace F3M.Server.Controllers;
 
 [ApiController]
 [Route(Endpoints.Admin.Base)]
-[Authorize(Roles = "Admin")]
-public class AdminController(AppDbContext db, ILogger<AdminController> logger) : ControllerBase
+[Authorize(Roles = AppRoles.Admin)]
+public class AdminController(
+    AppDbContext db,
+    UserManager<AppUser> userManager,
+    ILogger<AdminController> logger) : ControllerBase
 {
     [HttpGet(Endpoints.Users)]
     public async Task<ActionResult<List<AdminUserDto>>> GetUsers()
@@ -22,17 +27,23 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
             .Select(g => new { OwnerId = g.Key, Count = g.Count() })
             .ToListAsync();
 
-        var result = users.Select(u => new AdminUserDto
+        var result = new List<AdminUserDto>();
+        foreach (var u in users)
         {
-            Id = u.Id,
-            Username = u.Username,
-            Email = u.Email,
-            IsAdmin = u.IsAdmin,
-            RegisteredAt = u.RegisteredAt,
-            ModCount = modCounts.FirstOrDefault(m => m.OwnerId == u.Id)?.Count ?? 0
-        }).OrderBy(u => u.Username).ToList();
+            var roles = await userManager.GetRolesAsync(u);
+            result.Add(new AdminUserDto
+            {
+                Id = u.Id,
+                Username = u.UserName ?? string.Empty,
+                Email = u.Email ?? string.Empty,
+                IsAdmin = roles.Contains(AppRoles.Admin),
+                Roles = [.. roles],
+                RegisteredAt = u.RegisteredAt,
+                ModCount = modCounts.FirstOrDefault(m => m.OwnerId == u.Id)?.Count ?? 0
+            });
+        }
 
-        return Ok(result);
+        return Ok(result.OrderBy(u => u.Username).ToList());
     }
 
     [HttpPost($"{Endpoints.Users}/{{id:int}}")]
@@ -45,22 +56,28 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
         if (callerId == id)
             return BadRequest("You cannot change your own admin status.");
 
-        var user = await db.Users.FindAsync(id);
+        var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null)
             return NotFound();
 
-        user.IsAdmin = !user.IsAdmin;
-        await db.SaveChangesAsync();
+        var isAdmin = await userManager.IsInRoleAsync(user, AppRoles.Admin);
+        if (isAdmin)
+            await userManager.RemoveFromRoleAsync(user, AppRoles.Admin);
+        else
+            await userManager.AddToRoleAsync(user, AppRoles.Admin);
 
-        logger.LogInformation("Admin {Caller} toggled admin={IsAdmin} for user {Username}", callerId, user.IsAdmin, user.Username);
+        isAdmin = !isAdmin;
+        logger.LogInformation("Admin {Caller} toggled admin={IsAdmin} for user {Username}", callerId, isAdmin, user.UserName);
 
         var modCount = await db.ModGroups.CountAsync(g => g.OwnerId == user.Id);
+        var roles = await userManager.GetRolesAsync(user);
         return Ok(new AdminUserDto
         {
             Id = user.Id,
-            Username = user.Username,
-            Email = user.Email,
-            IsAdmin = user.IsAdmin,
+            Username = user.UserName ?? string.Empty,
+            Email = user.Email ?? string.Empty,
+            IsAdmin = isAdmin,
+            Roles = [.. roles],
             RegisteredAt = user.RegisteredAt,
             ModCount = modCount
         });
@@ -76,14 +93,13 @@ public class AdminController(AppDbContext db, ILogger<AdminController> logger) :
         if (callerId == id)
             return BadRequest("You cannot delete your own account.");
 
-        var user = await db.Users.FindAsync(id);
+        var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null)
             return NotFound();
 
-        db.Users.Remove(user);
-        await db.SaveChangesAsync();
+        await userManager.DeleteAsync(user);
 
-        logger.LogInformation("Admin {Caller} deleted user {Username}", callerId, user.Username);
+        logger.LogInformation("Admin {Caller} deleted user {Username}", callerId, user.UserName);
         return NoContent();
     }
 }
