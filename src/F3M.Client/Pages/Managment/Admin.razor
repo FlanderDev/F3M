@@ -1,5 +1,6 @@
 @page "/admin"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject HttpClient Http
 
 <PageTitle>F3M - Admin</PageTitle>

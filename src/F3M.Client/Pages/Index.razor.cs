@@ -15,7 +15,7 @@ public partial class Index
     private string[] categories = [];
     private bool loading = true;
     private string searchTerm = string.Empty;
-    private Configuration.SortBy sortBy = Configuration.SortBy.Newest;
+    private SortBy sortBy = SortBy.Newest;
     private int currentPage = 1;
     private const int pageSize = 18;
     private System.Timers.Timer? _debounce;
@@ -60,5 +60,5 @@ public partial class Index
 
     private async Task SelectCategory(string cat) { selectedCategory = cat; currentPage = 1; await LoadMods(); }
     private async Task GoToPage(int p) { currentPage = p; await LoadMods(); }
-    private async Task ClearFilters() { searchTerm = string.Empty; selectedCategory = CategoryAll; sortBy = Configuration.SortBy.Newest; currentPage = 1; await LoadMods(); }
+    private async Task ClearFilters() { searchTerm = string.Empty; selectedCategory = CategoryAll; sortBy = SortBy.Newest; currentPage = 1; await LoadMods(); }
 }
