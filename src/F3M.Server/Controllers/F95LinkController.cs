@@ -17,6 +17,7 @@ public partial class F95LinkController(
     AppDbContext db,
     F95Service f95,
     UserManager<AppUser> userManager,
+    SignInManager<AppUser> signInManager,
     ILogger<F95LinkController> logger) : ControllerBase
 {
     // Matches: https://f95zone.to/members/username.12345/
@@ -205,6 +206,11 @@ public partial class F95LinkController(
 
         verification.Status = F95VerificationStatus.Verified;
         await db.SaveChangesAsync(ct);
+
+        // MapIdentityApi's /login issues the auth cookie via SignInManager — do the same here,
+        // since this endpoint is itself a login (or registration) path, just proven via F95
+        // ownership instead of a password the client already knows.
+        await signInManager.SignInAsync(user, isPersistent: true);
 
         return Ok(new LinkF95PollResponse
         {

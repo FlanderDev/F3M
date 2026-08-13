@@ -1,6 +1,8 @@
 using F3M.Shared;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Web;
+using System.Net.Http.Json;
 
 namespace F3M.Client.Pages.Authentication;
 
@@ -47,7 +49,9 @@ public partial class LinkAccount
         }
 
         loading = true;
-        var result = new LinkF95StartResponse(); /*await Auth.LinkF95StartAsync(profileUrl.Trim());*/
+        var startResponse = await Http.PostAsJsonAsync(Endpoints.F95Link.Start, new LinkF95StartRequest { ProfileUrl = profileUrl.Trim() });
+        var result = await startResponse.Content.ReadFromJsonAsync<LinkF95StartResponse>()
+                     ?? new LinkF95StartResponse { Success = false, Error = "Unexpected response from server." };
         loading = false;
 
         if (!result.Success)
@@ -67,13 +71,19 @@ public partial class LinkAccount
         if (string.IsNullOrWhiteSpace(dto.F95UserId))
             return;
 
-        var result = new LinkF95PollResponse(); /*await Auth.LinkF95PollAsync(dto.F95UserId, password);*/
+        var checkResponse = await Http.PostAsJsonAsync(Endpoints.F95Link.Check(dto.F95UserId), new LinkF95PollRequest { Password = password });
+        var result = await checkResponse.Content.ReadFromJsonAsync<LinkF95PollResponse>()
+                     ?? new LinkF95PollResponse { Status = VerificationState.Error, Message = "Unexpected response from server." };
         loading = false;
 
         switch (result.Status)
         {
             case VerificationState.Verified:
-                Nav.NavigateTo("/", forceLoad: false);
+                // The server just signed us in via the auth cookie — force a full reload so
+                // CascadingAuthenticationState re-fetches from the server with that cookie,
+                // rather than relying on NotifyAuthenticationStateChanged (which only the
+                // CookieAuthenticationStateProvider's own Login/Register paths trigger).
+                Nav.NavigateTo("/", forceLoad: true);
                 break;
 
             case VerificationState.Pending:
