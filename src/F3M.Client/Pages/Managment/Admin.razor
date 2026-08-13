@@ -1,5 +1,6 @@
 @page "/admin"
 @attribute [Authorize(Roles = "Admin")]
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject HttpClient Http
 
 <PageTitle>F3M - Admin</PageTitle>
@@ -11,6 +12,16 @@
         </h1>
         <p class="small mb-0">Manage users and permissions.</p>
     </div>
+
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <h1>Authorized</h1>
+        </Authorized>
+
+        <NotAuthorized>
+            <h1>NotAuthorized</h1>
+        </NotAuthorized>
+    </AuthorizeView>
 
     @if (loading)
     {

@@ -56,8 +56,7 @@ public class AuthController(
     [HttpPost(Endpoints.Login)]
     public async Task<ActionResult<AuthResult>> Login([FromBody] LoginDto dto)
     {
-        var user = await userManager.FindByNameAsync(dto.UsernameOrEmail)
-                   ?? await userManager.FindByEmailAsync(dto.UsernameOrEmail);
+        var user = await userManager.FindByNameAsync(dto.UsernameOrEmail) ?? await userManager.FindByEmailAsync(dto.UsernameOrEmail);
 
         if (user is null || !await userManager.CheckPasswordAsync(user, dto.Password))
             return Unauthorized(new AuthResult { Success = false, Error = "Invalid credentials." });
