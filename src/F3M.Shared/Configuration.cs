@@ -14,7 +14,7 @@ public static class Configuration
 
     public static string HeaderDisclaimer =>
 #if DEBUG
-        $"DEVELOPMENT {BuildTimeStamp}";
+        $"Development {BuildTimeStamp}";
 #else
         $"Public Alpha {BuildTimeStamp}";
 #endif
@@ -30,14 +30,4 @@ public static class Configuration
     public const long MaxModSize = 512 * 1024 * 1024;
     public const long MaxImageSize = 8 * 1024 * 1024;
     public const long MaxTotalSize = 1L * 1024 * 1024 * 1024; // 1 GB total per upload
-
-    public enum SortBy
-    {
-        Newest,
-        Oldest,
-        DownloadsAsc,
-        DownloadsDesc,
-        NameAsc,
-        NameDesc
-    }
 }

@@ -1,3 +1,4 @@
+using F3M.Shared;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -57,16 +58,16 @@ public class AuthService(HttpClient http, AuthenticationStateProvider authProvid
             var response = await http.PostAsJsonAsync(url, new LinkF95PollRequest { Password = password });
 
             var result = await response.Content.ReadFromJsonAsync<LinkF95PollResponse>()
-                         ?? new LinkF95PollResponse { Status = "Error", Message = "Empty response." };
+                         ?? new LinkF95PollResponse { Status = VerificationState.Error, Message = "Empty response." };
 
-            if (result.Status == "Verified" && result.Token is not null)
+            if (result.Status == VerificationState.Verified && result.Token is not null)
                 await ((F3MAuthStateProvider)authProvider).SetTokenAsync(result.Token);
 
             return result;
         }
         catch (Exception ex)
         {
-            return new LinkF95PollResponse { Status = "Error", Message = ex.Message };
+            return new LinkF95PollResponse { Status = VerificationState.Error, Message = ex.Message };
         }
     }
 

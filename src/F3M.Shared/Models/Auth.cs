@@ -123,7 +123,7 @@ public class LinkF95PollRequest
 public class LinkF95PollResponse
 {
     /// <summary>One of: Pending, Verified, Expired, NotFound.</summary>
-    public string Status { get; set; } = string.Empty;
+    public VerificationState Status { get; set; } = VerificationState.None;
     public string? Message { get; set; }
 
     // Populated only when Status == "Verified".
