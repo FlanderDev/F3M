@@ -9,7 +9,7 @@ public static class Paths
     public const string Upload = "upload";
     public const string Modification = "mod";
     public const string Edit = "edit";
-    public const string LinkAccount = $"/link-account";
+    public const string LinkAccount = $"/auth/link-account";
     #endregion
 
     public static class Mods

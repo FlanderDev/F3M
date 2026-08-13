@@ -11,12 +11,12 @@
     <PackageReference Include="HtmlSanitizer" Version="9.2.995" />
     <PackageReference Include="Markdig" Version="1.3.2" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="$(AspNetCoreVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="$(AspNetCoreVersion)" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="$(AspNetCoreVersion)" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="$(AspNetCoreVersion)" />
 
     <!-- Independent packages -->
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.*-*" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.*-*" />
   </ItemGroup>
 
   <ItemGroup>

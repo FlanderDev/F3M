@@ -47,7 +47,7 @@ public partial class LinkAccount
         }
 
         loading = true;
-        var result = await Auth.LinkF95StartAsync(profileUrl.Trim());
+        var result = new LinkF95StartResponse(); /*await Auth.LinkF95StartAsync(profileUrl.Trim());*/
         loading = false;
 
         if (!result.Success)
@@ -67,7 +67,7 @@ public partial class LinkAccount
         if (string.IsNullOrWhiteSpace(dto.F95UserId))
             return;
 
-        var result = await Auth.LinkF95PollAsync(dto.F95UserId, password);
+        var result = new LinkF95PollResponse(); /*await Auth.LinkF95PollAsync(dto.F95UserId, password);*/
         loading = false;
 
         switch (result.Status)

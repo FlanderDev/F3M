@@ -1,5 +1,4 @@
 using F3M.Server.Models;
-using F3M.Server.Services;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Identity;
@@ -9,10 +8,7 @@ namespace F3M.Server.Controllers;
 
 [ApiController]
 [Route(Endpoints.Auth.Base)]
-public class AuthController(
-    UserManager<AppUser> userManager,
-    TokenService tokenService,
-    ILogger<AuthController> logger) : ControllerBase
+public class AuthController(UserManager<AppUser> userManager) : ControllerBase
 {
     [HttpPost(Endpoints.Register)]
     public async Task<ActionResult<AuthResult>> Register([FromBody] RegisterDto dto)
@@ -43,14 +39,7 @@ public class AuthController(
 
         await userManager.AddToRoleAsync(user, AppRoles.User);
 
-        logger.LogInformation("New user registered: {Username}", user.UserName);
-
-        return Ok(new AuthResult
-        {
-            Success = true,
-            Token = await tokenService.GenerateTokenAsync(user),
-            User = await tokenService.BuildUserInfoAsync(user)
-        });
+        return Ok();
     }
 
     [HttpPost(Endpoints.Login)]
@@ -61,11 +50,6 @@ public class AuthController(
         if (user is null || !await userManager.CheckPasswordAsync(user, dto.Password))
             return Unauthorized(new AuthResult { Success = false, Error = "Invalid credentials." });
 
-        return Ok(new AuthResult
-        {
-            Success = true,
-            Token = await tokenService.GenerateTokenAsync(user),
-            User = await tokenService.BuildUserInfoAsync(user)
-        });
+        return Ok();
     }
 }
