@@ -20,7 +20,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         [FromQuery] int pageSize = 18,
         [FromQuery] string? search = null,
         [FromQuery] string? category = null,
-        [FromQuery] Configuration.SortBy sort = Configuration.SortBy.Newest)
+        [FromQuery] SortBy sort = SortBy.Newest)
     {
         // Latest version per group: pick the Mod row with the highest UploadedAt per ModGroupId
         var latestIds = db.Mods
@@ -41,12 +41,12 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
 
         query = sort switch
         {
-            Configuration.SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
-            Configuration.SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
-            Configuration.SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
-            Configuration.SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
-            Configuration.SortBy.NameAsc => query.OrderBy(m => m.Name),
-            Configuration.SortBy.NameDesc => query.OrderByDescending(m => m.Name),
+            SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
+            SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
+            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
+            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
+            SortBy.NameAsc => query.OrderBy(m => m.Name),
+            SortBy.NameDesc => query.OrderByDescending(m => m.Name),
             _ => query.OrderByDescending(m => m.UploadedAt)
         };
 

@@ -1,3 +1,4 @@
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Web;
 
@@ -71,16 +72,16 @@ public partial class LinkAccount
 
         switch (result.Status)
         {
-            case "Verified":
+            case VerificationState.Verified:
                 Nav.NavigateTo("/", forceLoad: false);
                 break;
 
-            case "Pending":
+            case VerificationState.Pending:
                 error = result.Message
                     ?? "Code not found yet — make sure you replied to the bot's post.";
                 break;
 
-            case "Expired":
+            case VerificationState.Expired:
                 error = "Verification expired. Please start over.";
                 dto = new();
                 break;

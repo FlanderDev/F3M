@@ -65,7 +65,7 @@ public static class Endpoints
         public static string Download(int versionId, int fileId) => $"{Base}/{versionId}/{Endpoints.Download}/{fileId}";
         public static string GetMod(int id) => $"{Base}/{id}";
         public static string GetMods(string nameQuerry) => $"{Base}/{nameQuerry}";
-        public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, Configuration.SortBy sortBy) =>
+        public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, SortBy sortBy) =>
             new StringBuilder(Base)
             .Append($"?page={currentPage}")
             .Append($"&pageSize={pageSize}")

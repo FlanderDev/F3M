@@ -110,7 +110,7 @@ public partial class F95LinkController(
         if (verification is null)
             return NotFound(new LinkF95PollResponse
             {
-                Status = "NotFound",
+                Status = VerificationState.NotFound,
                 Message = "No pending verification found for this user. Please start again."
             });
 
@@ -120,7 +120,7 @@ public partial class F95LinkController(
             await db.SaveChangesAsync(ct);
             return StatusCode(410, new LinkF95PollResponse
             {
-                Status = "Expired",
+                Status = VerificationState.Expired,
                 Message = "The verification code expired. Please start a new verification."
             });
         }
@@ -136,7 +136,7 @@ public partial class F95LinkController(
                 "Failed to fetch profile wall for verification {Id}.", verification.Id);
             return StatusCode(502, new LinkF95PollResponse
             {
-                Status = "Error",
+                Status = VerificationState.Error,
                 Message = "Could not reach F95zone. Please try again in a moment."
             });
         }
@@ -147,7 +147,7 @@ public partial class F95LinkController(
         if (text is null)
             return Ok(new LinkF95PollResponse
             {
-                Status = "Pending",
+                Status = VerificationState.Pending,
                 Message = "Post not found yet. Make sure you posted the code on your own profile wall."
             });
 
@@ -195,7 +195,7 @@ public partial class F95LinkController(
 
         return Ok(new LinkF95PollResponse
         {
-            Status = "Verified",
+            Status = VerificationState.Verified,
             Message = user.RegisteredAt == DateTime.UtcNow
                 ? "Account created and linked successfully."
                 : "Logged in via F95zone account.",
