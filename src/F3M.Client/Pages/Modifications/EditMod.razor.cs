@@ -1,4 +1,5 @@
 using F3M.Client.Business;
+using F3M.Shared;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
@@ -35,7 +36,7 @@ public partial class EditMod
             {
                 var state = await AuthState;
                 var userIdStr = state.User.FindFirst("sub")?.Value;
-                var isAdmin = state.User.IsInRole("Admin");
+                var isAdmin = state.User.IsInRole(AppRoles.Admin);
 
                 if (!isAdmin)
                 {

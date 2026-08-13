@@ -5,12 +5,11 @@ using F3M.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
-using static System.Net.WebRequestMethods;
 
 namespace F3M.Server.Controllers;
 
 [ApiController]
-public sealed class DebugController(AppDbContext db, ILogger<ModsController> logger) : ControllerBase
+public sealed class DebugController(AppDbContext db) : ControllerBase
 {
     private static bool IsLocalNetwork(IPAddress? ip)
     {
@@ -121,7 +120,7 @@ public sealed class DebugController(AppDbContext db, ILogger<ModsController> log
             var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
             var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
 
-            await using var stream = System.IO.File.Create(Path.Combine(Assets.FileDir, safeName));
+            await using var stream = System.IO.File.Create(Path.Combine(Assets.Files, safeName));
             await f.CopyToAsync(stream);
 
             db.ModFiles.Add(new ModFile

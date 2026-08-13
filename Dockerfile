@@ -13,8 +13,7 @@ WORKDIR /app
 
 COPY --from=build /app .
 
-RUN mkdir -p /app/Storage 
-chown -R $APP_UID:$APP_UID /app
+RUN mkdir -p /app/Storage && chown -R $APP_UID:$APP_UID /app
 
 USER $APP_UID
 

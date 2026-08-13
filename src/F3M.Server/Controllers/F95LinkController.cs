@@ -4,12 +4,9 @@ using F3M.Server.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace F3M.Server.Controllers;
@@ -19,12 +16,12 @@ namespace F3M.Server.Controllers;
 public partial class F95LinkController(
     AppDbContext db,
     F95Service f95,
-    IConfiguration config,
+    UserManager<AppUser> userManager,
+    SignInManager<AppUser> signInManager,
     ILogger<F95LinkController> logger) : ControllerBase
 {
     // Matches: https://f95zone.to/members/username.12345/
-    [GeneratedRegex(@"^https?://f95zone\.to/members/([a-zA-Z0-9_.\-]+?)\.(\d+)/?$",
-        RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^https?://f95zone\.to/members/([a-zA-Z0-9_.\-]+?)\.(\d+)/?$", RegexOptions.IgnoreCase)]
     private static partial Regex F95ProfileUrlRegex();
 
     private static readonly TimeSpan ExpiryWindow = TimeSpan.FromHours(24);
@@ -71,27 +68,11 @@ public partial class F95LinkController(
 
         var guid = Guid.NewGuid().ToString("D").ToUpper();
 
-        long profilePostId;
-        try
-        {
-            profilePostId = await f95.PostVerificationChallengeAsync(f95Username, f95UserId, guid, ct);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to post verification challenge for F95 user {UserId}.", f95UserId);
-            return StatusCode(502, new LinkF95StartResponse
-            {
-                Success = false,
-                Error = $"The verification failed to post. Please contact an administrator (FlanDev)."
-            });
-        }
-
         var verification = new F95PendingVerification
         {
             F95UserId = f95UserId,
             F95Username = f95Username,
             VerificationGuid = guid,
-            ProfilePostId = profilePostId,
             CreatedAt = DateTime.UtcNow,
             Status = F95VerificationStatus.Pending
         };
@@ -99,14 +80,14 @@ public partial class F95LinkController(
         db.F95PendingVerifications.Add(verification);
         await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("Started F95 verification for {Username} ({UserId}), post ID {PostId}.", f95Username, f95UserId, profilePostId);
+        logger.LogInformation("Started F95 verification for {Username} ({UserId}).", f95Username, f95UserId);
 
         return Ok(new LinkF95StartResponse
         {
             Success = true,
             VerificationGuid = guid,
             F95UserId = f95UserId,
-            PostId = profilePostId
+            F95Username = f95Username
         });
     }
 
@@ -127,7 +108,7 @@ public partial class F95LinkController(
         if (verification is null)
             return NotFound(new LinkF95PollResponse
             {
-                Status = "NotFound",
+                Status = VerificationState.NotFound,
                 Message = "No pending verification found for this user. Please start again."
             });
 
@@ -137,43 +118,44 @@ public partial class F95LinkController(
             await db.SaveChangesAsync(ct);
             return StatusCode(410, new LinkF95PollResponse
             {
-                Status = "Expired",
+                Status = VerificationState.Expired,
                 Message = "The verification code expired. Please start a new verification."
             });
         }
 
-        List<string> comments;
+        List<(long PostId, string Text)> posts;
         try
         {
-            comments = await f95.GetCommentsFromUserAsync(verification.ProfilePostId, f95UserId, ct);
+            posts = await f95.GetProfilePostsAsync(verification.F95Username, f95UserId, ct);
         }
         catch (Exception ex)
         {
             logger.LogError(ex,
-                "Failed to fetch profile post comments for verification {Id}.", verification.Id);
+                "Failed to fetch profile wall for verification {Id}.", verification.Id);
             return StatusCode(502, new LinkF95PollResponse
             {
-                Status = "Error",
+                Status = VerificationState.Error,
                 Message = "Could not reach F95zone. Please try again in a moment."
             });
         }
 
-        var matched = comments.Any(c =>
-            c.Contains(verification.VerificationGuid, StringComparison.OrdinalIgnoreCase));
+        var (postId, text) = posts.FirstOrDefault(p =>
+            p.Text.Contains(verification.VerificationGuid, StringComparison.OrdinalIgnoreCase));
 
-        if (!matched)
+        if (text is null)
             return Ok(new LinkF95PollResponse
             {
-                Status = "Pending",
-                Message = "Reply not found yet. Make sure you replied to the bot's profile post."
+                Status = VerificationState.Pending,
+                Message = "Post not found yet. Make sure you posted the code on your own profile wall."
             });
 
         // GUID matched — find or create the F3M account.
         var user = await db.Users.FirstOrDefaultAsync(u => u.F95UserId == f95UserId, ct);
 
-        _ = Task.Run(async () => await f95.DeleteProfilePostAsync(verification.ProfilePostId, ct), ct);
+        // Record which post matched, for audit purposes.
+        verification.ProfilePostId = postId;
 
-        var passwordHash = AuthController.HashPassword(request.Password);
+        bool isNewUser = user is null;
 
         if (user is null)
         {
@@ -182,92 +164,86 @@ public partial class F95LinkController(
 
             user = new AppUser
             {
-                Username = username,
+                UserName = username,
                 Email = string.Empty,
-                PasswordHash = passwordHash,
                 F95UserId = f95UserId,
                 F95Username = verification.F95Username,
                 RegisteredAt = DateTime.UtcNow
             };
 
-            db.Users.Add(user);
-            await db.SaveChangesAsync(ct);
+            var createResult = await userManager.CreateAsync(user, request.Password);
+            if (!createResult.Succeeded)
+                return BadRequest(new LinkF95PollResponse
+                {
+                    Status = VerificationState.Error,
+                    Message = string.Join(" ", createResult.Errors.Select(e => e.Description))
+                });
 
-            logger.LogInformation(
-                "Created new F3M account '{Username}' linked to F95 user {F95UserId}.",
-                username, f95UserId);
+            await userManager.AddToRoleAsync(user, AppRoles.User);
+
+            logger.LogInformation("Created new F3M account '{Username}' linked to F95 user {F95UserId}.", username, f95UserId);
+
+            await ClaimModAuthorshipByNameAsync(user);
         }
         else
         {
-            // Returning user re-linking — update their password.
-            user.PasswordHash = passwordHash;
+            // Returning user re-linking — reset their password via Identity's own flow
+            // (remove + re-add, since we don't have their old password to hand to
+            // ChangePasswordAsync — proof of F95 ownership stands in for that here).
+            if (await userManager.HasPasswordAsync(user))
+                await userManager.RemovePasswordAsync(user);
 
-            logger.LogInformation(
-                "Existing F3M account '{Username}' re-linked via F95 and password updated.", user.Username);
+            var addPasswordResult = await userManager.AddPasswordAsync(user, request.Password);
+            if (!addPasswordResult.Succeeded)
+                return BadRequest(new LinkF95PollResponse
+                {
+                    Status = VerificationState.Error,
+                    Message = string.Join(" ", addPasswordResult.Errors.Select(e => e.Description))
+                });
+
+            logger.LogInformation("Existing F3M account '{Username}' re-linked via F95 and password updated.", user.UserName);
         }
 
         verification.Status = F95VerificationStatus.Verified;
         await db.SaveChangesAsync(ct);
 
-        var token = GenerateToken(user);
+        // The custom /login endpoint issues the auth cookie via SignInManager — do the same
+        // here, since this endpoint is itself a login (or registration) path, just proven
+        // via F95 ownership instead of a password the client already knows.
+        await signInManager.SignInAsync(user, isPersistent: true);
 
         return Ok(new LinkF95PollResponse
         {
-            Status = "Verified",
-            Message = user.RegisteredAt == DateTime.UtcNow
+            Status = VerificationState.Verified,
+            Message = isNewUser
                 ? "Account created and linked successfully."
-                : "Logged in via F95zone account.",
-            Token = token,
-            User = new UserInfo
-            {
-                Id = user.Id,
-                Username = user.Username,
-                Email = user.Email,
-                IsAdmin = user.IsAdmin
-            }
+                : "Logged in via F95zone account."
         });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+    private async Task ClaimModAuthorshipByNameAsync(AppUser appUser)
+    {
+        var modsToClaim = db.ModGroups.Where(w => w.Author == appUser.UserName).ToArray();
+        foreach (var mod in modsToClaim)
+            mod.OwnerId = appUser.Id;
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("User '{username}' claimed mod authorship for: {mods}", appUser.UserName, string.Join(", ", modsToClaim.Select(m => m.Id)));
+    }
 
     private async Task<string> ResolveUniqueUsernameAsync(
         string f95Username, string f95UserId, CancellationToken ct)
     {
         // Try the bare F95 username first; fall back to username_userId if taken.
-        if (!await db.Users.AnyAsync(u => u.Username == f95Username, ct))
+        if (!await db.Users.AnyAsync(u => u.UserName == f95Username, ct))
             return f95Username;
 
         var fallback = $"{f95Username}_{f95UserId}";
-        if (!await db.Users.AnyAsync(u => u.Username == fallback, ct))
+        if (!await db.Users.AnyAsync(u => u.UserName == fallback, ct))
             return fallback;
 
         // Last resort: append a random suffix.
         return $"{f95Username}_{Guid.NewGuid():N}"[..Math.Min(50, f95Username.Length + 33)];
-    }
-
-    private string GenerateToken(AppUser user)
-    {
-        var secret = config["Jwt:Secret"]
-            ?? throw new InvalidOperationException("JWT secret is not configured.");
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
-        {
-            new Claim("sub",   user.Id.ToString()),
-            new Claim("name",  user.Username),
-            new Claim("email", user.Email),
-            new Claim("role",  user.IsAdmin ? "Admin" : "User"),
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: Configuration.AppName,
-            audience: Configuration.AppName,
-            claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
-            signingCredentials: creds);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
