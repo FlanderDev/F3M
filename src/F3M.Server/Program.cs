@@ -3,11 +3,8 @@ using F3M.Server.Models;
 using F3M.Server.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using System.Text;
 
 #if !DEBUG
 try
