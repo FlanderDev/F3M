@@ -3,8 +3,10 @@ using F3M.Server.Models;
 using F3M.Server.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
+using F3M.Shared.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 #if !DEBUG
 try
@@ -39,7 +41,6 @@ builder.Services
     })
     .AddRoles<IdentityRole<int>>()
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddApiEndpoints()
     .AddDefaultTokenProviders();
 
 // F95Service holds the XenForo login session (cookie jar) — must be singleton.
@@ -53,11 +54,60 @@ builder.Services.AddAuthorizationBuilder();
 
 var app = builder.Build();
 
-app.MapIdentityApi<AppUser>();
+// Hand-rolled instead of MapIdentityApi<AppUser>() — that built-in endpoint set only
+// supports logging in by email (FindByEmailAsync internally), but F95-linked accounts
+// are deliberately email-less and log in by username. /manage/info is reimplemented
+// for the same reason: the built-in version only ever returns Email, and the client
+// needs a UserName to show/derive an identity for email-less accounts.
+
+app.MapPost("/login", async (
+    LoginDto login,
+    UserManager<AppUser> userManager,
+    SignInManager<AppUser> signInManager) =>
+{
+    var user = await userManager.FindByNameAsync(login.UsernameOrEmail)
+               ?? await userManager.FindByEmailAsync(login.UsernameOrEmail);
+
+    if (user is null)
+        return Results.Unauthorized();
+
+    var result = await signInManager.CheckPasswordSignInAsync(user, login.Password, lockoutOnFailure: true);
+    if (!result.Succeeded)
+        return Results.Unauthorized();
+
+    await signInManager.SignInAsync(user, isPersistent: true);
+    return Results.Ok();
+});
+
 app.MapPost("/logout", async (SignInManager<AppUser> signInManager) =>
 {
     await signInManager.SignOutAsync();
     return Results.Ok();
+}).RequireAuthorization();
+
+app.MapGet("/manage/info", async (ClaimsPrincipal principal, UserManager<AppUser> userManager) =>
+{
+    var user = await userManager.GetUserAsync(principal);
+    if (user is null)
+        return Results.Unauthorized();
+
+    return Results.Ok(new
+    {
+        UserName = user.UserName ?? string.Empty,
+        Email = user.Email ?? string.Empty,
+        IsEmailConfirmed = user.EmailConfirmed
+    });
+}).RequireAuthorization();
+
+// CookieAuthenticationStateProvider (client) calls this to build the role claims on its
+// local ClaimsPrincipal. Claim types are passed through as-is; UserClaimsPrincipalFactory
+// already issues them as ClaimTypes.Role, which is what the client mirrors them as too.
+app.MapGet("/roles", (ClaimsPrincipal user) =>
+{
+    var roles = user.Claims
+        .Where(c => c.Type == ClaimTypes.Role)
+        .Select(c => new { c.Type, c.Value, c.ValueType, c.Issuer, c.OriginalIssuer });
+    return Results.Ok(roles);
 }).RequireAuthorization();
 
 using (var scope = app.Services.CreateScope())

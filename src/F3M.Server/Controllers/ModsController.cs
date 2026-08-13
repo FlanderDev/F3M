@@ -119,7 +119,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         [FromForm] List<string> originalNames,
         IFormFile? previewImage)
     {
-        var username = User.FindFirstValue("name") ?? "unknown";
+        var username = User.FindFirstValue(ClaimTypes.Name) ?? "unknown";
         var userId = Helper.GetUserId(User);
         logger.LogInformation($"User ID: {userId}");
 
@@ -272,7 +272,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         if (mod is null) return NotFound();
 
         var userId = Helper.GetUserId(User);
-        var isAdmin = User.IsInRole("Admin");
+        var isAdmin = User.IsInRole(AppRoles.Admin);
         var group = await db.ModGroups.FindAsync(mod.ModGroupId);
         // logger.LogInformation($"ModGroup: {group?.OwnerId} vs {userId}");
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
@@ -295,7 +295,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         if (mod is null) return NotFound();
 
         var userId = Helper.GetUserId(User);
-        var isAdmin = User.IsInRole("Admin");
+        var isAdmin = User.IsInRole(AppRoles.Admin);
         var group = await db.ModGroups.FindAsync(mod.ModGroupId);
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
 

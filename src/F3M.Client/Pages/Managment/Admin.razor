@@ -1,5 +1,5 @@
 @page "/admin"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = AppRoles.Admin)]
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject HttpClient Http
 
@@ -13,7 +13,7 @@
         <p class="small mb-0">Manage users and permissions.</p>
     </div>
 
-    <AuthorizeView Roles="Admin">
+    <AuthorizeView Roles="@AppRoles.Admin">
         <Authorized>
             <h1>Authorized</h1>
         </Authorized>
