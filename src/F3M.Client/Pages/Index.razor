@@ -55,7 +55,7 @@
             </div>
             <div class="col-6 col-md-3">
                 <select class="form-select f3m-select" @bind="sortBy" @bind:after="LoadMods">
-                    @foreach (var option in Enum.GetValues<Configuration.SortBy>())
+                    @foreach (var option in Enum.GetValues<SortBy>())
                     {
                         <option value="@option">@option</option>
                     }
