@@ -4,10 +4,8 @@ using F3M.Server.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -44,49 +42,27 @@ builder.Services
     })
     .AddRoles<IdentityRole<int>>()
     .AddEntityFrameworkStores<AppDbContext>()
+    .AddApiEndpoints()
     .AddDefaultTokenProviders();
 
 // F95Service holds the XenForo login session (cookie jar) — must be singleton.
 builder.Services.AddSingleton<F95Service>();
-builder.Services.AddScoped<TokenService>();
-
-string? jwtSecret = builder.Configuration["Jwt:Secret"];
-if (string.IsNullOrWhiteSpace(jwtSecret))
-{
-    var secretPath = Path.Combine(Assets.StorageRoot, "secret.txt");
-    if (File.Exists(secretPath))
-    {
-        jwtSecret = (await File.ReadAllLinesAsync(secretPath)).LastOrDefault() ?? throw new InvalidOperationException("Failed to read JWT secret from file.");
-        return -1;
-    }
-
-    using var rng = RandomNumberGenerator.Create();
-    var bytes = new byte[32]; // 256 bits
-    rng.GetBytes(bytes);
-    jwtSecret = Convert.ToBase64String(bytes);
-    await File.WriteAllLinesAsync(secretPath, [DateTime.Now.ToString(), jwtSecret]);
-}
 
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Convert.FromBase64String(jwtSecret)),
+        .AddAuthentication(IdentityConstants.ApplicationScheme)
+        .AddIdentityCookies();
 
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
-    });
-
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorizationBuilder();
 
 var app = builder.Build();
+
+app.MapIdentityApi<AppUser>();
+app.MapPost("/logout", async (SignInManager<AppUser> signInManager) =>
+{
+    await signInManager.SignOutAsync();
+    return Results.Ok();
+}).RequireAuthorization();
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -110,15 +86,8 @@ using (var scope = app.Services.CreateScope())
         if (createResult.Succeeded)
             await userManager.AddToRoleAsync(newDebugUser, AppRoles.Admin);
         else
-            Console.WriteLine($"Failed to seed debug admin: {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
+            throw new Exception($"Failed to create debug admin user: {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
     }
-
-
-    if (existingDebugUser is not null) // Remove this if
-    {
-        var result = await userManager.AddToRoleAsync(existingDebugUser, AppRoles.Admin);
-    }
-
 #endif
 }
 
@@ -157,8 +126,6 @@ app.UseAuthorization();
 app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
-
-app.MapGet("/x", () => "Hello, World!");
 
 app.Run();
 return 0;

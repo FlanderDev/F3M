@@ -1,22 +1,23 @@
+using F3M.Client.Identity.Models;
 using F3M.Shared.Models;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace F3M.Client.Pages.Authentication;
 
 public partial class Login
 {
-    private LoginDto dto = new();
-    private string? error;
+    private readonly LoginDto dto = new();
+    private FormResult formResult = new();
+
     private bool loading;
 
     private async Task HandleLogin()
     {
         loading = true;
-        error = null;
-        var result = await Auth.LoginAsync(dto);
+        formResult = await Acct.LoginAsync(dto.UsernameOrEmail, dto.Password);
         loading = false;
-        if (result.Success)
-            Nav.NavigateTo("/", forceLoad: false);
-        else
-            error = result.Error ?? "Login failed.";
+
+        if (formResult.Succeeded)
+            Navigation.NavigateTo("/", forceLoad: false);
     }
 }

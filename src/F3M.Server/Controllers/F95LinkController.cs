@@ -17,7 +17,6 @@ public partial class F95LinkController(
     AppDbContext db,
     F95Service f95,
     UserManager<AppUser> userManager,
-    TokenService tokenService,
     ILogger<F95LinkController> logger) : ControllerBase
 {
     // Matches: https://f95zone.to/members/username.12345/
@@ -212,9 +211,7 @@ public partial class F95LinkController(
             Status = VerificationState.Verified,
             Message = isNewUser
                 ? "Account created and linked successfully."
-                : "Logged in via F95zone account.",
-            Token = await tokenService.GenerateTokenAsync(user),
-            User = await tokenService.BuildUserInfoAsync(user)
+                : "Logged in via F95zone account."
         });
     }
 
