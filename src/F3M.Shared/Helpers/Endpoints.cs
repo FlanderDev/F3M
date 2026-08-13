@@ -23,6 +23,8 @@ public static class Endpoints
     public const string Check = "check";
     public const string Telemetry = "telemetry";
     public const string Error = "error";
+    public const string ProfileSegment = "profile";
+    public const string Password = "password";
     #endregion
 
     public static class Admin
@@ -31,6 +33,13 @@ public static class Endpoints
         public const string GetUsers = $"{Base}/{Users}";
         public static string ToggleAdmin(int id) => $"{Base}/{id}";
         public static string DeleteUser(int id) => $"{Base}/{id}";
+    }
+
+    public static class Profile
+    {
+        public const string Base = $"{Api}/{ProfileSegment}";
+        public const string ChangePassword = $"{Base}/{Password}";
+        public const string MyMods = $"{Base}/{Modifications}";
     }
 
     public static class F95Link

@@ -29,7 +29,7 @@ public class ModEditDto
     [Required, MaxLength(120)]
     public string Name { get; set; } = string.Empty;
 
-    [MaxLength(1000)]
+    [Required, MaxLength(Configuration.ModDescriptionMaxSize)]
     public string Description { get; set; } = string.Empty;
 
     [MaxLength(20)]

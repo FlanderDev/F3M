@@ -1,0 +1,172 @@
+@page "/profile"
+@attribute [Authorize]
+@inject HttpClient Http
+
+<PageTitle>F3M - Profile</PageTitle>
+
+<div class="container py-5" style="max-width:900px;">
+    <div class="mb-4">
+        <h1 class="fw-black mb-1 fs-2">
+            <i class="bi bi-person-circle text-warning me-2"></i>My Profile
+        </h1>
+        <p class="small mb-0">Manage your account.</p>
+    </div>
+
+    @if (loading)
+    {
+        <div class="placeholder-glow">
+            @for (int i = 0; i < 3; i++)
+            {
+                <div class="placeholder w-100 mb-2" style="height:48px;border-radius:8px;"></div>
+            }
+        </div>
+    }
+    else if (loadError is not null)
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@loadError
+        </div>
+    }
+    else if (profile is not null)
+    {
+        <!-- Account details -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <h5 class="fw-bold mb-3">Account</h5>
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <div class="small" style="color:var(--f3m-muted)">Username</div>
+                    <div class="fw-semibold">@profile.Username</div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="small" style="color:var(--f3m-muted)">Member Since</div>
+                    <div class="fw-semibold">@profile.RegisteredAt.ToString("MMM d, yyyy")</div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="small" style="color:var(--f3m-muted)">Email</div>
+                    @if (string.IsNullOrEmpty(profile.Email))
+                    {
+                        <div class="fst-italic small">Not set — F95-linked accounts don't collect one.</div>
+                    }
+                    else
+                    {
+                        <div class="fw-semibold">
+                            @profile.Email
+                            @if (!profile.IsEmailConfirmed)
+                            {
+                                <span class="badge bg-secondary ms-1">Unconfirmed</span>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="col-sm-6">
+                    <div class="small" style="color:var(--f3m-muted)">Roles</div>
+                    <div>
+                        @foreach (var role in profile.Roles)
+                        {
+                            <span class="badge @(role == AppRoles.Admin ? "f3m-badge-admin" : "bg-secondary") me-1">
+                                @if (role == AppRoles.Admin)
+                                {
+                                    <i class="bi bi-shield-fill me-1"></i>
+                                }
+                                @role
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="small" style="color:var(--f3m-muted)">F95zone Link</div>
+                    @if (profile.F95Username is not null)
+                    {
+                        <div class="fw-semibold">
+                            <i class="bi bi-link-45deg text-warning me-1"></i>
+                            Linked as <a href="@F95ProfileUrl" target="_blank" class="text-warning">@profile.F95Username</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div>
+                            <span class="fst-italic small d-block mb-2">Not linked to an F95zone account.</span>
+                            <a href="@Paths.LinkAccount" class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-link-45deg me-1"></i>Link F95zone Account
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Change password -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <h5 class="fw-bold mb-3">Change Password</h5>
+
+            @if (passwordSuccess is not null)
+            {
+                <div class="alert alert-success py-2 small">@passwordSuccess</div>
+            }
+            @if (passwordError is not null)
+            {
+                <div class="alert alert-danger py-2 small">@passwordError</div>
+            }
+
+            <EditForm Model="passwordDto" OnValidSubmit="HandleChangePassword">
+                <DataAnnotationsValidator />
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Current Password</label>
+                    <InputText class="form-control f3m-input" type="password"
+                               @bind-Value="passwordDto.CurrentPassword" />
+                    <ValidationMessage For="@(() => passwordDto.CurrentPassword)" class="text-danger small mt-1 d-block" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">New Password</label>
+                    <InputText class="form-control f3m-input" type="password"
+                               @bind-Value="passwordDto.NewPassword" />
+                    <ValidationMessage For="@(() => passwordDto.NewPassword)" class="text-danger small mt-1 d-block" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Confirm New Password</label>
+                    <InputText class="form-control f3m-input" type="password"
+                               @bind-Value="passwordDto.ConfirmPassword" />
+                    <ValidationMessage For="@(() => passwordDto.ConfirmPassword)" class="text-danger small mt-1 d-block" />
+                </div>
+                <button type="submit" class="btn btn-warning fw-bold" disabled="@changingPassword">
+                    @if (changingPassword)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    Update Password
+                </button>
+            </EditForm>
+        </div>
+
+        <!-- My uploads -->
+        <div class="mb-2 d-flex align-items-center justify-content-between">
+            <h5 class="fw-bold mb-0">My Uploads</h5>
+            <span class="badge bg-secondary">@profile.ModCount</span>
+        </div>
+        @if (myMods is null)
+        {
+            <div class="placeholder-glow">
+                <div class="placeholder w-100" style="height:80px;border-radius:8px;"></div>
+            </div>
+        }
+        else if (myMods.Count == 0)
+        {
+            <div class="f3m-empty text-center py-4">
+                <i class="bi bi-inbox display-4 opacity-50 d-block mb-2"></i>
+                <p class="small mb-2">You haven't uploaded any mods yet.</p>
+                <a href="@Paths.Mods.Upload" class="btn btn-sm btn-outline-warning">
+                    <i class="bi bi-cloud-arrow-up me-1"></i>Upload a Mod
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="mod-grid">
+                @foreach (var mod in myMods)
+                {
+                    <ModCard Mod="mod" />
+                }
+            </div>
+        }
+    }
+</div>
