@@ -17,8 +17,6 @@ public static class Endpoints
     public const string Download = "download";
     public const string Modifications = "mods";
     public const string Users = "users";
-    public const string Login = "login";
-    public const string Register = "register";
     public const string Authentication = "auth";
     public const string F95 = "f95";
     public const string Start = "start";
@@ -33,13 +31,6 @@ public static class Endpoints
         public const string GetUsers = $"{Base}/{Users}";
         public static string ToggleAdmin(int id) => $"{Base}/{id}";
         public static string DeleteUser(int id) => $"{Base}/{id}";
-    }
-
-    public static class Auth
-    {
-        public const string Base = $"{Api}/{Authentication}";
-        public const string Register = $"{Base}/{Endpoints.Register}";
-        public const string Login = $"{Base}/{Endpoints.Login}";
     }
 
     public static class F95Link

@@ -1,4 +1,5 @@
 using F3M.Server.Models;
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;

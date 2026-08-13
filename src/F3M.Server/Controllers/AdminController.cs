@@ -1,5 +1,6 @@
 using F3M.Server.Data;
 using F3M.Server.Models;
+using F3M.Shared;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -12,76 +13,12 @@ namespace F3M.Server.Controllers;
 
 [ApiController]
 [Route(Endpoints.Admin.Base)]
-//[Authorize(Roles = AppRoles.Admin)]
+[Authorize(Roles = AppRoles.Admin)]
 public class AdminController(
     AppDbContext db,
     UserManager<AppUser> userManager,
     ILogger<AdminController> logger) : ControllerBase
 {
-
-    [HttpGet("/0")]
-    public IActionResult Test0()
-    {
-        var data = new
-        {
-            IsAuthenticated = User.Identity?.IsAuthenticated,
-            Name = User.Identity?.Name,
-            Roles = User.Claims
-                .Where(c => c.Type == ClaimTypes.Role)
-                .Select(c => c.Value)
-                .ToArray(),
-            AllClaims = User.Claims.Select(c => new
-            {
-                c.Type,
-                c.Value
-            })
-        };
-        return Ok(data);
-    }
-
-    [Authorize]
-    [HttpGet("/1")]
-    public IActionResult TestA()
-    {
-        var data = new
-        {
-            IsAuthenticated = User.Identity?.IsAuthenticated,
-            Name = User.Identity?.Name,
-            Roles = User.Claims
-                .Where(c => c.Type == ClaimTypes.Role)
-                .Select(c => c.Value)
-                .ToArray(),
-            AllClaims = User.Claims.Select(c => new
-            {
-                c.Type,
-                c.Value
-            })
-        };
-        return Ok(data);
-    }
-
-    [Authorize(Roles = AppRoles.Admin)]
-    [HttpGet("/2")]
-    public IActionResult TestB()
-    {
-        var data = new
-        {
-            IsAuthenticated = User.Identity?.IsAuthenticated,
-            Name = User.Identity?.Name,
-            Roles = User.Claims
-                .Where(c => c.Type == ClaimTypes.Role)
-                .Select(c => c.Value)
-                .ToArray(),
-            AllClaims = User.Claims.Select(c => new
-            {
-                c.Type,
-                c.Value
-            })
-        };
-        return Ok(data);
-    }
-
-
     [HttpGet(Endpoints.Users)]
     public async Task<ActionResult<List<AdminUserDto>>> GetUsers()
     {
@@ -113,7 +50,7 @@ public class AdminController(
     [HttpPost($"{Endpoints.Users}/{{id:int}}")]
     public async Task<ActionResult<AdminUserDto>> ToggleAdmin(int id)
     {
-        var callerIdStr = User.FindFirstValue("sub");
+        var callerIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!int.TryParse(callerIdStr, out var callerId))
             return Unauthorized();
 
@@ -150,7 +87,7 @@ public class AdminController(
     [HttpDelete($"{Endpoints.Users}/{{id:int}}")]
     public async Task<IActionResult> DeleteUser(int id)
     {
-        var callerIdStr = User.FindFirstValue("sub");
+        var callerIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!int.TryParse(callerIdStr, out var callerId))
             return Unauthorized();
 

@@ -32,7 +32,7 @@
                 <ul class="navbar-nav gap-1 ms-auto">
                     <AuthorizeView>
                         <Authorized>
-                            @if (context.User.IsInRole("Admin"))
+                            @if (context.User.IsInRole(AppRoles.Admin))
                             {
                                 <li class="nav-item">
                                     <NavLink class="nav-link px-3 py-2 rounded" href="/admin">
