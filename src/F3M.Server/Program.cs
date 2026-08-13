@@ -3,6 +3,7 @@ using F3M.Server.Models;
 using F3M.Server.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -72,17 +73,14 @@ builder.Services
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = Configuration.AppName,
-            ValidAudience = Configuration.AppName,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-            // Keep claim names as written in the JWT ("role", "sub", etc.)
-            // instead of remapping to long CLR URIs. Matches client-side parsing.
-            RoleClaimType = "role",
-            NameClaimType = "name"
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Convert.FromBase64String(jwtSecret)),
+
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
         };
     });
 
@@ -97,22 +95,30 @@ using (var scope = app.Services.CreateScope())
 #if DEBUG // Seed a debug admin user for local development/testing
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
     var name = nameof(F3M);
-    if (await userManager.FindByNameAsync(name) is null)
+    var existingDebugUser = await userManager.FindByNameAsync(name);
+    if (existingDebugUser is null)
     {
-        var admin = new AppUser
+        var newDebugUser = new AppUser
         {
             UserName = name,
             Email = $"{name}-admin@example.com",
             RegisteredAt = DateTime.UtcNow,
         };
-        admin.PasswordHash = userManager.PasswordHasher.HashPassword(admin, name);
+        newDebugUser.PasswordHash = userManager.PasswordHasher.HashPassword(newDebugUser, name);
 
-        var createResult = await userManager.CreateAsync(admin);
+        var createResult = await userManager.CreateAsync(newDebugUser);
         if (createResult.Succeeded)
-            await userManager.AddToRoleAsync(admin, AppRoles.Admin);
+            await userManager.AddToRoleAsync(newDebugUser, AppRoles.Admin);
         else
             Console.WriteLine($"Failed to seed debug admin: {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
     }
+
+
+    if (existingDebugUser is not null) // Remove this if
+    {
+        var result = await userManager.AddToRoleAsync(existingDebugUser, AppRoles.Admin);
+    }
+
 #endif
 }
 
@@ -151,6 +157,8 @@ app.UseAuthorization();
 app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
+
+app.MapGet("/x", () => "Hello, World!");
 
 app.Run();
 return 0;
