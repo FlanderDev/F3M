@@ -3,6 +3,7 @@ using F3M.Shared.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace F3M.Server.Data;
 
@@ -94,5 +95,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             new IdentityRole<int> { Id = 1, Name = AppRoles.User, NormalizedName = "USER" },
             new IdentityRole<int> { Id = 2, Name = AppRoles.Admin, NormalizedName = "ADMIN" }
         );
+    }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // Ensure existing provider configuration is preserved and add warning suppression
+        if (!optionsBuilder.IsConfigured)
+        {
+            // The connection string/provider should already be configured in Program.cs; keep fallback here if needed
+            // optionsBuilder.UseSqlite("Data Source=Storage\\Database\\F3M.db");
+        }
+
+        // Suppress the PendingModelChangesWarning which can be triggered by dynamic values used in HasData
+        optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
 }
