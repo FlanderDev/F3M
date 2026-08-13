@@ -13,20 +13,8 @@
         <p class="small mb-0">Manage users and permissions.</p>
     </div>
 
-    <AuthorizeView Roles="@AppRoles.Admin">
-        <Authorized>
-            <h1>Authorized</h1>
-        </Authorized>
-
-        <NotAuthorized>
-            <h1>NotAuthorized</h1>
-        </NotAuthorized>
-    </AuthorizeView>
-
     @if (loading)
     {
-        <h1>LOADING</h1>
-
         <div class="placeholder-glow">
             @for (int i = 0; i < 5; i++)
             {
@@ -36,16 +24,12 @@
     }
     else if (loadError is not null)
     {
-        <h1>loadError is not null</h1>
-
         <div class="alert alert-danger">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>@loadError
         </div>
     }
     else
     {
-        <h1>ELSE</h1>
-
         <!-- Search -->
         <div class="input-group mb-4" style="max-width:360px;">
             <span class="input-group-text f3m-search-icon"><i class="bi bi-search"></i></span>

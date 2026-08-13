@@ -28,9 +28,10 @@ Directory.CreateDirectory(databaseDirectory);
 var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
-// AddIdentityCore (not AddIdentity) — this is an API, so we don't want the cookie
-// auth scheme, external login providers, or Razor Pages UI that AddIdentity wires up.
-// Password/lockout policy stays close to what the old hand-rolled hasher enforced.
+// AddIdentityCore (not AddIdentity) — AddIdentity also wires up a default UI/external
+// login providers we don't use. Cookie auth itself is added explicitly below via
+// AddAuthentication/AddIdentityCookies. Password/lockout policy stays close to what
+// the old hand-rolled hasher enforced.
 builder.Services
     .AddIdentityCore<AppUser>(options =>
     {
@@ -41,7 +42,8 @@ builder.Services
     })
     .AddRoles<IdentityRole<int>>()
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddSignInManager();
 
 // F95Service holds the XenForo login session (cookie jar) — must be singleton.
 builder.Services.AddSingleton<F95Service>();
@@ -49,6 +51,28 @@ builder.Services.AddSingleton<F95Service>();
 builder.Services
         .AddAuthentication(IdentityConstants.ApplicationScheme)
         .AddIdentityCookies();
+
+// This is an API, not a page app — without this, an unauthenticated request to any
+// [Authorize]-protected endpoint gets a 302 redirect to a nonexistent "/Account/Login"
+// page instead of a clean 401 (and 403 for role/policy failures). The client's fetch
+// follows that redirect silently, so instead of a clean 401 it either 404s or — if a
+// SPA fallback route is registered — gets back 200 + the index.html shell, which then
+// fails to parse as the expected JSON. Both cases are swallowed by a generic catch in
+// CookieAuthenticationStateProvider so the app doesn't crash, but every anonymous
+// visit was logging a spurious error and wasting a redirect round-trip.
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
 
 builder.Services.AddAuthorizationBuilder();
 
