@@ -21,7 +21,7 @@
                         </a>
                     </Authorized>
                     <NotAuthorized>
-                        <a href="@Paths.Auth.Login" class="btn btn-outline-warning fw-bold px-4">
+                        <a href="@Paths.LinkAccount" class="btn btn-outline-warning fw-bold px-4">
                             <i class="bi bi-cloud-arrow-up me-2"></i>Upload Mod
                         </a>
                     </NotAuthorized>
@@ -55,7 +55,7 @@
             </div>
             <div class="col-6 col-md-3">
                 <select class="form-select f3m-select" @bind="sortBy" @bind:after="LoadMods">
-                    @foreach (var option in Enum.GetValues<Configuration.SortBy>())
+                    @foreach (var option in Enum.GetValues<SortBy>())
                     {
                         <option value="@option">@option</option>
                     }

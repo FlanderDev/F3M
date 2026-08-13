@@ -1,6 +1,6 @@
-@page "/login"
-@inject AuthService Auth
-@inject NavigationManager Nav
+﻿@page "/auth/login"
+@inject IAccountManagement Acct
+@inject NavigationManager Navigation
 
 <PageTitle>F3M - Login</PageTitle>
 
@@ -10,41 +10,49 @@
             <span class="f3m-logo-badge" style="width:48px;height:48px;font-size:1.1rem;">F3M</span>
         </div>
         <h2 class="fw-black text-center mb-1">Welcome back</h2>
-        <p class="text-center small mb-4">Sign in to upload and manage mods</p>
+        <AuthorizeView Context="authContext">
 
-        @if (error is not null)
-        {
-            <div class="alert alert-danger py-2 small mb-3">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
-            </div>
-        }
+            <Authorized>
+                <div class="alert alert-success">You're logged in as @authContext.User.Identity?.Name.</div>
+            </Authorized>
 
-        <EditForm Model="dto" OnValidSubmit="HandleLogin">
-            <DataAnnotationsValidator />
-            <div class="mb-3">
-                <label class="form-label fw-semibold small">Username or Email</label>
-                <InputText class="form-control f3m-input" placeholder="Enter username or email"
-                           @bind-Value="dto.UsernameOrEmail" />
-                <ValidationMessage For="@(() => dto.UsernameOrEmail)" class="text-danger small mt-1 d-block" />
-            </div>
-            <div class="mb-4">
-                <label class="form-label fw-semibold small">Password</label>
-                <InputText class="form-control f3m-input" type="password" placeholder="Enter password"
-                           @bind-Value="dto.Password" />
-                <ValidationMessage For="@(() => dto.Password)" class="text-danger small mt-1 d-block" />
-            </div>
-            <button type="submit" class="btn btn-warning fw-bold w-100" disabled="@loading">
-                @if (loading)
+            <NotAuthorized>
+                <p class="text-center small mb-4">Sign in to upload and manage mods</p>
+
+                @foreach (var error in formResult.ErrorList)
                 {
-                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <div class="alert alert-danger">@error</div>
                 }
-                Sign In
-            </button>
-        </EditForm>
 
-        <p class="text-center small mt-4 mb-0">
-            Don't have an account? <a href="/register" class="text-warning fw-semibold">Link F95zone Account</a>
-        </p>
+                <EditForm Model="dto" OnValidSubmit="HandleLogin">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Username or Email</label>
+                        <InputText class="form-control f3m-input" placeholder="Enter username or email"
+                                   @bind-Value="dto.UsernameOrEmail" />
+                        <ValidationMessage For="@(() => dto.UsernameOrEmail)" class="text-danger small mt-1 d-block" />
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small">Password</label>
+                        <InputText class="form-control f3m-input" type="password" placeholder="Enter password"
+                                   @bind-Value="dto.Password" />
+                        <ValidationMessage For="@(() => dto.Password)" class="text-danger small mt-1 d-block" />
+                    </div>
+                    <button type="submit" class="btn btn-warning fw-bold w-100" disabled="@loading">
+                        @if (loading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Sign In
+                    </button>
+                </EditForm>
+
+                <p class="text-center small mt-4 mb-0">
+                    Don't have an account? <a href="@Paths.LinkAccount" class="text-warning fw-semibold">Link F95zone Account</a>
+                </p>
+            </NotAuthorized>
+
+        </AuthorizeView>
     </div>
 </div>
 

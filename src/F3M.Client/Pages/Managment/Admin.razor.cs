@@ -26,7 +26,10 @@ public partial class Admin
         {
             users = await Http.GetFromJsonAsync<List<AdminUserDto>>(Endpoints.Admin.GetUsers) ?? [];
         }
-        catch (Exception ex) { loadError = ex.Message; }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
         finally { loading = false; }
     }
 

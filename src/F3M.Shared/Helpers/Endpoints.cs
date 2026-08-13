@@ -17,12 +17,14 @@ public static class Endpoints
     public const string Download = "download";
     public const string Modifications = "mods";
     public const string Users = "users";
-    public const string Login = "login";
-    public const string Register = "register";
     public const string Authentication = "auth";
     public const string F95 = "f95";
     public const string Start = "start";
     public const string Check = "check";
+    public const string Telemetry = "telemetry";
+    public const string Error = "error";
+    public const string ProfileSegment = "profile";
+    public const string Password = "password";
     #endregion
 
     public static class Admin
@@ -33,11 +35,11 @@ public static class Endpoints
         public static string DeleteUser(int id) => $"{Base}/{id}";
     }
 
-    public static class Auth
+    public static class Profile
     {
-        public const string Base = $"{Api}/{Authentication}";
-        public const string Register = $"{Base}/{Endpoints.Register}";
-        public const string Login = $"{Base}/{Endpoints.Login}";
+        public const string Base = $"{Api}/{ProfileSegment}";
+        public const string ChangePassword = $"{Base}/{Password}";
+        public const string MyMods = $"{Base}/{Modifications}";
     }
 
     public static class F95Link
@@ -45,6 +47,13 @@ public static class Endpoints
         public const string Base = $"{Api}/{Authentication}/{F95}";
         public const string Start = $"{Base}/{Endpoints.Start}";
         public static string Check(string f95UserId) => $"{Base}/{Endpoints.Check}/{f95UserId}";
+    }
+
+    public static class Tele
+    {
+        public const string Base = $"{Api}/{Telemetry}";
+        public const string Error = $"{Base}/{Endpoints.Error}";
+
     }
 
     public static class Mods
@@ -56,7 +65,7 @@ public static class Endpoints
         public static string Download(int versionId, int fileId) => $"{Base}/{versionId}/{Endpoints.Download}/{fileId}";
         public static string GetMod(int id) => $"{Base}/{id}";
         public static string GetMods(string nameQuerry) => $"{Base}/{nameQuerry}";
-        public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, Configuration.SortBy sortBy) =>
+        public static string GetMods(int currentPage, int pageSize, string searchTerm, string selectedCategory, SortBy sortBy) =>
             new StringBuilder(Base)
             .Append($"?page={currentPage}")
             .Append($"&pageSize={pageSize}")

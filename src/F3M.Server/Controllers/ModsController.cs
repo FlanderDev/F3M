@@ -20,7 +20,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         [FromQuery] int pageSize = 18,
         [FromQuery] string? search = null,
         [FromQuery] string? category = null,
-        [FromQuery] Configuration.SortBy sort = Configuration.SortBy.Newest)
+        [FromQuery] SortBy sort = SortBy.Newest)
     {
         // Latest version per group: pick the Mod row with the highest UploadedAt per ModGroupId
         var latestIds = db.Mods
@@ -41,12 +41,12 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
 
         query = sort switch
         {
-            Configuration.SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
-            Configuration.SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
-            Configuration.SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
-            Configuration.SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
-            Configuration.SortBy.NameAsc => query.OrderBy(m => m.Name),
-            Configuration.SortBy.NameDesc => query.OrderByDescending(m => m.Name),
+            SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
+            SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
+            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
+            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
+            SortBy.NameAsc => query.OrderBy(m => m.Name),
+            SortBy.NameDesc => query.OrderByDescending(m => m.Name),
             _ => query.OrderByDescending(m => m.UploadedAt)
         };
 
@@ -119,7 +119,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         [FromForm] List<string> originalNames,
         IFormFile? previewImage)
     {
-        var username = User.FindFirstValue("name") ?? "unknown";
+        var username = User.FindFirstValue(ClaimTypes.Name) ?? "unknown";
         var userId = Helper.GetUserId(User);
         logger.LogInformation($"User ID: {userId}");
 
@@ -179,7 +179,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
                 return BadRequest("Preview image exceeds 8 MB.");
 
             previewName = $"{Guid.NewGuid():N}{imgExt}";
-            await using var imgStream = System.IO.File.Create(Path.Combine(Assets.ImageDir, previewName));
+            await using var imgStream = System.IO.File.Create(Path.Combine(Assets.Images, previewName));
             await previewImage.CopyToAsync(imgStream);
         }
         else if (dto.ModGroupId.HasValue)
@@ -220,7 +220,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
             var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
             var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
 
-            await using var stream = System.IO.File.Create(Path.Combine(Assets.FileDir, safeName));
+            await using var stream = System.IO.File.Create(Path.Combine(Assets.Files, safeName));
             await f.CopyToAsync(stream);
 
             db.ModFiles.Add(new ModFile
@@ -255,7 +255,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         mod.DownloadCount++;
         await db.SaveChangesAsync();
 
-        var path = Path.Combine(Assets.FileDir, file.FileName);
+        var path = Path.Combine(Assets.Files, file.FileName);
         if (!System.IO.File.Exists(path))
             return NotFound("File not found on server.");
 
@@ -272,7 +272,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         if (mod is null) return NotFound();
 
         var userId = Helper.GetUserId(User);
-        var isAdmin = User.IsInRole("Admin");
+        var isAdmin = User.IsInRole(AppRoles.Admin);
         var group = await db.ModGroups.FindAsync(mod.ModGroupId);
         // logger.LogInformation($"ModGroup: {group?.OwnerId} vs {userId}");
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
@@ -295,14 +295,14 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         if (mod is null) return NotFound();
 
         var userId = Helper.GetUserId(User);
-        var isAdmin = User.IsInRole("Admin");
+        var isAdmin = User.IsInRole(AppRoles.Admin);
         var group = await db.ModGroups.FindAsync(mod.ModGroupId);
         if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
 
         // Delete uploaded files from disk
         foreach (var f in mod.Files)
         {
-            var p = Path.Combine(Assets.FileDir, f.FileName);
+            var p = Path.Combine(Assets.Files, f.FileName);
             if (System.IO.File.Exists(p)) System.IO.File.Delete(p);
         }
 

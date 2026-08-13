@@ -4,8 +4,8 @@ services:
       context: .
       target: final
     ports:
-      - 8081:8080
-      - 443:443
+      - 62444:8080
+      - 62445:443
     volumes:
       - f3m_Storage:/Storage
 
