@@ -2,29 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace F3M.Shared.Models;
 
-public class AppUser
-{
-    public int Id { get; set; }
-
-    [Required, MaxLength(50)]
-    public string Username { get; set; } = string.Empty;
-
-    // Empty string for F95-linked accounts (no email registration).
-    [MaxLength(200)]
-    public string Email { get; set; } = string.Empty;
-
-    // Empty string for F95-linked accounts (no password).
-    public string PasswordHash { get; set; } = string.Empty;
-
-    public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
-
-    public bool IsAdmin { get; set; } = false;
-
-    // F95zone account link — null for legacy password accounts.
-    public string? F95UserId { get; set; }
-    public string? F95Username { get; set; }
-}
-
 public class RegisterDto
 {
     [Required, MaxLength(50), MinLength(3)]
@@ -64,6 +41,7 @@ public class UserInfo
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public bool IsAdmin { get; set; }
+    public List<string> Roles { get; set; } = [];
 }
 
 /// <summary>Returned by admin user-list endpoint.</summary>
@@ -73,6 +51,7 @@ public class AdminUserDto
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public bool IsAdmin { get; set; }
+    public List<string> Roles { get; set; } = [];
     public DateTime RegisteredAt { get; set; }
     public int ModCount { get; set; }
 }

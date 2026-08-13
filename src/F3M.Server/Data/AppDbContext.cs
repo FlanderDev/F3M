@@ -1,18 +1,26 @@
-using F3M.Server.Controllers;
 using F3M.Server.Models;
 using F3M.Shared.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace F3M.Server.Data;
 
-public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
+    : IdentityDbContext<AppUser, IdentityRole<int>, int>(options)
 {
+    //public DbSet<ModGroup> AspNetUsers => Set<ModGroup>();
     public DbSet<ModGroup> ModGroups => Set<ModGroup>();
     public DbSet<Mod> Mods => Set<Mod>();
     public DbSet<ModFile> ModFiles => Set<ModFile>();
-    public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<F95PendingVerification> F95PendingVerifications => Set<F95PendingVerification>();
     public DbSet<Telemetry.ErrorReport> TelemetryErrorReports => Set<Telemetry.ErrorReport>();
+
+    // NOTE: Users are now accessed via the inherited `Users` DbSet<AppUser> from
+    // IdentityDbContext, backed by the standard AspNetUsers/AspNetRoles/AspNetUserRoles
+    // tables. Create/update/delete through UserManager<AppUser> and RoleManager<IdentityRole<int>>
+    // rather than db.Users.Add/Remove directly, so password hashing and role membership
+    // stay consistent with Identity's own bookkeeping.
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,14 +69,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.Entity<AppUser>(e =>
         {
-            e.HasKey(u => u.Id);
-            e.Property(u => u.Username).IsRequired().HasMaxLength(50);
-            // Email is empty string for F95-linked accounts; unique constraint removed.
-            e.Property(u => u.Email).HasMaxLength(200);
-            e.Property(u => u.IsAdmin).HasDefaultValue(false);
             e.Property(u => u.F95UserId).HasMaxLength(30);
             e.Property(u => u.F95Username).HasMaxLength(50);
-            e.HasIndex(u => u.Username).IsUnique();
             // Partial unique index: only enforce uniqueness when F95UserId is set.
             e.HasIndex(u => u.F95UserId).IsUnique().HasFilter("\"F95UserId\" IS NOT NULL");
         });
@@ -84,19 +86,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.HasIndex(v => v.Status);
         });
 
-#if DEBUG
-        var name = nameof(F3M);
-        modelBuilder.Entity<AppUser>().HasData(
-            new AppUser
-            {
-                Id           = 1,
-                Username     = name,
-                PasswordHash = AuthController.HashPassword(name),
-                IsAdmin      = true,
-                Email        = $"{name}-admin@example.com",
-                RegisteredAt = DateTime.UtcNow
-            }
+        // Seed the two baseline roles with fixed IDs so this is deterministic across
+        // migrations. Actual users are seeded at runtime in Program.cs (via UserManager,
+        // so passwords go through Identity's hasher) rather than here, since HasData
+        // requires static, precomputed values and Identity's PasswordHasher salts randomly.
+        modelBuilder.Entity<IdentityRole<int>>().HasData(
+            new IdentityRole<int> { Id = 1, Name = AppRoles.User, NormalizedName = "USER" },
+            new IdentityRole<int> { Id = 2, Name = AppRoles.Admin, NormalizedName = "ADMIN" }
         );
-#endif
     }
 }
