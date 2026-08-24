@@ -1,6 +1,6 @@
 @page "/mod/{Id:int}"
 @inject NavigationManager Nav
-@inject HttpClient Http
+@inject IModsApi ModsApi
 @inject IJSRuntime JS
 
 <PageTitle>F3M - @(selectedVersion?.Name ?? "Name-Unavailable")</PageTitle>
@@ -151,11 +151,11 @@ else
                             <div class="d-flex flex-column gap-2 mt-1">
                                 @if (isOwner)
                                 {
-                                    <a href="@Paths.Mods.UploadVersion(selectedVersion.ModGroupId)"
+                                    <a href="@($"Mod/upload/{selectedVersion.ModGroupId}")"
                                        class="btn btn-outline-warning fw-semibold">
                                         <i class="bi bi-arrow-up-circle me-2"></i>Upload New Version
                                     </a>
-                                    <a href="@Paths.Mods.Edit(selectedVersion.Id)"
+                                    <a href="@Paths.EditMod(selectedVersion.Id)"
                                        class="btn btn-outline-secondary fw-semibold">
                                         <i class="bi bi-pencil me-2"></i>Edit This Version
                                     </a>
@@ -242,7 +242,7 @@ else
 
                 <h1 class="fw-black fs-2 mb-1">@selectedVersion.Name</h1>
                 <p class="small mb-4">
-                    by <span class="text-warning fw-semibold">@selectedVersion.Author</span>
+                    by <a href="@Paths.PublicProfile(selectedVersion.Author)" class="text-warning fw-semibold">@selectedVersion.Author</a>
                     &nbsp;·&nbsp; @selectedVersion.UploadedAt.ToString("MMM d, yyyy")
                 </p>
 
@@ -269,6 +269,19 @@ else
 
                 <h6 class="fw-bold mb-2">Description</h6>
                 <div>@((MarkupString)HelperExtensions.SanatizeMarkdownToHtml(selectedVersion.Description))</div>
+
+                @if (selectedVersion.Dependencies.Count > 0)
+                {
+                    <h6 class="fw-bold mb-2 mt-4">Requires</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var dep in selectedVersion.Dependencies)
+                        {
+                            <a href="@Paths.ModDetail(dep.Id)" class="badge bg-secondary text-decoration-none">
+                                @dep.Name <span class="opacity-75">v@(dep.Version)</span>
+                            </a>
+                        }
+                    </div>
+                }
 
                 <!-- All versions timeline (compact, only shown if > 1) -->
                 @if (allVersions.Count > 1)

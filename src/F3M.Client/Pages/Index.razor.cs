@@ -1,9 +1,7 @@
-using F3M.Client.Business;
 using F3M.Shared;
-using F3M.Shared.Helpers;
+using F3M.Shared.Api;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Web;
-using System.Net.Http.Json;
 
 namespace F3M.Client.Pages;
 
@@ -22,7 +20,7 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
-        categories = await Http.LoadCategoriesAsync();
+        categories = [.. await ModsApi.GetCategories()];
         await LoadMods();
     }
 
@@ -33,9 +31,8 @@ public partial class Index
 
         try
         {
-            var specificCategory = selectedCategory == CategoryAll ? string.Empty : selectedCategory;
-            var query = Endpoints.Mods.GetMods(currentPage, pageSize, searchTerm, specificCategory, sortBy);
-            result = await Http.GetFromJsonAsync<ModListResult>(query);
+            var specificCategory = selectedCategory == CategoryAll ? null : selectedCategory;
+            result = await ModsApi.GetMods(currentPage, pageSize, searchTerm, specificCategory, sortBy);
         }
         catch { result = new ModListResult(); }
         finally { loading = false; }

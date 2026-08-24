@@ -52,7 +52,19 @@ public class Mod : IId, IName
     // Navigation
     public List<ModFile> Files { get; set; } = [];
 
-    /// <summary>Mods that this mod depends on.</summary>
+    /// <summary>
+    /// ModGroups (logical mods) that this version depends on — persisted. Points at the group,
+    /// not a specific version, so a dependency always follows that mod's current latest version
+    /// rather than staying pinned to whatever was newest at upload time.
+    /// </summary>
+    public List<ModGroup> DependencyGroups { get; set; } = [];
+
+    /// <summary>
+    /// Resolved view of <see cref="DependencyGroups"/> for display — each entry is the current
+    /// latest approved Mod (version) for a dependency group. NOT an EF-mapped relationship (see
+    /// AppDbContext.Ignore); populated by ModsService.ResolveDependenciesAsync at read time.
+    /// Empty unless the caller specifically asked for it to be resolved.
+    /// </summary>
     public List<Mod> Dependencies { get; set; } = [];
 }
 
@@ -89,7 +101,8 @@ public class ModUploadDto
     [Required, MaxLength(Configuration.ModDescriptionMaxSize)]
     public string Description { get; set; } = string.Empty;
 
-    public List<Mod> Dependencies { get; set; } = [];
+    /// <summary>ModGroup IDs (logical mods) this upload depends on.</summary>
+    public List<int> DependencyGroupIds { get; set; } = [];
 
     [MaxLength(20)]
     public string Version { get; set; } = "1.0.0";

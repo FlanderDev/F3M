@@ -1,7 +1,7 @@
 @page "/"
 @page "/Browse"
 
-@inject HttpClient Http
+@inject IModsApi ModsApi
 
 <PageTitle>F3M - Browse</PageTitle>
 
@@ -16,7 +16,7 @@
             <div class="col-auto">
                 <AuthorizeView>
                     <Authorized>
-                        <a href="@Paths.Mods.Upload" class="btn btn-warning fw-bold px-4">
+                        <a href="@Paths.Upload" class="btn btn-warning fw-bold px-4">
                             <i class="bi bi-cloud-arrow-up me-2"></i>Upload Mod
                         </a>
                     </Authorized>

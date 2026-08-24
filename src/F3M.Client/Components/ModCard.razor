@@ -14,7 +14,9 @@
     </div>
     <div class="mod-card-body">
         <h6 class="mod-card-title">@Mod.Name</h6>
-        <p class="mod-card-author">by <span>@Mod.Author</span></p>
+        <p class="mod-card-author">
+            by <a href="@Paths.PublicProfile(Mod.Author)" @onclick:stopPropagation="true">@Mod.Author</a>
+        </p>
         <p class="mod-card-desc">@Mod.Description</p>
         <div class="mod-card-meta">
             <span><i class="bi bi-download"></i> @Mod.DownloadCount.ToString("N0")</span>
