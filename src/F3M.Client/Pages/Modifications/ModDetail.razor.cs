@@ -1,10 +1,13 @@
 using F3M.Shared;
-using F3M.Shared.Helpers;
+using F3M.Shared.Api;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.JSInterop;
-using System.Net.Http.Json;
+using FlanderDev.RouteGen;
+using System.Net;
+using System.Security.Claims;
+using FlanderDev.RouteGen.Abstractions;
 
 namespace F3M.Client.Pages.Modifications;
 
@@ -35,20 +38,22 @@ public partial class ModDetail
         try
         {
             // Load the requested version
-            selectedVersion = await Http.GetFromJsonAsync<Mod>(Endpoints.Mods.GetMod(Id));
-            if (selectedVersion is null) return;
+            selectedVersion = await ModsApi.GetMod(Id);
 
             // Load all versions of the group
-            var result = await Http.GetFromJsonAsync<ModVersionsResult>(Endpoints.Mods.GetVersions(selectedVersion.ModGroupId));
-            allVersions = result?.Versions ?? [selectedVersion];
+            var result = await ModsApi.GetVersions(selectedVersion.ModGroupId);
+            // GetVersions only returns approved versions; GetMod (above) doesn't filter by
+            // approval, so an owner/admin viewing their own not-yet-approved mod would
+            // otherwise not see it in this list at all.
+            allVersions = result.Versions.Count > 0 ? result.Versions : [selectedVersion];
 
             // Check ownership
             if (AuthState is not null)
             {
                 var state = await AuthState;
-                var userIdStr = state.User.FindFirst("sub")?.Value;
+                var userIdStr = state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (int.TryParse(userIdStr, out var userId))
-                    isOwner = result?.Group.OwnerId == userId;
+                    isOwner = result.Group.OwnerId == userId;
                 isAdmin = state.User.IsInRole(AppRoles.Admin);
             }
         }
@@ -75,15 +80,12 @@ public partial class ModDetail
         dlSuccess = false; dlError = false;
         try
         {
-            var resp = await Http.PostAsync(Endpoints.Mods.Download(modId, file.Id), null);
-            if (resp.IsSuccessStatusCode)
-            {
-                var bytes = await resp.Content.ReadAsByteArrayAsync();
-                await JS.InvokeVoidAsync("f3m.downloadFile", file.OriginalName, Convert.ToBase64String(bytes));
-                selectedVersion!.DownloadCount++;
-                dlSuccess = true;
-            }
-            else dlError = true;
+            using var stream = await ModsApi.DownloadFile(modId, file.Id);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            await JS.InvokeVoidAsync("f3m.downloadFile", file.OriginalName, Convert.ToBase64String(ms.ToArray()));
+            selectedVersion!.DownloadCount++;
+            dlSuccess = true;
         }
         catch { dlError = true; }
         finally { downloadingFileId = null; }
@@ -95,25 +97,23 @@ public partial class ModDetail
         deleting = true; deleteError = null;
         try
         {
-            var resp = await Http.DeleteAsync(Endpoints.Mods.GetMod(selectedVersion.Id));
-            if (resp.IsSuccessStatusCode)
-            {
-                // If it was the last version, go home; otherwise reload versions
-                if (allVersions.Count <= 1)
-                    Nav.NavigateTo("/");
-                else
-                {
-                    allVersions.Remove(selectedVersion);
-                    selectedVersion = allVersions[0];
-                    showDeleteConfirm = false;
-                }
-            }
+            await ModsApi.Delete(selectedVersion.Id);
+
+            // If it was the last version, go home; otherwise reload versions
+            if (allVersions.Count <= 1)
+                Nav.NavigateTo("/");
             else
             {
-                deleteError = resp.StatusCode == System.Net.HttpStatusCode.Forbidden
-                    ? "You don't have permission to delete this mod."
-                    : $"Delete failed ({(int)resp.StatusCode}).";
+                allVersions.Remove(selectedVersion);
+                selectedVersion = allVersions[0];
+                showDeleteConfirm = false;
             }
+        }
+        catch (ApiException ex)
+        {
+            deleteError = ex.StatusCode == HttpStatusCode.Forbidden
+                ? "You don't have permission to delete this mod."
+                : ex.ResponseBody ?? $"Delete failed ({(int)ex.StatusCode}).";
         }
         catch (Exception ex) { deleteError = ex.Message; }
         finally { deleting = false; }
@@ -129,15 +129,16 @@ public partial class ModDetail
             bool anyError = false;
             foreach (var file in selectedVersion.Files)
             {
-                var resp = await Http.PostAsync(Endpoints.Mods.Download(selectedVersion.Id, file.Id), null);
-                if (resp.IsSuccessStatusCode)
+                try
                 {
-                    var bytes = await resp.Content.ReadAsByteArrayAsync();
-                    await JS.InvokeVoidAsync("f3m.downloadFile", file.OriginalName, Convert.ToBase64String(bytes));
+                    using var stream = await ModsApi.DownloadFile(selectedVersion.Id, file.Id);
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+                    await JS.InvokeVoidAsync("f3m.downloadFile", file.OriginalName, Convert.ToBase64String(ms.ToArray()));
                     // Small delay so browser doesn't block multiple simultaneous downloads
                     await Task.Delay(400);
                 }
-                else { anyError = true; }
+                catch { anyError = true; }
             }
             selectedVersion.DownloadCount++;
             dlSuccess = !anyError;

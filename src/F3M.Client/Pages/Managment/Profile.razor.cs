@@ -1,7 +1,7 @@
 using F3M.Shared;
+using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
-using System.Net.Http.Json;
 
 namespace F3M.Client.Pages.Managment;
 
@@ -29,7 +29,7 @@ public partial class Profile
         loadError = null;
         try
         {
-            profile = await Http.GetFromJsonAsync<ProfileDto>(Endpoints.Profile.Base);
+            profile = await Api.GetProfileAsync();
         }
         catch (Exception)
         {
@@ -45,7 +45,7 @@ public partial class Profile
     {
         try
         {
-            myMods = await Http.GetFromJsonAsync<List<Mod>>(Endpoints.Profile.MyMods);
+            myMods = await Api.GetMyModsAsync();
         }
         catch (Exception)
         {
@@ -65,10 +65,10 @@ public partial class Profile
         passwordError = null;
         passwordSuccess = null;
 
-        var response = await Http.PostAsJsonAsync(Endpoints.Profile.ChangePassword, passwordDto);
+        var result = await Api.ChangePasswordAsync(passwordDto);
         changingPassword = false;
 
-        if (response.IsSuccessStatusCode)
+        if (result.Success)
         {
             passwordSuccess = "Password updated.";
             passwordDto.CurrentPassword = string.Empty;
@@ -77,16 +77,6 @@ public partial class Profile
             return;
         }
 
-        try
-        {
-            var body = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>();
-            passwordError = body != null && body.TryGetValue("error", out var err)
-                ? err.ToString()
-                : "Failed to change password.";
-        }
-        catch (Exception)
-        {
-            passwordError = "Failed to change password.";
-        }
+        passwordError = result.Error ?? "Failed to change password.";
     }
 }
