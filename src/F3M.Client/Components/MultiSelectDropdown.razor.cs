@@ -5,7 +5,7 @@ namespace F3M.Client.Components;
 public partial class MultiSelectDropdown<TModel>
 {
     [Parameter, EditorRequired]
-    public Func<HttpClient, string, Task<List<TModel>?>> LoadValuesAsync { get; set; }
+    public Func<string, Task<List<TModel>?>> LoadValuesAsync { get; set; }
 
     /// <summary>Items currently selected (two-way bindable).</summary>
     [Parameter] public List<InternalItem> SelectedItems { get; set; } = [];
@@ -85,7 +85,7 @@ public partial class MultiSelectDropdown<TModel>
 
         try
         {
-            var result = await LoadValuesAsync(Http, _searchText);
+            var result = await LoadValuesAsync(_searchText);
             if (result == null)
             {
                 return;

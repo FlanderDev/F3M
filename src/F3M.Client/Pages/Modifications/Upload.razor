@@ -2,6 +2,7 @@
 @page "/Mod/upload/{GroupId:int}"
 @attribute [Authorize]
 @inject HttpClient Http
+@inject IModsApi ModsApi
 @inject NavigationManager Nav
 
 <PageTitle>F3M - Upload</PageTitle>
@@ -69,10 +70,10 @@
 
                 <!-- Mod Dependencies -->
                 <div class="mb-3">
-                    <label class="form-label fw-semibold small">Mods which this mods depense on<span class="text-danger"></span></label>
+                    <label class="form-label fw-semibold small">Mods which this mod depends on<span class="text-danger"></span></label>
                     <MultiSelectDropdown TModel="Mod"
                                          LoadValuesAsync="LoadMultiSelectDropdownValues"
-                                         OnDropdownClosed="e => dto.Dependencies = e.Select(s => s.Model).ToList()" />
+                                         OnDropdownClosed="e => SetDependencies(e.Select(s => s.Model).ToList())" />
                 </div>
 
                 <!-- Preview image -->

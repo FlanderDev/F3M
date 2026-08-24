@@ -1,6 +1,8 @@
 using F3M.Server.Data;
 using F3M.Server.Helpers;
+using F3M.Server.Services;
 using F3M.Shared;
+using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -10,96 +12,109 @@ using System.Security.Claims;
 
 namespace F3M.Server.Controllers;
 
-[ApiController]
-[Route(Endpoints.Mods.Base)]
-public sealed class ModsController(AppDbContext db, ILogger<ModsController> logger) : ControllerBase
+/// <summary>
+/// Thin controller over the RouteGen-generated ModsApiControllerBase — no route attributes for
+/// any of the actions below, all of that comes from the generated base (see
+/// obj/**/generated/RouteGen.Generators/.../Server_IModsApi.g.cs after build), itself derived
+/// from the attributes on IModsApi. ModsService does the actual EF work.
+///
+/// Upload is the one exception: it's hand-written, not part of IModsApi/the generated base, since
+/// it binds via [FromForm]/IFormFileCollection (multipart/form-data) — RouteGen's [Body] is
+/// JSON-only. A controller can freely mix generated-base overrides with its own additional
+/// actions like this; it doesn't have to be all-or-nothing.
+/// </summary>
+public sealed class ModsController(AppDbContext db, IModsApi modsApi, ILogger<ModsController> logger) : ModsApiControllerBase
 {
-    [HttpGet]
-    public async Task<ActionResult<ModListResult>> GetMods(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 18,
-        [FromQuery] string? search = null,
-        [FromQuery] string? category = null,
-        [FromQuery] SortBy sort = SortBy.Newest)
+    public override async Task<ActionResult<ModListResult>> GetMods(
+        int page, int pageSize, string? search, string? category, SortBy sort, CancellationToken ct)
+        => Ok(await modsApi.GetMods(page, pageSize, search, category, sort, ct));
+
+    public override async Task<ActionResult<Mod>> GetMod(int id, CancellationToken ct)
     {
-        // Latest version per group: pick the Mod row with the highest UploadedAt per ModGroupId
-        var latestIds = db.Mods
-            .Where(m => m.IsApproved)
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
-        var query = db.Mods
-            .Where(m => latestIds.Contains(m.Id))
-            .Include(m => m.Files)
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(m => m.Name.Contains(search));
-
-        if (!string.IsNullOrWhiteSpace(category))
-            query = query.Where(m => m.Category == category);
-
-        query = sort switch
+        try
         {
-            SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
-            SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
-            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
-            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
-            SortBy.NameAsc => query.OrderBy(m => m.Name),
-            SortBy.NameDesc => query.OrderByDescending(m => m.Name),
-            _ => query.OrderByDescending(m => m.UploadedAt)
-        };
-
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-        return Ok(new ModListResult { Items = items, TotalCount = items.Count, Page = page, PageSize = pageSize });
+            return Ok(await modsApi.GetMod(id, ct));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<Mod>> GetMod(int id)
+    public override async Task<ActionResult<List<Mod>>> SearchMods(string query, CancellationToken ct)
+        => Ok(await modsApi.SearchMods(query, ct));
+
+    public override async Task<ActionResult<ModVersionsResult>> GetVersions(int groupId, CancellationToken ct)
     {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        return mod is null ? NotFound() : Ok(mod);
+        try
+        {
+            return Ok(await modsApi.GetVersions(groupId, ct));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
     }
 
-    [HttpGet("{query}")]
-    public async Task<ActionResult<Mod>> GetMod(string query)
+    public override async Task<ActionResult<List<string>>> GetCategories(CancellationToken ct) => Ok(await modsApi.GetCategories(ct));
+
+    public override async Task<ActionResult> DownloadFile([FromRoute] int id, [FromRoute] int fileId, CancellationToken ct = default)
     {
-        var mods = await db.Mods.Where(w => w.Name.Contains(query)).ToArrayAsync();
-        return mods is null ? NotFound() : Ok(mods);
+        try
+        {
+            await using var stream = await modsApi.DownloadFile(id, fileId, ct);
+            // ModsService already validated existence/incremented the download count — we just
+            // need the original filename for the response, which it doesn't have (it only
+            // returns the raw stream), so look the file up again for that one field. Cheap
+            // (indexed PK lookups), and keeps IModsApi's DownloadFile signature to just Stream
+            // rather than a wrapper DTO.
+            var fileName = await db.ModFiles.Where(f => f.Id == fileId).Select(f => f.OriginalName).FirstOrDefaultAsync(ct)
+                            ?? "download";
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms, ct);
+            return File(ms.ToArray(), "application/octet-stream", fileName);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
     }
 
-    [HttpGet($"{Endpoints.Group}/{{groupId:int}}/{Endpoints.Versions}")]
-    public async Task<ActionResult<ModVersionsResult>> GetVersions(int groupId)
+    public override async Task<ActionResult<Mod>> Edit(int id, ModEditDto dto, CancellationToken ct)
     {
-        var group = await db.ModGroups.FindAsync(groupId);
-        if (group is null) return NotFound();
-
-        var versions = await db.Mods
-            .Where(m => m.ModGroupId == groupId && m.IsApproved)
-            .Include(m => m.Files)
-            .OrderByDescending(m => m.UploadedAt)
-            .ToListAsync();
-
-        return Ok(new ModVersionsResult { Group = group, Versions = versions });
+        try
+        {
+            return Ok(await modsApi.Edit(id, dto, ct));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
-    [HttpGet(Endpoints.Categories)]
-    public async Task<ActionResult<List<ValueTuple<string, int>>>> GetCategories()
+    public override async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        // Category of each group = category of its latest version
-        var latestIds = db.Mods
-            .Where(m => m.IsApproved)
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
-        var cats = await db.Mods
-            .Where(m => latestIds.Contains(m.Id))
-            .Select(m => m.Category)
-            .Distinct()
-            .OrderBy(c => c)
-            .ToListAsync();
-
-        return Ok(cats);
+        try
+        {
+            await modsApi.Delete(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     // ── Upload: new mod OR new version ────────────────────────────────────────
@@ -109,7 +124,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
     //   files[]           — multiple mod files
     //   installPaths[]    — one install path per file (same index)
     //   originalNames[]   — original filenames (same index)
-    [HttpPost(Endpoints.Upload)]
+    [HttpPost("upload")]
     [Authorize]
     [RequestSizeLimit(Configuration.MaxTotalSize)]
     public async Task<ActionResult<Mod>> Upload(
@@ -121,7 +136,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
     {
         var username = User.FindFirstValue(ClaimTypes.Name) ?? "unknown";
         var userId = Helper.GetUserId(User);
-        logger.LogInformation($"User ID: {userId}");
+        logger.LogInformation("User ID: {userId}", userId);
 
         if (userId is null)
             return BadRequest("User ID not found.");
@@ -192,6 +207,15 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
             previewName = prev?.PreviewImageName;
         }
 
+        // ── Resolve dependencies ──────────────────────────────────────────────
+        // A mod can't depend on its own group (including a brand new one it just created above).
+        var dependencyGroups = new List<ModGroup>();
+        if (dto.DependencyGroupIds.Count > 0)
+        {
+            var requestedIds = dto.DependencyGroupIds.Where(depId => depId != group.Id).Distinct().ToList();
+            dependencyGroups = await db.ModGroups.Where(g => requestedIds.Contains(g.Id)).ToListAsync();
+        }
+
         // ── Create version record ─────────────────────────────────────────────
         var mod = new Mod
         {
@@ -204,10 +228,11 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
             PreviewImageName = previewName,
             UploadedAt = DateTime.UtcNow,
             IsApproved = true,
-            UserId = userId
+            UserId = userId,
+            DependencyGroups = dependencyGroups
         };
 
-        await RecalculateLatestVersion(db, group.Id);
+        await ModsService.RecalculateLatestVersion(db, group.Id);
         db.Mods.Add(mod);
         await db.SaveChangesAsync(); // need mod.Id for ModFile FKs
 
@@ -237,102 +262,7 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         logger.LogInformation("Mod uploaded: {Name} v{Version} by {Author} ({FileCount} files)", mod.Name, mod.Version, mod.Author, files.Count);
 
         // Return with files populated
-        var uploadedMod = await db.Mods.Include(m => m.Files).FirstAsync(m => m.Id == mod.Id);
+        var uploadedMod = await db.Mods.Include(m => m.Files).Include(m => m.DependencyGroups).FirstAsync(m => m.Id == mod.Id);
         return CreatedAtAction(nameof(GetMod), new { id = mod.Id }, uploadedMod);
-    }
-
-    [HttpPost($"{{id:int}}/{Endpoints.Download}/{{fileId:int}}")]
-    public async Task<IActionResult> Download(int id, int fileId)
-    {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        if (mod is null)
-            return NotFound();
-
-        var file = mod.Files.FirstOrDefault(f => f.Id == fileId);
-        if (file is null)
-            return NotFound("File not found in this mod version.");
-
-        mod.DownloadCount++;
-        await db.SaveChangesAsync();
-
-        var path = Path.Combine(Assets.Files, file.FileName);
-        if (!System.IO.File.Exists(path))
-            return NotFound("File not found on server.");
-
-        var bytes = await System.IO.File.ReadAllBytesAsync(path);
-        return File(bytes, "application/octet-stream", file.OriginalName);
-    }
-
-
-    [HttpPut("{id:int}")]
-    [Authorize]
-    public async Task<ActionResult<Mod>> Edit(int id, [FromBody] ModEditDto dto)
-    {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        if (mod is null) return NotFound();
-
-        var userId = Helper.GetUserId(User);
-        var isAdmin = User.IsInRole(AppRoles.Admin);
-        var group = await db.ModGroups.FindAsync(mod.ModGroupId);
-        // logger.LogInformation($"ModGroup: {group?.OwnerId} vs {userId}");
-        if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
-
-        mod.Name = dto.Name;
-        mod.Description = dto.Description;
-        mod.Version = dto.Version;
-        mod.Category = dto.Category;
-
-        await RecalculateLatestVersion(db, group?.Id, mod);
-        await db.SaveChangesAsync();
-        return Ok(mod);
-    }
-
-    [HttpDelete("{id:int}")]
-    [Authorize]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        if (mod is null) return NotFound();
-
-        var userId = Helper.GetUserId(User);
-        var isAdmin = User.IsInRole(AppRoles.Admin);
-        var group = await db.ModGroups.FindAsync(mod.ModGroupId);
-        if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
-
-        // Delete uploaded files from disk
-        foreach (var f in mod.Files)
-        {
-            var p = Path.Combine(Assets.Files, f.FileName);
-            if (System.IO.File.Exists(p)) System.IO.File.Delete(p);
-        }
-
-        db.Mods.Remove(mod);
-
-        // If this was the last version in the group, remove the group too
-        var remaining = await db.Mods.CountAsync(m => m.ModGroupId == mod.ModGroupId && m.Id != id);
-        if (remaining == 0 && group is not null)
-            db.ModGroups.Remove(group);
-
-        await RecalculateLatestVersion(db, group?.Id, mod);
-        await db.SaveChangesAsync();
-        return NoContent();
-    }
-
-    private static async Task RecalculateLatestVersion(AppDbContext appDbContext, int? modGroupId, Mod? incoming = null)
-    {
-        var existing = await appDbContext.Mods.Where(m => m.ModGroupId == modGroupId).ToListAsync();
-        if (existing.Count == 0)
-        {
-            incoming?.IsLatestVersion = true;
-            return;
-        }
-
-        var all = incoming is not null
-            ? existing.Append(incoming)
-            : existing;
-
-        var latest = all.OrderByDescending(m => new Version(m.Version)).First();
-        foreach (var m in all)
-            m.IsLatestVersion = m.Id == latest.Id;
     }
 }

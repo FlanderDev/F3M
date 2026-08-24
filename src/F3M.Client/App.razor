@@ -1,4 +1,4 @@
-@inject HttpClient httpClient
+@inject ITelemetryApi TelemetryApi
 
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
@@ -44,7 +44,6 @@
     private async Task HandleErrorAsync(Exception ex)
     {
         var error = Telemetry.ErrorReport.FromException(ex);
-        var jsonContent = JsonContent.Create(error);
-        await httpClient.PostAsync(Endpoints.Tele.Error, jsonContent);
+        await TelemetryApi.ReportError(error);
     }
 }

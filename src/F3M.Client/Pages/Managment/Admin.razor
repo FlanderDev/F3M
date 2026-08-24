@@ -1,7 +1,7 @@
 @page "/admin"
 @attribute [Authorize(Roles = AppRoles.Admin)]
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject HttpClient Http
+@inject IAdminApi Api
 
 <PageTitle>F3M - Admin</PageTitle>
 
@@ -60,7 +60,7 @@
                                     <span class="f3m-user-avatar @(u.IsAdmin ? "admin" : string.Empty)">
                                         @u.Username[0].ToString().ToUpper()
                                     </span>
-                                    <span class="fw-semibold small">@u.Username</span>
+                                    <a href="@Paths.PublicProfile(u.Username)" class="fw-semibold small text-decoration-none">@u.Username</a>
                                 </div>
                             </td>
                             <td class="small align-middle">@u.Email</td>

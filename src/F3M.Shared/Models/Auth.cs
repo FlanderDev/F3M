@@ -37,6 +37,10 @@ public class ModEditDto
 
     [MaxLength(50)]
     public string Category { get; set; } = "General";
+
+    /// <summary>ModGroup IDs (logical mods) this version depends on. Replaces the full set —
+    /// send everything that should remain, not just additions/removals.</summary>
+    public List<int> DependencyGroupIds { get; set; } = [];
 }
 
 // ── F95zone account linking DTOs ──────────────────────────────────────────────
