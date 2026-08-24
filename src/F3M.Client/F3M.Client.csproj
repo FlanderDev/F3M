@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- These MUST all resolve to the same version as the runtime -->
     <PackageReference Include="HtmlSanitizer" Version="9.2.995" />
     <PackageReference Include="Markdig" Version="1.3.2" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="$(AspNetCoreVersion)" />
@@ -17,6 +16,11 @@
 
     <!-- Independent packages -->
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.*-*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Required so RouteGen's page-route generator can see every @page directive and emit Paths. -->
+    <AdditionalFiles Include="**/*.razor" />
   </ItemGroup>
 
   <ItemGroup>

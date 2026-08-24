@@ -49,17 +49,26 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
              .WithOne()
              .HasForeignKey(f => f.ModId)
              .OnDelete(DeleteBehavior.Cascade);
-            e.HasMany(m => m.Dependencies)
+            // Dependencies point at the logical mod (ModGroup), not a specific pinned version —
+            // so a dependent always resolves to whatever the dependency's current latest
+            // approved version is (see ModsService.ResolveDependenciesAsync), rather than
+            // staying locked to whatever version happened to be latest at upload time.
+            // Restrict here only blocks deleting a ModGroup entirely while something depends on
+            // it — it does NOT block deleting an individual old version anymore, which is the
+            // whole point of targeting the group instead of a specific Mod row.
+            e.HasMany(m => m.DependencyGroups)
              .WithMany()
              .UsingEntity<Dictionary<string, object>>(
                  "ModDependency",
-                 r => r.HasOne<Mod>().WithMany().HasForeignKey("DependencyId").OnDelete(DeleteBehavior.Restrict),
+                 r => r.HasOne<ModGroup>().WithMany().HasForeignKey("DependencyGroupId").OnDelete(DeleteBehavior.Restrict),
                  l => l.HasOne<Mod>().WithMany().HasForeignKey("ModId").OnDelete(DeleteBehavior.Cascade),
                  j =>
                  {
-                     j.HasKey("ModId", "DependencyId");
+                     j.HasKey("ModId", "DependencyGroupId");
                      j.ToTable("ModDependencies");
                  });
+            // Dependencies (List<Mod>) is a resolved, read-only view for display — not persisted.
+            e.Ignore(m => m.Dependencies);
         });
 
         modelBuilder.Entity<ModFile>(e =>

@@ -31,3 +31,13 @@ public class ChangePasswordDto
     [Required, Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match.")]
     public string ConfirmPassword { get; set; } = string.Empty;
 }
+
+/// <summary>Public-facing view of another user's account — deliberately excludes
+/// email, roles, and F95 link details, unlike ProfileDto (the self-view).</summary>
+public class PublicProfileDto
+{
+    public string Username { get; set; } = string.Empty;
+    public DateTime RegisteredAt { get; set; }
+    public int ModCount { get; set; }
+    public List<Mod> Mods { get; set; } = [];
+}

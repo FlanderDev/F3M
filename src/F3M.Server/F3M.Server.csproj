@@ -12,9 +12,13 @@
 		<EFVersion>9.*-*</EFVersion>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="FlanderDev.RouteGen.Generators" Version="0.4.0">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
 		<PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 		</PackageReference>
