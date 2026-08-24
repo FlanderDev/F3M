@@ -1,0 +1,64 @@
+@page "/profile/{Username}"
+@inject IProfileApi Api
+
+<PageTitle>F3M - @Username</PageTitle>
+
+<div class="container py-5" style="max-width:900px;">
+    @if (loading)
+    {
+        <div class="placeholder-glow">
+            @for (int i = 0; i < 3; i++)
+            {
+                <div class="placeholder w-100 mb-2" style="height:48px;border-radius:8px;"></div>
+            }
+        </div>
+    }
+    else if (notFound)
+    {
+        <div class="f3m-empty text-center py-5">
+            <i class="bi bi-person-x display-4 opacity-50 d-block mb-2"></i>
+            <p class="mb-0">No user named "@Username" was found.</p>
+        </div>
+    }
+    else if (loadError is not null)
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@loadError
+        </div>
+    }
+    else if (profile is not null)
+    {
+        <div class="mb-4 d-flex align-items-center gap-3">
+            <span class="f3m-logo-badge" style="width:56px;height:56px;font-size:1.4rem;">
+                @profile.Username[..1].ToUpper()
+            </span>
+            <div>
+                <h1 class="fw-black mb-0 fs-2">@profile.Username</h1>
+                <p class="small mb-0" style="color:var(--f3m-muted)">
+                    Member since @profile.RegisteredAt.ToString("MMM d, yyyy")
+                </p>
+            </div>
+        </div>
+
+        <div class="mb-2 d-flex align-items-center justify-content-between">
+            <h5 class="fw-bold mb-0">Uploads</h5>
+            <span class="badge bg-secondary">@profile.ModCount</span>
+        </div>
+        @if (profile.Mods.Count == 0)
+        {
+            <div class="f3m-empty text-center py-4">
+                <i class="bi bi-inbox display-4 opacity-50 d-block mb-2"></i>
+                <p class="small mb-0">@profile.Username hasn't published any mods yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="mod-grid">
+                @foreach (var mod in profile.Mods)
+                {
+                    <ModCard Mod="mod" />
+                }
+            </div>
+        }
+    }
+</div>

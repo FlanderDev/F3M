@@ -1,22 +1,21 @@
 ﻿using F3M.Server.Data;
-using F3M.Shared.Helpers;
+using F3M.Shared.Api;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace F3M.Server.Controllers;
 
-[Route("api/[controller]")]
-[Route(Endpoints.Tele.Base)]
-[ApiController]
-public sealed class TelemetryController(AppDbContext db, ILogger<ModsController> logger) : ControllerBase
+// Thin controller over the RouteGen-generated TelemetryApiControllerBase — no route attributes,
+// no route strings, anywhere. Routing/binding comes entirely from the generated base (see
+// obj/**/generated/RouteGen.Generators/.../F3M.Shared.Api_ITelemetryApi.g.cs after build).
+public sealed class TelemetryController(AppDbContext db, ILogger<TelemetryController> logger) : TelemetryApiControllerBase
 {
-    [HttpPost(Endpoints.Error)]
-    public async Task<IActionResult> PostErrorAsync([FromBody] Telemetry.ErrorReport errorReport)
+    public override async Task<IActionResult> ReportError(Telemetry.ErrorReport errorReport, CancellationToken ct)
     {
         try
         {
-            await db.TelemetryErrorReports.AddAsync(errorReport);
-            await db.SaveChangesAsync();
+            await db.TelemetryErrorReports.AddAsync(errorReport, ct);
+            await db.SaveChangesAsync(ct);
             return Ok();
         }
         catch (Exception ex)

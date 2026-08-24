@@ -1,8 +1,7 @@
 using F3M.Shared;
-using F3M.Shared.Helpers;
+using F3M.Shared.Api;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Web;
-using System.Net.Http.Json;
 
 namespace F3M.Client.Pages.Authentication;
 
@@ -49,9 +48,7 @@ public partial class LinkAccount
         }
 
         loading = true;
-        var startResponse = await Http.PostAsJsonAsync(Endpoints.F95Link.Start, new LinkF95StartRequest { ProfileUrl = profileUrl.Trim() });
-        var result = await startResponse.Content.ReadFromJsonAsync<LinkF95StartResponse>()
-                     ?? new LinkF95StartResponse { Success = false, Error = "Unexpected response from server." };
+        var result = await F95Link.Start(new LinkF95StartRequest { ProfileUrl = profileUrl.Trim() });
         loading = false;
 
         if (!result.Success)
@@ -71,9 +68,7 @@ public partial class LinkAccount
         if (string.IsNullOrWhiteSpace(dto.F95UserId))
             return;
 
-        var checkResponse = await Http.PostAsJsonAsync(Endpoints.F95Link.Check(dto.F95UserId), new LinkF95PollRequest { Password = password });
-        var result = await checkResponse.Content.ReadFromJsonAsync<LinkF95PollResponse>()
-                     ?? new LinkF95PollResponse { Status = VerificationState.Error, Message = "Unexpected response from server." };
+        var result = await F95Link.Check(dto.F95UserId, new LinkF95PollRequest { Password = password });
         loading = false;
 
         switch (result.Status)

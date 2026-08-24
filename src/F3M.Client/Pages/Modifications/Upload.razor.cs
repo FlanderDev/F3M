@@ -1,6 +1,7 @@
 using F3M.Client.Business;
 using F3M.Client.Models;
 using F3M.Shared;
+using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
@@ -22,6 +23,17 @@ public partial class Upload
     private ModUploadDto dto = new();
     private Mod? existingMod;
 
+    // The dropdown reports full Mod objects (from SearchMods, one per logical mod); kept here
+    // for display, then reduced to distinct ModGroupIds on dto for transmission — a dependency
+    // targets the logical mod, not the specific version that happened to show up in search.
+    private List<Mod> selectedDependencies = [];
+
+    private void SetDependencies(List<Mod> selected)
+    {
+        selectedDependencies = selected;
+        dto.DependencyGroupIds = [.. selected.Select(m => m.ModGroupId).Distinct()];
+    }
+
     // Passed directly into ModImagePicker via @bind-*
     private byte[]? imageBytes;
     private string? previewDataUrl;
@@ -38,18 +50,16 @@ public partial class Upload
     private int uploadedId;
     private int progress;
 
-    private string MarkdownPreview = string.Empty;
-
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        Categories = [.. await Http.LoadCategoriesAsync(), .. Configuration.DefaultCategories];
+        Categories = [.. await ModsApi.GetCategories(), .. Configuration.DefaultCategories];
 
         if (GroupId is not int groupId)
             return;
 
-        var result = await Http.LoadModVersionsAsync(groupId);
-        existingMod = result?.Versions.FirstOrDefault();
+        var result = await ModsApi.GetVersions(groupId);
+        existingMod = result.Versions.FirstOrDefault();
         if (existingMod is not null)
         {
             dto.Name = existingMod.Name;
@@ -60,6 +70,9 @@ public partial class Upload
     }
 
     // ── Submit ────────────────────────────────────────────────────────────────
+    // Stays a raw HttpClient multipart POST — Upload isn't part of IModsApi. It binds via
+    // [FromForm]/IFormFileCollection on the server, which RouteGen's [Body] (JSON only)
+    // doesn't cover.
     private async Task HandleSubmit()
     {
         bool isAuthed = await AuthState.IsAuthenticatedAsync();
@@ -88,6 +101,9 @@ public partial class Upload
             if (dto.ModGroupId.HasValue)
                 content.Add(new StringContent(dto.ModGroupId.Value.ToString()), nameof(ModUploadDto.ModGroupId));
 
+            foreach (var depGroupId in dto.DependencyGroupIds)
+                content.Add(new StringContent(depGroupId.ToString()), nameof(ModUploadDto.DependencyGroupIds));
+
             if (imageBytes is not null)
             {
                 var imgPart = new ByteArrayContent(imageBytes);
@@ -108,7 +124,7 @@ public partial class Upload
 
             progress = 50; StateHasChanged();
 
-            var response = await Http.PostAsync(Endpoints.Mods.Upload, content);
+            var response = await Http.PostAsync("api/mods/upload", content);
             progress = 90; StateHasChanged();
 
             if (response.IsSuccessStatusCode)
@@ -133,6 +149,7 @@ public partial class Upload
     private void Reset()
     {
         dto = new();
+        selectedDependencies = [];
         fileEntries.Clear();
         imageBytes = null;
         imageFileName = string.Empty;
@@ -144,11 +161,6 @@ public partial class Upload
         uploadedId = 0;
     }
 
-    private static async Task<List<Mod>> LoadMultiSelectDropdownValues(HttpClient http, string searchText)
-    {
-        var escapedQuery = Uri.EscapeDataString(searchText);
-        var url = Endpoints.Mods.GetMods(escapedQuery);
-        var items = await http.GetFromJsonAsync<List<Mod>>(url);
-        return items ?? [];
-    }
+    private async Task<List<Mod>?> LoadMultiSelectDropdownValues(string searchText)
+        => await ModsApi.SearchMods(searchText);
 }
