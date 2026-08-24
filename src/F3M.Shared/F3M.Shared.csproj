@@ -9,8 +9,8 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
-		<PackageReference Include="FlanderDev.RouteGen.Abstractions" Version="0.4.0" />
-		<PackageReference Include="FlanderDev.RouteGen.Generators" Version="0.4.0">
+		<PackageReference Include="FlanderDev.RouteGen.Abstractions" Version="0.5.1" />
+		<PackageReference Include="FlanderDev.RouteGen.Generators" Version="0.5.1">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
