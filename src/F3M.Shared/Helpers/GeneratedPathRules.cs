@@ -70,6 +70,12 @@ public static class GeneratedPathRules
             }
         }
 
+        if (IsCatchAll(segments))
+        {
+            error = $"The pattern '{raw}' matches every file in the game folder. Name the folder it belongs to.";
+            return false;
+        }
+
         normalized = string.Join('/', segments);
         return true;
     }
@@ -84,6 +90,22 @@ public static class GeneratedPathRules
     /// </summary>
     public static bool MayOverlap(string a, string b) =>
         MayOverlapSegments(Split(a), 0, Split(b), 0);
+
+    /// <summary>
+    /// True when a pattern matches every file in the game folder: a leading '**' followed only by wildcard segments
+    /// ('**', '**/*', '**/**'). Blocked for every kind, since a catch-all can reach files other mods create.
+    /// </summary>
+    public static bool IsCatchAll(IReadOnlyList<string> segments) =>
+        segments.Count > 0
+        && segments[0] == "**"
+        && segments.All(s => s is "**" or "*");
+
+    /// <summary>
+    /// True when a pattern matches at any depth ('**' anywhere). Allowed, but uploads show a warning, because such a
+    /// pattern can reach folders other mods share.
+    /// </summary>
+    public static bool HasDeepWildcard(string pattern) =>
+        Split(pattern).Contains("**");
 
     private static bool HasWildcard(string segment) => segment.Contains('*') || segment.Contains('?');
 
