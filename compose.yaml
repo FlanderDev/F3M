@@ -6,8 +6,13 @@ services:
     ports:
       - 62444:8080
       - 62445:443
+    environment:
+      # Encrypts the catalog signing key. Set it in a .env file next to this file (not committed).
+      # Without it the server refuses to start. The development default (F3M) only applies when ASPNETCORE_ENVIRONMENT is Development.
+      Catalog__KeyPassword: ${F3M_CATALOG_KEY_PASSWORD:?Set F3M_CATALOG_KEY_PASSWORD in .env}
     volumes:
-      - f3m_Storage:/Storage
+      # The image runs from /app, so the storage root is /app/Storage. Secrets/ inside it holds the signing key.
+      - f3m_Storage:/app/Storage
 
 volumes:
   f3m_Storage:
