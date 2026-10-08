@@ -16,7 +16,7 @@ namespace F3M.Server.Services;
 /// RouteGen's [Body] covers). ModsController is a thin adapter over this for everything else,
 /// same pattern as ProfileService/AdminService.
 /// </summary>
-public partial class ModsService(AppDbContext db, IHttpContextAccessor httpContextAccessor) : IModsApi
+public partial class ModsService(AppDbContext db, IHttpContextAccessor httpContextAccessor, CatalogService catalog) : IModsApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
         httpContextAccessor.HttpContext?.User
@@ -170,6 +170,8 @@ public partial class ModsService(AppDbContext db, IHttpContextAccessor httpConte
 
         await RecalculateLatestVersion(db, group?.Id, mod);
         await db.SaveChangesAsync(ct);
+        // Metadata changed, so the published document must be rewritten. Placements never change here.
+        await catalog.TryPublishVersionAsync(mod.Id, ct);
         await ResolveDependenciesAsync([mod], ct);
         return mod;
     }
@@ -207,6 +209,7 @@ public partial class ModsService(AppDbContext db, IHttpContextAccessor httpConte
 
         await RecalculateLatestVersion(db, group?.Id, excludeModId: mod.Id);
         await db.SaveChangesAsync(ct);
+        await catalog.TryRemoveVersionAsync(mod.ModGroupId, mod.Id, ct);
 
         foreach (var path in diskFiles)
         {
