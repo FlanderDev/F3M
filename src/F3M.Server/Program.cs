@@ -18,9 +18,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
+builder.Services.Configure<CatalogOptions>(builder.Configuration.GetSection(CatalogOptions.SectionName));
+builder.Services.AddScoped<CatalogService>();
+
 #region FileSystemPreparation
 Directory.CreateDirectory(Assets.Files);
 Directory.CreateDirectory(Assets.Images);
+
+var catalogOptions = builder.Configuration.GetSection(CatalogOptions.SectionName).Get<CatalogOptions>() ?? new CatalogOptions();
+Directory.CreateDirectory(catalogOptions.Directory);
 
 var databaseDirectory = Path.Combine(Assets.StorageRoot, "Database");
 Directory.CreateDirectory(databaseDirectory);
@@ -129,6 +135,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    await scope.ServiceProvider.GetRequiredService<CatalogService>().InitializeAsync();
 
     // Seed a debug admin user for local development/testing
 #if DEBUG
@@ -179,6 +186,18 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.Images)), // FileSystem Path
     RequestPath = $"{Assets.ServedPath}/{nameof(Assets.Images)}", // Served Path, same as Assets.ImageUrl()
     OnPrepareResponse = context => context.Context.Response.Headers.XContentTypeOptions = "nosniff"
+});
+
+// The public catalog: signed JSON read by the desktop app. Read-only, with a short cache so the index stays fresh.
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.GetFullPath(catalogOptions.Directory)),
+    RequestPath = "/catalog",
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers.CacheControl = "public, max-age=60";
+        context.Context.Response.Headers.XContentTypeOptions = "nosniff";
+    }
 });
 
 app.UseRouting();

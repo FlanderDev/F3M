@@ -15,6 +15,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ModGroup> ModGroups => Set<ModGroup>();
     public DbSet<Mod> Mods => Set<Mod>();
     public DbSet<ModFile> ModFiles => Set<ModFile>();
+    public DbSet<ModFileEntry> ModFileEntries => Set<ModFileEntry>();
+    public DbSet<ModGeneratedPath> ModGeneratedPaths => Set<ModGeneratedPath>();
     public DbSet<F95PendingVerification> F95PendingVerifications => Set<F95PendingVerification>();
     public DbSet<Telemetry.ErrorReport> TelemetryErrorReports => Set<Telemetry.ErrorReport>();
 
@@ -67,6 +69,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
                      j.HasKey("ModId", "DependencyGroupId");
                      j.ToTable("ModDependencies");
                  });
+            e.HasMany(m => m.GeneratedPaths)
+             .WithOne()
+             .HasForeignKey(p => p.ModId)
+             .OnDelete(DeleteBehavior.Cascade);
             // Dependencies (List<Mod>) is a resolved, read-only view for display — not persisted.
             e.Ignore(m => m.Dependencies);
         });
@@ -76,6 +82,27 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.HasKey(f => f.Id);
             e.Property(f => f.FileName).IsRequired();
             e.Property(f => f.InstallPath).HasMaxLength(260);
+            e.Property(f => f.Sha256).HasMaxLength(64);
+            e.Property(f => f.TargetPath).HasMaxLength(260);
+        });
+
+        modelBuilder.Entity<ModFileEntry>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.From).IsRequired().HasMaxLength(512);
+            e.Property(x => x.To).IsRequired().HasMaxLength(260);
+            e.Property(x => x.Sha256).IsRequired().HasMaxLength(64);
+            e.Property(x => x.Kind).HasConversion<string>();
+            e.HasIndex(x => x.ModFileId);
+            e.HasOne<ModFile>().WithMany().HasForeignKey(x => x.ModFileId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ModGeneratedPath>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Pattern).IsRequired().HasMaxLength(260);
+            e.Property(x => x.Kind).HasConversion<string>();
+            e.HasIndex(x => x.ModId);
         });
 
         modelBuilder.Entity<AppUser>(e =>
