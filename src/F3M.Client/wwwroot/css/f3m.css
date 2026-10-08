@@ -708,6 +708,7 @@ a {
 .f3m-pv-tree {
     max-height: 320px;
     overflow: auto;
+    overscroll-behavior: contain; /* reaching the end of the tree must not scroll the page */
     font-size: .78rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -951,6 +952,13 @@ a {
    Save File Dialog
    ═══════════════════════════════════════════════════════════ */
 
+/* Lock page scroll while a modal overlay is open (pure CSS, no JS).
+   Give any future overlay the `f3m-scroll-lock` class to opt in. */
+html:has(.sfd-backdrop, .f3m-scroll-lock) {
+    overflow: hidden;
+    scrollbar-gutter: stable; /* keep the layout from shifting when the scrollbar disappears */
+}
+
 .sfd-backdrop {
     position: fixed;
     inset: 0;
@@ -1096,6 +1104,7 @@ a {
     min-height: 220px;
     max-height: 280px;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: .4rem;
     background: var(--f3m-surface-2);
     border-bottom: 1px solid var(--f3m-border);
