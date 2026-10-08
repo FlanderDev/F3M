@@ -1,4 +1,3 @@
-using F3M.Shared;
 using F3M.Shared.Models;
 using FlanderDev.RouteGen.Abstractions;
 
@@ -11,7 +10,7 @@ namespace F3M.Shared.Api;
 /// care what else implements the plain shape.
 /// </summary>
 [ApiRoute("api/admin", HttpClientName = Configuration.AppName)]
-[Authorize(Roles = AppRoles.Admin)]
+[GenAuthorize(Roles = AppRoles.Admin)]
 public interface IAdminApi
 {
     [Get("users")]

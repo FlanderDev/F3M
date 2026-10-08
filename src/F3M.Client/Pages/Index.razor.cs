@@ -40,7 +40,8 @@ public partial class Index
 
     private void OnSearchKeyUp(KeyboardEventArgs _)
     {
-        if (searchTerm.Length < 3)
+        // 1-2 characters are too short to search for, but an emptied box has to bring the full list back.
+        if (searchTerm.Length is > 0 and < 3)
             return;
 
         _debounce?.Dispose();

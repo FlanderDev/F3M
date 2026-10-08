@@ -1,5 +1,6 @@
 using F3M.Client.Identity.Models;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
