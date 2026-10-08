@@ -15,7 +15,11 @@ namespace F3M.Server.Services;
 /// Every file is a signed envelope: { "keyId", "document", "signature" }. "document" is the JSON text of the payload,
 /// stored as a string, and the signature covers exactly those UTF-8 bytes. Clients verify the signature before parsing.
 /// </summary>
-public sealed class CatalogService(AppDbContext db, IOptions<CatalogOptions> options, ILogger<CatalogService> logger)
+public sealed class CatalogService(
+    AppDbContext db,
+    IOptions<CatalogOptions> options,
+    ILogger<CatalogService> logger,
+    IHostEnvironment environment)
 {
     public const int SchemaVersion = 1;
 
@@ -28,25 +32,75 @@ public sealed class CatalogService(AppDbContext db, IOptions<CatalogOptions> opt
 
     // ── Startup ─────────────────────────────────────────────────────────────
 
-    /// <summary>Creates the folders and publishes the current public key. Never throws, so a missing key cannot stop startup.</summary>
+    /// <summary>
+    /// Creates the folders, creates the signing key if it is missing, and publishes the public key. Configuration
+    /// errors (no password outside Development, wrong password) throw, so the server refuses to start rather than
+    /// serve an unsigned catalog.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken ct = default)
     {
         Directory.CreateDirectory(Path.Combine(_opts.Directory, "mods"));
 
-        if (!File.Exists(_opts.KeyPath))
-        {
-            logger.LogWarning("No catalog signing key at {KeyPath}. The catalog will not be updated until one is created.", _opts.KeyPath);
-            return;
-        }
-
+        await Gate.WaitAsync(ct);
         try
         {
-            await PublishPublicKeyAsync(ct);
+            EnsureKey();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        finally
         {
-            logger.LogError(ex, "Could not publish the catalog public key.");
+            Gate.Release();
         }
+
+        // Takes the gate itself, so it runs after the lock above is released.
+        await PublishPublicKeyAsync(ct);
+    }
+
+    /// <summary>Creates the encrypted signing key when no key file exists yet. Existing keys are never replaced.</summary>
+    private void EnsureKey()
+    {
+        if (File.Exists(_opts.KeyPath))
+            return;
+
+        var password = ResolvePassword();
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var pem = key.ExportEncryptedPkcs8PrivateKeyPem(
+            password,
+            new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100_000));
+
+        Directory.CreateDirectory(Path.GetDirectoryName(_opts.KeyPath)!);
+
+        // Owner-only from the moment the file exists (honoured on Linux, ignored on Windows).
+        var temporary = _opts.KeyPath + ".tmp";
+        using (var stream = new FileStream(temporary, new FileStreamOptions
+        {
+            Mode = FileMode.Create,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
+        }))
+        using (var writer = new StreamWriter(stream))
+        {
+            writer.Write(pem);
+        }
+
+        File.Move(temporary, _opts.KeyPath, overwrite: false);
+        logger.LogWarning(
+            "Created a new catalog signing key at {KeyPath}. Back it up together with its password; without it, existing signatures can no longer be reproduced.",
+            _opts.KeyPath);
+    }
+
+    /// <summary>The configured password, or the Development default when running in Development.</summary>
+    private string ResolvePassword()
+    {
+        if (!string.IsNullOrEmpty(_opts.KeyPassword))
+            return _opts.KeyPassword;
+
+        if (environment.IsDevelopment())
+            return CatalogOptions.DevelopmentKeyPassword;
+
+        throw new InvalidOperationException(
+            "The catalog signing key password is not set. Set the Catalog__KeyPassword environment variable before starting the server.");
     }
 
     // ── Operations used by uploads, edits and deletes ───────────────────────
@@ -395,14 +449,20 @@ public sealed class CatalogService(AppDbContext db, IOptions<CatalogOptions> opt
     private ECDsa LoadKey()
     {
         if (!File.Exists(_opts.KeyPath))
-        {
-            throw new InvalidOperationException(
-                $"No catalog signing key at '{_opts.KeyPath}'. Create one with: openssl ecparam -name prime256v1 -genkey -noout -out \"{_opts.KeyPath}\"");
-        }
+            throw new InvalidOperationException($"No catalog signing key at '{_opts.KeyPath}'. Restart the server to create one.");
 
+        var password = ResolvePassword();
         var key = ECDsa.Create();
-        key.ImportFromPem(File.ReadAllText(_opts.KeyPath));
-        return key;
+        try
+        {
+            key.ImportFromEncryptedPem(File.ReadAllText(_opts.KeyPath), password);
+            return key;
+        }
+        catch (CryptographicException ex)
+        {
+            key.Dispose();
+            throw new InvalidOperationException("The catalog signing key could not be decrypted. Check Catalog__KeyPassword.", ex);
+        }
     }
 
     private string VersionPath(int groupId, int versionId) =>

@@ -12,12 +12,6 @@ public static class GeneratedPathRules
     public const int MaxLength = 260;
     public const int MaxPatternsPerVersion = 20;
 
-    /// <summary>A pattern must name at least this many folders before its first wildcard, so it cannot cover a whole root.</summary>
-    public const int MinLiteralSegments = 2;
-
-    /// <summary>Top-level folders a pattern may start with. Add a game's save folder here once it has been confirmed.</summary>
-    public static readonly string[] AllowedRoots = ["BepInEx"];
-
     /// <summary>Validates a pattern and returns it normalised: '/' separators, trimmed, no '.' segments.</summary>
     public static bool TryNormalize(string? input, out string normalized, out string? error)
     {
@@ -74,19 +68,6 @@ public static class GeneratedPathRules
                 error = $"The pattern '{raw}' contains a name that is not allowed in a file path.";
                 return false;
             }
-        }
-
-        if (!AllowedRoots.Contains(segments[0], StringComparer.OrdinalIgnoreCase))
-        {
-            error = $"The pattern '{raw}' must start with one of: {string.Join(", ", AllowedRoots)}.";
-            return false;
-        }
-
-        var literalPrefix = segments.TakeWhile(s => !HasWildcard(s)).Count();
-        if (literalPrefix < MinLiteralSegments)
-        {
-            error = $"The pattern '{raw}' is too broad. Name at least {MinLiteralSegments} folders before the first wildcard.";
-            return false;
         }
 
         normalized = string.Join('/', segments);
