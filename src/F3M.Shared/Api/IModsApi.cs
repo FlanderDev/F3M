@@ -1,7 +1,5 @@
-using F3M.Shared;
 using F3M.Shared.Models;
 using FlanderDev.RouteGen.Abstractions;
-using FlanderDev.RouteGen;
 
 namespace F3M.Shared.Api;
 
@@ -42,8 +40,8 @@ public interface IModsApi
     [Get("{id:int}")]
     Task<Mod> GetMod(int id, CancellationToken ct = default);
 
-    [Get("{query}")]
-    Task<List<Mod>> SearchMods(string query, CancellationToken ct = default);
+    [Get("search")]
+    Task<List<Mod>> SearchMods([Query] string query, CancellationToken ct = default);
 
     [Get("group/{groupId:int}/versions")]
     Task<ModVersionsResult> GetVersions(int groupId, CancellationToken ct = default);
@@ -55,10 +53,10 @@ public interface IModsApi
     Task<Stream> DownloadFile(int id, int fileId, CancellationToken ct = default);
 
     [Put("{id:int}")]
-    [Authorize]
+    [GenAuthorize]
     Task<Mod> Edit(int id, [Body] ModEditDto dto, CancellationToken ct = default);
 
     [Delete("{id:int}")]
-    [Authorize]
+    [GenAuthorize]
     Task Delete(int id, CancellationToken ct = default);
 }
