@@ -270,6 +270,9 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ILogger<Mo
             }
 
             warnings.AddRange(await FindOverlapWarningsAsync(generated, dto.ModGroupId, ct));
+
+            foreach (var pattern in generated.Where(g => GeneratedPathRules.HasDeepWildcard(g.Pattern)))
+                warnings.Add($"'{pattern.Pattern}' matches at any depth. Check that it cannot reach files other mods create.");
         }
         catch (InvalidDataException ex)
         {
