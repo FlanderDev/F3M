@@ -691,6 +691,61 @@ a {
         color: var(--f3m-text);
     }
 
+/* ── Upload: "where will the files end up" ──────────────── */
+.f3m-file-entry-target {
+    padding: 0 12px 8px 34px;
+    font-size: .72rem;
+    color: var(--f3m-muted);
+}
+
+.f3m-preview {
+    background: var(--f3m-surface-2);
+    border: 1px solid var(--f3m-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.f3m-pv-tree {
+    max-height: 320px;
+    overflow: auto;
+    font-size: .78rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.f3m-pv-row {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    white-space: nowrap;
+}
+
+.f3m-pv-toggle {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--f3m-text);
+    display: inline-flex;
+    align-items: center;
+}
+
+.f3m-pv-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.f3m-pv-meta {
+    color: var(--f3m-muted);
+    margin-left: auto;
+    padding-left: 1rem;
+    font-size: .7rem;
+}
+
+.f3m-pv-conflict .f3m-pv-name {
+    color: #f87171;
+}
+
 .f3m-dropzone-sm {
     padding: .75rem 1rem !important;
     flex-direction: row !important;

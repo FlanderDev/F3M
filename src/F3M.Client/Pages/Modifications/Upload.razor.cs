@@ -44,6 +44,9 @@ public partial class Upload
 
     // Passed by reference into ModFileList; the component mutates it in place.
     private readonly List<FileEntry> fileEntries = [];
+
+    private bool HasInvalidInstallPaths =>
+        fileEntries.Any(e => !InstallPaths.TryPlan(e.OriginalName, e.InstallPath, out _));
     private string? uploadError;
     private bool uploading;
     private bool uploadSuccess;

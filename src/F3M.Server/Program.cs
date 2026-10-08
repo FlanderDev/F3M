@@ -8,7 +8,6 @@ using F3M.Shared.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using F3M.Shared.Generated;
 
 #if !DEBUG
 try
@@ -171,11 +170,15 @@ app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-// Serve user-uploaded mod files and preview thumbnails from the persistent asset directory (outside wwwroot)
+// Serve preview thumbnails from the persistent asset directory (outside wwwroot).
+// Mod files are deliberately NOT served from here: they are only reachable through the download
+// endpoint, which counts the download. (They used to sit under the same public folder, so anyone who
+// had seen a file's generated name in the API could fetch it directly.)
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.PublicContent)), // FileSystem Path
-    RequestPath = Assets.ServedPath // Served Path
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.Images)), // FileSystem Path
+    RequestPath = $"{Assets.ServedPath}/{nameof(Assets.Images)}", // Served Path, same as Assets.ImageUrl()
+    OnPrepareResponse = context => context.Context.Response.Headers.XContentTypeOptions = "nosniff"
 });
 
 app.UseRouting();

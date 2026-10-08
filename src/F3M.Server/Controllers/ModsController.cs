@@ -60,23 +60,35 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ILogger<Mo
 
     public override async Task<ActionResult> DownloadFile([FromRoute] int id, [FromRoute] int fileId, CancellationToken ct = default)
     {
+        Stream stream;
         try
         {
-            await using var stream = await modsApi.DownloadFile(id, fileId, ct);
-            // ModsService already validated existence/incremented the download count — we just
-            // need the original filename for the response, which it doesn't have (it only
-            // returns the raw stream), so look the file up again for that one field. Cheap
-            // (indexed PK lookups), and keeps IModsApi's DownloadFile signature to just Stream
-            // rather than a wrapper DTO.
-            var fileName = await db.ModFiles.Where(f => f.Id == fileId).Select(f => f.OriginalName).FirstOrDefaultAsync(ct)
-                            ?? "download";
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms, ct);
-            return File(ms.ToArray(), "application/octet-stream", fileName);
+            stream = await modsApi.DownloadFile(id, fileId, ct);
         }
         catch (KeyNotFoundException ex)
         {
             return NotFound(ex.Message);
+        }
+
+        try
+        {
+            // ModsService only returns the raw stream (it has already validated existence and counted
+            // the download), so look the file up again for the one thing it doesn't give us: the
+            // original file name. Cheap, indexed PK lookup.
+            var fileName = await db.ModFiles.Where(f => f.Id == fileId).Select(f => f.OriginalName).FirstOrDefaultAsync(ct)
+                            ?? "download";
+
+            // Hand the open FileStream to the framework instead of copying it into memory first
+            // (that used to cost two full copies of the file per download, up to 1 GB for a 512 MB mod).
+            // FileStreamResult streams it to the client, sets Content-Length from the seekable stream,
+            // answers Range requests, and disposes the stream once the response is done.
+            return File(stream, "application/octet-stream", fileName, enableRangeProcessing: true);
+        }
+        catch
+        {
+            // Ownership only passes to the result once File(...) has returned.
+            await stream.DisposeAsync();
+            throw;
         }
     }
 
@@ -158,43 +170,60 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ILogger<Mo
                 return BadRequest($"File type '{ext}' not allowed. Accepted: {string.Join(", ", Configuration.AllowedFileExtension)}");
         }
 
-        // ── Check if user is in mod group ─────────────────────────────────────
-        ModGroup? group = null;
-        if (dto.ModGroupId is { } modGroupId) // This is a new version of an existing mod
+        // Install paths and names are author input that ends up on other people's machines.
+        var cleanInstallPaths = new List<string>();
+        var cleanNames = new List<string>();
+        for (var i = 0; i < files.Count; i++)
         {
-            var existing = db.Mods.FirstOrDefault(m => m.ModGroupId == modGroupId);
-            if (existing is null)
-                return BadRequest($"Mod with group ID {modGroupId} not found.");
-            if (existing.UserId != userId)
-                return Forbid();
+            var rawPath = i < installPaths.Count ? installPaths[i] : null;
+            if (!Helper.TryNormalizeInstallPath(rawPath, out var normalizedPath))
+                return BadRequest($"The install path '{rawPath}' for '{files[i].FileName}' is not valid. Use a path relative to the game folder, e.g. BepInEx/plugins/MyMod.");
 
-            var existingModGroup = db.ModGroups.FirstOrDefault(m => m.Id == modGroupId);
-            if (existingModGroup is not null)
-                group = existingModGroup;
+            cleanInstallPaths.Add(normalizedPath);
+            cleanNames.Add(Helper.SafeOriginalName(i < originalNames.Count ? originalNames[i] : null, files[i].FileName));
         }
 
-        if (group is null) // ModGroup doesn't exist yet
-        {
-            if (userId == null)
-                return Forbid();
-
-            group = new ModGroup { Author = username, OwnerId = userId.Value };
-            db.ModGroups.Add(group);
-            await db.SaveChangesAsync(); // need Id before creating Mod
-        }
-
-        // ── Save preview image ────────────────────────────────────────────────
-        string? previewName = null;
+        // Reject a bad preview image now, not after the mod group has already been created.
+        var imgExt = string.Empty;
         if (previewImage is { Length: > 0 })
         {
-            var imgExt = Path.GetExtension(previewImage.FileName).ToLowerInvariant();
+            imgExt = Path.GetExtension(previewImage.FileName).ToLowerInvariant();
             if (!Configuration.AllowedThumbnailExtension.Contains(imgExt))
                 return BadRequest($"Image type '{imgExt}' not allowed.");
             if (previewImage.Length > Configuration.MaxImageSize)
                 return BadRequest("Preview image exceeds 8 MB.");
+        }
 
+        // ── Check if user is in mod group ─────────────────────────────────────
+        ModGroup? group = null;
+        var createdGroup = false;
+        if (dto.ModGroupId is { } modGroupId) // This is a new version of an existing mod
+        {
+            // Ownership belongs to the group (that is what Edit/Delete check too); the uploader of
+            // whichever version happened to be found first used to decide this.
+            group = await db.ModGroups.FindAsync(modGroupId);
+            if (group is null)
+                return BadRequest($"Mod with group ID {modGroupId} not found.");
+            if (group.OwnerId != userId)
+                return Forbid();
+        }
+
+        if (group is null) // ModGroup doesn't exist yet
+        {
+            group = new ModGroup { Author = username, OwnerId = userId.Value };
+            db.ModGroups.Add(group);
+            await db.SaveChangesAsync(); // need Id before creating Mod
+            createdGroup = true;
+        }
+
+        // ── Save preview image ────────────────────────────────────────────────
+        string? previewName = null;
+        string? newPreviewPath = null;
+        if (previewImage is { Length: > 0 })
+        {
             previewName = $"{Guid.NewGuid():N}{imgExt}";
-            await using var imgStream = System.IO.File.Create(Path.Combine(Assets.Images, previewName));
+            newPreviewPath = Path.Combine(Assets.Images, previewName);
+            await using var imgStream = System.IO.File.Create(newPreviewPath);
             await previewImage.CopyToAsync(imgStream);
         }
         else if (dto.ModGroupId.HasValue)
@@ -232,33 +261,72 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ILogger<Mo
             DependencyGroups = dependencyGroups
         };
 
-        await ModsService.RecalculateLatestVersion(db, group.Id);
+        await ModsService.RecalculateLatestVersion(db, group.Id, mod);
         db.Mods.Add(mod);
         await db.SaveChangesAsync(); // need mod.Id for ModFile FKs
 
         // ── Save each mod file ────────────────────────────────────────────────
-        for (int i = 0; i < files.Count; i++)
+        var written = new List<string>();
+        try
+        {
+            for (var i = 0; i < files.Count; i++)
         {
             var f = files[i];
             var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
             var safeName = $"{Guid.NewGuid():N}{ext}";
-            var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
-            var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
+                var diskPath = Path.Combine(Assets.Files, safeName);
 
-            await using var stream = System.IO.File.Create(Path.Combine(Assets.Files, safeName));
+                await using (var stream = System.IO.File.Create(diskPath))
+                {
+                    written.Add(diskPath);
             await f.CopyToAsync(stream);
+                }
 
             db.ModFiles.Add(new ModFile
             {
                 ModId = mod.Id,
                 FileName = safeName,
-                OriginalName = origName,
-                InstallPath = installPath,
+                    OriginalName = cleanNames[i],
+                    InstallPath = cleanInstallPaths[i],
                 FileSizeBytes = f.Length
             });
         }
 
         await db.SaveChangesAsync();
+        }
+        catch
+        {
+            // A version without its files (or files without a version) must not stay behind.
+            foreach (var orphan in written)
+            {
+                try { System.IO.File.Delete(orphan); } catch { /* ignore */ }
+            }
+
+            if (newPreviewPath is not null)
+            {
+                try { System.IO.File.Delete(newPreviewPath); } catch { /* ignore */ }
+            }
+
+            try
+            {
+                db.ChangeTracker.Clear();
+                await db.Mods.Where(m => m.Id == mod.Id).ExecuteDeleteAsync();
+                if (createdGroup)
+                    await db.ModGroups.Where(g => g.Id == group.Id).ExecuteDeleteAsync();
+                else
+                {
+                    await ModsService.RecalculateLatestVersion(db, group.Id);
+                    await db.SaveChangesAsync();
+                }
+            }
+            catch (Exception cleanupError)
+            {
+                logger.LogError(cleanupError, "Cleaning up the failed upload of {Name} failed as well.", mod.Name);
+            }
+
+            throw;
+        }
+
         logger.LogInformation("Mod uploaded: {Name} v{Version} by {Author} ({FileCount} files)", mod.Name, mod.Version, mod.Author, files.Count);
 
         // Return with files populated
