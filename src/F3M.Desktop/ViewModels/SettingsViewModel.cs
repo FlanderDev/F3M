@@ -110,7 +110,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         try
         {
             _app.SaveSettings();
-            StartAtLogin.Set(LaunchAtLogin, Environment.ProcessPath ?? string.Empty);
+            StartAtLogin.Set(LaunchAtLogin, Program.LaunchPath);
             Status = "Saved.";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -129,12 +129,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         try
         {
-            ProtocolRegistration.Register(Environment.ProcessPath ?? string.Empty);
+            ProtocolRegistration.Register(Program.LaunchPath);
             Status = "f3m:// links now open F3M Desktop for this user.";
         }
         catch (UserException ex)
         {
             Status = ex.Message;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            AppLog.Error("f3m:// links could not be registered", ex);
+            Status = "f3m:// links could not be registered. See the diagnostics log.";
         }
     }
 
