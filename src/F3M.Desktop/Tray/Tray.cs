@@ -7,7 +7,7 @@ namespace F3M.Desktop.Tray;
 /// The tray icon and its menu (plan 3.5): Open, Play, the Profiles submenu with the active one ticked, and Exit.
 /// Built on Avalonia's TrayIcon and NativeMenu, no third-party tray library.
 /// </summary>
-public sealed class TrayMenu
+public sealed class TrayMenu : IDisposable
 {
     // 32x32 amber "F" mark, generated for this app (see the plan's visual identity).
     private const string IconPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAZ0lEQVR42mNgwAP+H2T/Tw3MQAqglqVkOYbWluN1BL0sx+oIeluO4YiR7YCBshzuCGIU8fIJkIVHHTB8HTDgiXDUAZTG+6gDRhPhqANGHUCyA4Ztq2i0UTp4OiaDoms2KDqnA9E9BwA2cHyUKa28BwAAAABJRU5ErkJggg==";
@@ -15,6 +15,7 @@ public sealed class TrayMenu
     private readonly TrayIcon _icon;
     private readonly NativeMenuItem _profiles;
     private readonly Action<string> _switchTo;
+    private bool _disposed;
 
     public TrayMenu(Application application, Action open, Action play, Action<string> switchTo, Action exit)
     {
@@ -61,6 +62,7 @@ public sealed class TrayMenu
     /// <summary>Rebuilds the Profiles submenu and the tooltip. Called whenever the profile list or the deployed state changes.</summary>
     public void Refresh(IReadOnlyList<(string Id, string Name)> profiles, string? activeId, string tooltip)
     {
+        if (_disposed) return;
         _icon.ToolTipText = tooltip;
 
         var items = _profiles.Menu!.Items;
@@ -80,5 +82,15 @@ public sealed class TrayMenu
         }
     }
 
-    public void Hide() => _icon.IsVisible = false;
+    /// <summary>
+    /// Removes the icon from the tray right away. Windows only drops an icon whose process is gone when the mouse
+    /// passes over it, so it is removed explicitly before the app shuts down. Safe to call more than once.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _icon.IsVisible = false;
+        _icon.Dispose();
+    }
 }

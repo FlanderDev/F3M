@@ -115,7 +115,7 @@ public partial class App : Application
         desktop.Exit += (_, _) =>
         {
             _listening?.Cancel();
-            _tray?.Hide();
+            _tray?.Dispose();
             services.Dispose();
         };
 
@@ -159,6 +159,7 @@ public partial class App : Application
         }
 
         services.Exiting = true;
+        _tray?.Dispose();
         desktop.Shutdown();
     }
 
