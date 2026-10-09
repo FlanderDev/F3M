@@ -75,13 +75,16 @@ dotnet run --project src/F3M.Server
 The application will be available at `https://localhost:5001` (or the port configured in `launchSettings.json`).
 
 ### Run with Docker Compose
+Copy `.env.example` to `.env` and set at least `F3M_CATALOG_KEY_PASSWORD`. Every setting the container needs is listed there.
+
 ```bash
 docker compose up --build
 ```
 
-The server will be exposed on:
-- `http://localhost:8081` → container port `8080`
-- `https://localhost:443`
+The container serves plain HTTP on port `8080`, published on the host as `http://localhost:62444` (change it with `F3M_HTTP_PORT`).
+For HTTPS, put a TLS-terminating reverse proxy in front; `F3M_BEHIND_PROXY=true` (the default) makes the app trust its `X-Forwarded-*` headers.
+
+The `f3m_Storage` volume holds the database, uploads, the public catalog and the catalog signing key. Back up the key together with its password.
 
 ---
 

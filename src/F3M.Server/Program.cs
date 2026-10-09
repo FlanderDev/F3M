@@ -5,6 +5,7 @@ using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -31,6 +32,12 @@ Directory.CreateDirectory(catalogOptions.Directory);
 var databaseDirectory = Path.Combine(Assets.StorageRoot, "Database");
 Directory.CreateDirectory(databaseDirectory);
 #endregion
+
+// The keys that protect login cookies live in the storage volume, so sign-ins survive container rebuilds.
+// Without this they sit inside the container and every redeploy signs everyone out.
+builder.Services.AddDataProtection()
+    .SetApplicationName(Configuration.AppName)
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Assets.StorageRoot, "Secrets", "DataProtection")));
 
 var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
