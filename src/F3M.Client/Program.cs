@@ -1,5 +1,6 @@
 using F3M.Client;
 using F3M.Client.Identity;
+using F3M.Client.Services;
 using F3M.Shared;
 using F3M.Shared.Api;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -34,6 +35,7 @@ builder.Services.AddScoped<IAdminApi, HttpAdminApi>();
 builder.Services.AddScoped<ITelemetryApi, HttpTelemetryApi>();
 builder.Services.AddScoped<IF95LinkApi, HttpF95LinkApi>();
 builder.Services.AddScoped<IModsApi, HttpModsApi>();
+builder.Services.AddScoped<CatalogClient>();
 
 await builder
     .Build()
