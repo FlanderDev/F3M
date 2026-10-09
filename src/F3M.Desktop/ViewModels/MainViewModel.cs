@@ -18,7 +18,7 @@ public sealed partial class MainViewModel : ObservableObject
     private string _lastLink = string.Empty;
     private DateTimeOffset _lastLinkAt;
     private bool _syncing;
-    private List<string> _updateNames = [];
+    private List<IndexGroup> _cacheUpdates = [];
 
     public MainViewModel(AppServices app)
     {
@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject
         ProfilesPage = new ProfilesViewModel(app, this);
         DownloadsPage = new DownloadsViewModel(app);
         SettingsPage = new SettingsViewModel(app, this);
+        AppUpdate = new AppUpdateViewModel(app, this);
         CurrentPage = LibraryPage;
         DeployBeforePlay = app.Settings.DeployBeforePlay;
 
@@ -58,6 +59,9 @@ public sealed partial class MainViewModel : ObservableObject
     public ProfilesViewModel ProfilesPage { get; }
     public DownloadsViewModel DownloadsPage { get; }
     public SettingsViewModel SettingsPage { get; }
+
+    /// <summary>The F3M Desktop update button at the top right.</summary>
+    public AppUpdateViewModel AppUpdate { get; }
 
     [ObservableProperty]
     private ObservableObject? _currentPage;
@@ -93,6 +97,10 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _updateBanner = string.Empty;
 
+    /// <summary>Whether downloaded mods have newer versions; shows the Download updates button.</summary>
+    [ObservableProperty]
+    private bool _hasUpdates;
+
     [ObservableProperty]
     private bool _deployBeforePlay;
 
@@ -119,6 +127,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowLibrary() => CurrentPage = LibraryPage;
+
+    [RelayCommand]
+    private void OpenRepository() => Launcher.Open(F3M.Shared.Configuration.RepositoryUrl);
 
     [RelayCommand]
     private void ShowProfiles() => CurrentPage = ProfilesPage;
@@ -248,65 +259,118 @@ public sealed partial class MainViewModel : ObservableObject
             }
         }
 
-        StatusText = BuildStatusText();
+        // Downloads and profile changes can add or settle cache updates.
+        FindCacheUpdates();
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Checks the catalog for newer versions of deployed mods. The banner offers to apply them.</summary>
+    /// <summary>Loads the newest index, then looks for newer versions of downloaded mods.</summary>
     public async Task CheckUpdatesAsync()
     {
-        UpdateBanner = string.Empty;
-        _updateNames = [];
-        if (!_app.Game.IsConfigured || ActiveProfile is null) return;
-
         try
         {
             await _app.Catalog.RefreshIndexAsync(CancellationToken.None);
-            var pinned = ActiveProfile.Pins.Keys.ToHashSet();
-            foreach (var mod in SafeState()?.Mods ?? Enumerable.Empty<DeployedMod>())
-            {
-                var group = _app.Catalog.Group(mod.GroupId);
-                if (group is not null && group.LatestVersionId != mod.VersionId && !pinned.Contains(mod.GroupId))
-                    _updateNames.Add(group.Name);
-            }
-
-            if (_updateNames.Count > 0)
-                UpdateBanner = $"{_updateNames.Count} update(s) available: {string.Join(", ", _updateNames.Take(3))}";
         }
         catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException)
         {
             AppLog.Info($"Update check skipped: {ex.Message}");
         }
+
+        FindCacheUpdates();
     }
 
-    [RelayCommand]
-    private async Task ApplyUpdatesAsync()
+    /// <summary>
+    /// Mods in the download cache whose newest version is not downloaded yet. A mod pinned in every profile that uses
+    /// it is left out: no profile would use the new version.
+    /// </summary>
+    private void FindCacheUpdates()
     {
-        if (ActiveProfile is null) return;
+        _cacheUpdates = [];
+        if (_app.Catalog.Index is not null)
+        {
+            var profiles = _app.Profiles.List();
+            foreach (var groupId in _app.Downloads.CachedVersionIds().Select(v => v.GroupId).Distinct())
+            {
+                var group = _app.Catalog.Group(groupId);
+                if (group is null || _app.Downloads.IsCached(groupId, group.LatestVersionId)) continue;
 
-        // The changelog: each new version's description, since the document has no separate changelog field yet.
-        // Pinned mods keep their version on deploy, so they are not listed as updates (same rule as the banner).
-        var notes = new List<string>();
-        var pinned = ActiveProfile.Pins.Keys.ToHashSet();
+                var users = profiles.Where(p => p.GroupIds.Contains(groupId) || p.Pins.ContainsKey(groupId)).ToList();
+                if (users.Count > 0 && users.All(p => p.Pins.ContainsKey(groupId))) continue;
+                _cacheUpdates.Add(group);
+            }
+        }
+
+        HasUpdates = _cacheUpdates.Count > 0;
+        UpdateBanner = HasUpdates
+            ? $"Newer versions of {_cacheUpdates.Count} downloaded mod(s): {string.Join(", ", _cacheUpdates.Take(3).Select(g => g.Name))}" +
+              (_cacheUpdates.Count > 3 ? ", …" : string.Empty)
+            : string.Empty;
+        StatusText = BuildStatusText();
+    }
+
+    /// <summary>
+    /// Downloads the newest version of each mod in <see cref="FindCacheUpdates"/>, with what it newly depends on, into the
+    /// cache. The game folder is not touched: Deploy installs the new versions in the profiles that use them.
+    /// </summary>
+    [RelayCommand]
+    private async Task DownloadUpdatesAsync()
+    {
+        FindCacheUpdates();
+        if (_cacheUpdates.Count == 0)
+        {
+            Notify("All downloaded mods are up to date.");
+            return;
+        }
+
         try
         {
-            foreach (var mod in SafeState()?.Mods ?? Enumerable.Empty<DeployedMod>())
+            var lines = new List<string>();
+            var docs = new Dictionary<(int, int), F3M.Shared.Models.VersionDocument>();
+            foreach (var group in _cacheUpdates)
             {
-                var group = _app.Catalog.Group(mod.GroupId);
-                if (group is null || group.LatestVersionId == mod.VersionId || pinned.Contains(mod.GroupId)) continue;
-                var doc = await _app.Catalog.GetVersionAsync(mod.GroupId, group.LatestVersionId, CancellationToken.None);
-                notes.Add($"**{Markup.Escape(doc.Name)}** {mod.Version} to {doc.Version}\n{Markup.Escape(doc.Description)}");
+                var resolved = await _app.Catalog.ResolveAsync([group.GroupId], new Dictionary<int, int>(), CancellationToken.None);
+                foreach (var doc in resolved.Values.Where(d => !_app.Downloads.IsCached(d.GroupId, d.VersionId)))
+                    docs.TryAdd((doc.GroupId, doc.VersionId), doc);
+
+                var cached = _app.Downloads.CachedVersionIds().Where(v => v.GroupId == group.GroupId).Max(v => v.VersionId);
+                var from = await CachedVersionNameAsync(group.GroupId, cached);
+                lines.Add($"  **{Markup.Escape(group.Name)}**: {Markup.Escape(from)} to {Markup.Escape(group.LatestVersion)}");
             }
+
+            var extra = docs.Values.Where(d => _cacheUpdates.All(g => g.GroupId != d.GroupId)).Select(d => d.Name).ToList();
+            if (extra.Count > 0) lines.Add($"\nNewly needed and downloaded too: {Markup.Escape(string.Join(", ", extra))}");
+            lines.Add($"\nAbout {FileOps.FormatBytes(_app.Downloads.BytesToDownload(docs.Values))} to download.");
+            lines.Add("Only the download cache changes; the game folder stays as it is. " +
+                      "Press Deploy afterwards to install the new versions in a profile that uses them.");
+
+            if (!await ConfirmAsync("Download updates", "New versions:\n" + string.Join("\n", lines), "Download")) return;
+
+            var list = docs.Values.ToList();
+            var op = await _app.Ops.RunAsync("Download", "Download updates", _app.Ops.DownloadGate,
+                (item, ct) => _app.Downloads.EnsureCachedAsync(list, item, ct));
+            Notify(op.Status == "Done"
+                ? "Updates downloaded. Press Deploy to install them in the active profile."
+                : op.Detail);
         }
         catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException)
         {
             Notify(ex.Message);
-            return;
         }
 
-        if (!await ConfirmAsync("Apply updates", string.Join("\n\n", notes), "Update and deploy")) return;
-        await DeployAsync(ActiveProfile, askFirst: false);
-        await CheckUpdatesAsync();
+        await RefreshStateAsync();
+    }
+
+    /// <summary>The version name of a cached version, from its locally kept catalog document when there is one.</summary>
+    private async Task<string> CachedVersionNameAsync(int groupId, int versionId)
+    {
+        try
+        {
+            return "v" + (await _app.Catalog.GetVersionAsync(groupId, versionId, CancellationToken.None)).Version;
+        }
+        catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException or IOException)
+        {
+            return "the downloaded version";
+        }
     }
 
     /// <summary>Makes the game folder match a profile. Downloads what is missing, then asks before any destructive step.</summary>

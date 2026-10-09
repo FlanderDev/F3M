@@ -159,6 +159,24 @@ public sealed class Downloads(AppServices app)
         if (Directory.Exists(staging)) TryDeleteTree(staging);
     }
 
+    /// <summary>Every complete version in the cache. Cheap: no sizes are computed.</summary>
+    public List<(int GroupId, int VersionId)> CachedVersionIds()
+    {
+        var result = new List<(int, int)>();
+        if (!Directory.Exists(app.Paths.Cache)) return result;
+        foreach (var groupDir in Directory.EnumerateDirectories(app.Paths.Cache))
+        {
+            if (!int.TryParse(Path.GetFileName(groupDir), out var groupId)) continue;
+            foreach (var versionDir in Directory.EnumerateDirectories(groupDir))
+            {
+                if (int.TryParse(Path.GetFileName(versionDir), out var versionId) && File.Exists(Path.Combine(versionDir, "version.json")))
+                    result.Add((groupId, versionId));
+            }
+        }
+
+        return result;
+    }
+
     private HashSet<(int, int)> ProtectedVersions()
     {
         var keep = new HashSet<(int, int)>();

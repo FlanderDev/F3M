@@ -104,6 +104,7 @@ public sealed class AppServices : IDisposable
     public Deploy Deploy { get; }
     public Game Game { get; }
     public FactoryReset FactoryReset { get; }
+    public AppUpdater Updater { get; }
 
     /// <summary>Set when the user chooses Exit, so closing the main window no longer hides it to the tray.</summary>
     public bool Exiting { get; set; }
@@ -113,6 +114,12 @@ public sealed class AppServices : IDisposable
     /// <summary>A confirmation with a check box: title, text for the box state, OK text, box text. Null when cancelled.</summary>
     public Func<string, Func<bool, string>, string, string, Task<bool?>> ConfirmWithOption { get; set; } =
         (_, _, _, _) => Task.FromResult<bool?>(null);
+
+    /// <summary>
+    /// Gets ready for the process to end without the normal shutdown: stops the link listener and removes the tray
+    /// icon. Set by the app lifetime; used before the app updater takes over.
+    /// </summary>
+    public Action PrepareForExit { get; set; } = () => { };
 
     /// <summary>Closes this instance and starts a fresh one, set by the app lifetime.</summary>
     public Action Restart { get; set; } = () => { };
@@ -145,6 +152,7 @@ public sealed class AppServices : IDisposable
         Deploy = new Deploy(this);
         Game = new Game(this);
         FactoryReset = new FactoryReset(this);
+        Updater = new AppUpdater(this);
     }
 
     /// <summary>Stable per game folder, used for profile and state folders.</summary>

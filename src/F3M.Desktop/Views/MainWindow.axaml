@@ -14,10 +14,18 @@
 
     <!-- Top bar: badge, active profile, Deploy, Play (plan 3.3, 7.1). -->
     <Border Grid.Row="0" Classes="bar">
-      <Grid ColumnDefinitions="Auto,240,Auto,Auto,Auto,*" ColumnSpacing="10">
-        <Border Grid.Column="0" Classes="logo">
-          <TextBlock Text="F3M" FontSize="16" />
-        </Border>
+      <Grid ColumnDefinitions="Auto,240,Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="10">
+        <Button Grid.Column="0" Classes="logo" Command="{Binding OpenRepositoryCommand}"
+                ToolTip.Tip="F3M on GitHub: source code, releases and issues. Opens in your browser.">
+          <Button.Template>
+            <ControlTemplate>
+              <ContentPresenter Content="{TemplateBinding Content}" />
+            </ControlTemplate>
+          </Button.Template>
+          <Border Classes="logo">
+            <TextBlock Text="F3M" FontSize="16" />
+          </Border>
+        </Button>
         <ComboBox Grid.Column="1" ItemsSource="{Binding ProfileChoices}" SelectedItem="{Binding ProfileSelection}"
                   HorizontalAlignment="Stretch" PlaceholderText="No profile"
                   ToolTip.Tip="The active profile: the set of mods in your game folder. Choosing another one asks first, then installs that profile's mods instead.">
@@ -34,6 +42,13 @@
         <CheckBox Grid.Column="4" Content="Deploy before playing" IsChecked="{Binding DeployBeforePlay}" VerticalAlignment="Center"
                   ToolTip.Tip="When on, Play deploys pending changes first, so the game always starts with the mods you see in the Library." />
         <TextBlock Grid.Column="5" Text="{Binding PlayNote}" Classes="muted" VerticalAlignment="Center" HorizontalAlignment="Right" />
+
+        <!-- F3M Desktop's own updates: check, then update and restart. -->
+        <CheckBox Grid.Column="6" Content="Check on startup" IsChecked="{Binding AppUpdate.CheckOnStartup}" VerticalAlignment="Center"
+                  ToolTip.Tip="Look for a newer F3M Desktop every time the app starts. It is only installed when you click the update button." />
+        <Button Grid.Column="7" Content="{Binding AppUpdate.ButtonText}" Command="{Binding AppUpdate.ClickCommand}"
+                Classes.primary="{Binding AppUpdate.HasUpdate}" IsEnabled="{Binding !AppUpdate.IsBusy}"
+                ToolTip.Tip="{Binding AppUpdate.Tip}" VerticalAlignment="Center" />
       </Grid>
     </Border>
 
@@ -54,8 +69,9 @@
           <TextBlock Text="{Binding PendingText}" Classes="muted" VerticalAlignment="Center" />
           <TextBlock Text="{Binding UpdateBanner}" Foreground="{DynamicResource F3M.Brush.Accent}" VerticalAlignment="Center" />
         </StackPanel>
-        <Button Grid.Column="6" Classes="primary" Content="Apply updates" Command="{Binding ApplyUpdatesCommand}"
-                ToolTip.Tip="Shows what changed in each newer version, then updates and deploys them. Pinned mods stay where they are." />
+        <Button Grid.Column="6" Classes="primary" Content="Download updates" Command="{Binding DownloadUpdatesCommand}"
+                IsVisible="{Binding HasUpdates}"
+                ToolTip.Tip="Downloads the newest versions of mods you already downloaded. The game folder is not touched: press Deploy afterwards to install them. Mods pinned in every profile that uses them are left out." />
       </Grid>
     </Border>
 

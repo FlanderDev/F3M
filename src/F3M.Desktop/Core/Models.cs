@@ -17,6 +17,9 @@ public sealed class AppSettings
     public bool DeployBeforePlay { get; set; } = true;
     public int UpdateCheckHours { get; set; } = 6;
     public bool StartAtLogin { get; set; }
+
+    /// <summary>Look for a newer F3M Desktop on GitHub at every start. Installing always waits for a click.</summary>
+    public bool CheckAppUpdatesOnStartup { get; set; } = true;
 }
 
 /// <summary>A local profile: a named set of mod groups, with optional local version pins. Never sent to the server.</summary>

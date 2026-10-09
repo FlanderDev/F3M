@@ -306,7 +306,7 @@
         <Border Classes="card">
           <StackPanel Spacing="8">
             <TextBlock Text="Updates and cache" FontWeight="SemiBold" />
-            <TextBlock Classes="muted" Text="How often to look for newer versions of your mods (1 to 168 hours). Updates are never installed without asking." TextWrapping="Wrap" />
+            <TextBlock Classes="muted" Text="How often to look for newer versions of your downloaded mods (1 to 168 hours). They are downloaded only when you press Download updates, and installed only when you Deploy." TextWrapping="Wrap" />
             <TextBox Text="{Binding UpdateCheckHours}" Watermark="Check for updates every (hours)" />
             <CheckBox Content="Start F3M Desktop when I sign in" IsChecked="{Binding LaunchAtLogin}"
                       ToolTip.Tip="Starts minimised to the tray, so update checks and website links work right away." />

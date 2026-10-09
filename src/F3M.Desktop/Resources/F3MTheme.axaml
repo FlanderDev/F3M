@@ -30,6 +30,14 @@
     <Setter Property="Padding" Value="12,4" />
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
+  <!-- The logo is a button that opens the GitHub repository. -->
+  <Style Selector="Button.logo">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.logo:pointerover Border.logo">
+    <Setter Property="Opacity" Value="0.85" />
+  </Style>
   <Style Selector="Border.logo > TextBlock">
     <Setter Property="Foreground" Value="#000000" />
     <Setter Property="FontWeight" Value="ExtraBold" />
