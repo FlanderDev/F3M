@@ -23,7 +23,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _updateCheckHours = s.UpdateCheckHours.ToString();
         _cacheLimitGb = s.CacheLimitGb.ToString();
         _launchAtLogin = s.StartAtLogin;
-        _dataFolder = app.Paths.Root;
+        DataFolder = app.Paths.Root;
     }
 
     [ObservableProperty]

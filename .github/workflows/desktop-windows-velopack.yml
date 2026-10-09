@@ -37,7 +37,7 @@ jobs:
       - name: Publish desktop app (self-contained, win-x64)
         shell: pwsh
         run: |
-          dotnet publish desktop/F3M.Desktop/F3M.Desktop.csproj `
+          dotnet publish src/F3M.Desktop/F3M.Desktop.csproj `
             --configuration Release `
             --runtime win-x64 `
             --self-contained true `
@@ -54,7 +54,7 @@ jobs:
             --packDir publish-desktop `
             --mainExe F3M.Desktop.exe `
             --packTitle "F3M Desktop" `
-            --icon desktop/F3M.Desktop/Assets/icon.ico `
+            --icon src/F3M.Desktop/Assets/icon.ico `
             --runtime win-x64 `
             --outputDir releases
 

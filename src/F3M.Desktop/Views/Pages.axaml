@@ -1,7 +1,7 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:vm="using:F3M.Desktop.ViewModels"
-                    xmlns:svc="using:F3M.Desktop.Services">
+<DataTemplates xmlns="https://github.com/avaloniaui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:vm="using:F3M.Desktop.ViewModels"
+               xmlns:svc="using:F3M.Desktop.Services">
 
   <!-- Library: the active profile's mods, with per-mod actions (plan 4.1, 6.6). -->
   <DataTemplate DataType="vm:LibraryViewModel">
@@ -253,4 +253,4 @@
     </ScrollViewer>
   </DataTemplate>
 
-</ResourceDictionary>
+</DataTemplates>
