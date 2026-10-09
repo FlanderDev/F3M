@@ -103,11 +103,19 @@ public sealed class AppServices : IDisposable
     public Profiles Profiles { get; }
     public Deploy Deploy { get; }
     public Game Game { get; }
+    public FactoryReset FactoryReset { get; }
 
     /// <summary>Set when the user chooses Exit, so closing the main window no longer hides it to the tray.</summary>
     public bool Exiting { get; set; }
 
     public Func<string, string, string, Task<bool>> Confirm { get; set; } = (_, _, _) => Task.FromResult(true);
+
+    /// <summary>A confirmation with a check box: title, text for the box state, OK text, box text. Null when cancelled.</summary>
+    public Func<string, Func<bool, string>, string, string, Task<bool?>> ConfirmWithOption { get; set; } =
+        (_, _, _, _) => Task.FromResult<bool?>(null);
+
+    /// <summary>Closes this instance and starts a fresh one, set by the app lifetime.</summary>
+    public Action Restart { get; set; } = () => { };
     public Func<Task<string?>> PickFolder { get; set; } = () => Task.FromResult<string?>(null);
     public Func<Task<string?>> PickFile { get; set; } = () => Task.FromResult<string?>(null);
     public Action<string> Notify { get; set; } = _ => { };
@@ -136,6 +144,7 @@ public sealed class AppServices : IDisposable
         Profiles = new Profiles(this);
         Deploy = new Deploy(this);
         Game = new Game(this);
+        FactoryReset = new FactoryReset(this);
     }
 
     /// <summary>Stable per game folder, used for profile and state folders.</summary>

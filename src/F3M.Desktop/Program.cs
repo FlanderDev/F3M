@@ -9,6 +9,9 @@ public static class Program
 {
     public static string[] StartupArgs { get; private set; } = [];
 
+    /// <summary>Given by <c>App.Restart</c>: the old instance is closing, so this one starts without handing over to it.</summary>
+    public const string RestartedArg = "--restarted";
+
     public static bool StartedMinimized => StartupArgs.Contains("--minimized", StringComparer.Ordinal);
 
     /// <summary>An f3m:// link given on the command line, when the app was started by one.</summary>
@@ -34,7 +37,7 @@ public static class Program
 
         // A second launch hands its link (or a "show" request) to the running instance and exits.
         var message = StartupLink ?? "show";
-        if (SingleInstance.TrySend(message, new AppPaths())) return 0;
+        if (!StartupArgs.Contains(RestartedArg, StringComparer.Ordinal) && SingleInstance.TrySend(message, new AppPaths())) return 0;
 
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }

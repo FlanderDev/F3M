@@ -69,6 +69,15 @@
     <Setter Property="FontWeight" Value="Bold" />
     <Setter Property="CornerRadius" Value="{DynamicResource F3M.Radius.Control}" />
   </Style>
+  <!-- danger: for actions that delete data and cannot be undone. -->
+  <Style Selector="Button.danger">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.Error}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource F3M.Brush.Error}" />
+    <Setter Property="Foreground" Value="#000000" />
+    <Setter Property="FontFamily" Value="Syne" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="CornerRadius" Value="{DynamicResource F3M.Radius.Control}" />
+  </Style>
   <Style Selector="Button.nav">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />

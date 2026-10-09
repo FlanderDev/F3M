@@ -244,7 +244,27 @@
             <TextBlock Text="Game" FontWeight="SemiBold" />
             <TextBlock Classes="muted" Text="Game folder: where the game is installed. Mods are deployed into it." TextWrapping="Wrap" />
             <TextBox Text="{Binding GameFolder}" Watermark="Game folder" />
-            <Button Content="Choose game folder" Command="{Binding PickGameFolderCommand}" HorizontalAlignment="Left" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Auto-detect" Classes="primary" Command="{Binding AutoDetectGameCommand}"
+                      ToolTip.Tip="Looks for the game: a running game, your Steam libraries, then the usual install folders. Fills in the folder, the executable and, for Steam, the app ID. Nothing is kept until you press Save settings." />
+              <Button Content="Choose game folder" Command="{Binding PickGameFolderCommand}" />
+            </StackPanel>
+            <TextBlock Classes="muted" Text="{Binding DetectStatus}" TextWrapping="Wrap"
+                       IsVisible="{Binding DetectStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <ItemsControl ItemsSource="{Binding FoundInstalls}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:GameInstallRow">
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                    <StackPanel VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Folder}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Folder}" />
+                      <TextBlock Classes="muted" Text="{Binding Source}" FontSize="12" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Use" Command="{Binding UseCommand}" Margin="8,0,0,0"
+                            ToolTip.Tip="Fills in this folder and its executable. Press Save settings to keep it." />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
             <TextBlock Classes="muted" Text="Executable: the file Play starts, for example Game.exe." TextWrapping="Wrap" Margin="0,6,0,0" />
             <TextBox Text="{Binding GameExecutable}" Watermark="Executable, relative to the game folder" />
             <Button Content="Choose executable" Command="{Binding PickExecutableCommand}" HorizontalAlignment="Left" />
@@ -279,6 +299,15 @@
             <TextBlock Classes="muted" Text="{Binding DataFolder, StringFormat='Data folder: {0}'}" TextWrapping="Wrap" />
             <TextBlock Classes="muted" Text="Something not working? Copy diagnostics and paste them into your bug report." TextWrapping="Wrap" />
             <Button Content="Copy diagnostics" Command="{Binding CopyDiagnosticsCommand}" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Factory reset" FontWeight="SemiBold" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="Removes everything this app created: settings, profiles, logs and link registrations, and downloaded mods if you choose. The game folder and the mods deployed in it are not touched. You see every folder and its size before anything is deleted." />
+            <Button Classes="danger" Content="Factory reset…" Command="{Binding FactoryResetCommand}" HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
 

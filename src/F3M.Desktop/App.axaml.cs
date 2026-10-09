@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -55,6 +56,9 @@ public partial class App : Application
     private void ConnectUi(AppServices services, MainViewModel shell, MainWindow main, IClassicDesktopStyleApplicationLifetime desktop)
     {
         services.Confirm = (title, body, ok) => ConfirmWindow.AskAsync(main, title, body, ok);
+        services.ConfirmWithOption = (title, body, ok, option) =>
+            ConfirmWindow.AskWithOptionAsync(main, title, body, ok, option, destructive: true);
+        services.Restart = () => Restart(services, desktop);
         services.Notify = shell.Notify;
         services.CopyText = text => _ = main.Clipboard?.SetTextAsync(text);
         services.PickFolder = async () =>
@@ -140,6 +144,29 @@ public partial class App : Application
         if (!window.IsVisible) window.Show();
         if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
         window.Activate();
+    }
+
+    /// <summary>
+    /// Starts a new instance and shuts this one down. The listener stops first and the new instance is told not to
+    /// hand over to this one, so it starts on its own even while this one is still closing.
+    /// </summary>
+    private void Restart(AppServices services, IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        services.Exiting = true;
+        _listening?.Cancel();
+        _tray?.Dispose();
+        try
+        {
+            var info = new ProcessStartInfo(Program.LaunchPath) { UseShellExecute = false };
+            info.ArgumentList.Add(Program.RestartedArg);
+            Process.Start(info)?.Dispose();
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            AppLog.Error("The app could not restart itself", ex);
+        }
+
+        desktop.Shutdown();
     }
 
     /// <summary>Exit asks first when a deploy is running, cancels it (which rolls it back), and waits for that to finish.</summary>
