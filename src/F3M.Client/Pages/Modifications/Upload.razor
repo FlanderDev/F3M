@@ -27,6 +27,19 @@
 
     @if (uploadSuccess)
     {
+        @if (uploadWarnings.Count > 0)
+        {
+            <div class="alert alert-warning py-2 small mb-3">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Published with notes:
+                <ul class="mb-0 ps-3">
+                    @foreach (var warning in uploadWarnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            </div>
+        }
+
         <UploadSuccessBanner ModId="uploadedId"
                              IsNewVersion="IsNewVersion"
                              OnUploadAnother="Reset" />
@@ -91,6 +104,13 @@
                     <PickerModFiles Entries="fileEntries" OnEntriesChanged="StateHasChanged" />
                 </div>
 
+                <!-- Generated files (plan 5.8) -->
+                <div class="mb-4">
+                    <GeneratedPathsEditor Entries="dto.GeneratedPaths"
+                                          ShippedPaths="ShippedPaths"
+                                          OnEntriesChanged="StateHasChanged" />
+                </div>
+
                 <!-- Upload error -->
                 @if (uploadError is not null)
                 {
@@ -115,9 +135,16 @@
                     </div>
                 }
 
+                @if (HasInvalidGeneratedPaths)
+                {
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Fix the generated-file patterns marked in red before publishing.
+                    </div>
+                }
+
                 <!-- Submit -->
                 <button type="submit" class="btn btn-warning fw-bold w-100"
-                        disabled="@(uploading || fileEntries.Count == 0 || HasInvalidInstallPaths)">
+                        disabled="@(uploading || fileEntries.Count == 0 || HasInvalidInstallPaths || HasInvalidGeneratedPaths)">
                     @if (uploading)
                     {
                         <span class="spinner-border spinner-border-sm me-2"></span>
