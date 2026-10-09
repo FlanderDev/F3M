@@ -14,6 +14,9 @@ public partial class Admin
     private string search = string.Empty;
     private int? busyId;
     private AdminUserDto? deleteTarget;
+    private bool rebuilding;
+    private CatalogRebuildResult? rebuildResult;
+    private string? rebuildError;
 
     private IEnumerable<AdminUserDto> Filtered => string.IsNullOrWhiteSpace(search)
         ? users
@@ -65,6 +68,17 @@ public partial class Admin
         }
         catch (Exception ex) { actionError = DescribeError(ex); }
         finally { busyId = null; }
+    }
+
+    private async Task RebuildCatalog()
+    {
+        rebuilding = true; rebuildError = null; rebuildResult = null;
+        try
+        {
+            rebuildResult = await Api.RebuildCatalogAsync();
+        }
+        catch (Exception ex) { rebuildError = DescribeError(ex); }
+        finally { rebuilding = false; }
     }
 
     /// <summary>

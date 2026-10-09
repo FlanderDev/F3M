@@ -20,6 +20,7 @@ public class AdminService(
     AppDbContext db,
     UserManager<AppUser> userManager,
     IHttpContextAccessor httpContextAccessor,
+    CatalogService catalog,
     ILogger<AdminService> logger) : IAdminApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
@@ -112,5 +113,11 @@ public class AdminService(
             throw new InvalidOperationException(string.Join(" ", deleteResult.Errors.Select(e => e.Description)));
 
         logger.LogInformation("Admin {Caller} deleted user {Username}", callerId, user.UserName);
+    }
+
+    public async Task<CatalogRebuildResult> RebuildCatalogAsync(CancellationToken ct = default)
+    {
+        logger.LogInformation("Admin {Caller} started a catalog rebuild", userManager.GetUserId(CurrentPrincipal));
+        return await catalog.RebuildAllAsync(ct);
     }
 }

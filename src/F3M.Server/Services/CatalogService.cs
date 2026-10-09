@@ -481,9 +481,3 @@ public sealed class CatalogService(
     private static string EnumName<T>(T value) where T : struct, Enum =>
         value.ToString().ToLowerInvariant();
 }
-
-public sealed record CatalogRebuildResult(
-    int FilesBackfilled,
-    int VersionsPublished,
-    int VersionsRemoved,
-    IReadOnlyList<string> Errors);
