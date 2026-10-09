@@ -228,9 +228,30 @@
 
   <!-- Settings: server, game folder, launch, and maintenance (plan 2.2, 6.11, 9.4). -->
   <DataTemplate DataType="vm:SettingsViewModel">
+    <DockPanel>
+      <!-- Save bar: always visible, so it is clear that Save covers every field on the page. -->
+      <Border DockPanel.Dock="Bottom" Background="{DynamicResource F3M.Brush.Surface}"
+              BorderBrush="{DynamicResource F3M.Brush.Border}" BorderThickness="0,1,0,0" Padding="16,10">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+          <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+            <TextBlock Text="{Binding PendingText}" TextWrapping="Wrap" IsVisible="{Binding HasChanges}"
+                       Foreground="{DynamicResource F3M.Brush.Accent}" />
+            <TextBlock Text="{Binding PendingText}" TextWrapping="Wrap" IsVisible="{Binding !HasChanges}" Classes="muted" />
+            <TextBlock Classes="muted" v:Links.Markup="{Binding Status}" TextWrapping="Wrap"
+                       IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+          <Button Grid.Column="1" Content="Discard" Command="{Binding DiscardCommand}" VerticalAlignment="Center"
+                  ToolTip.Tip="Put every field back to the saved settings." />
+          <Button Grid.Column="2" Classes="primary" Content="Save settings" Command="{Binding SaveCommand}" VerticalAlignment="Center"
+                  ToolTip.Tip="Saves every field on this page. A new game folder shows that folder's profiles (you confirm first), a new server reloads the mod list, and start at login is turned on or off." />
+        </Grid>
+      </Border>
+
     <ScrollViewer Margin="16">
       <StackPanel Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
         <TextBlock Classes="heading" Text="Settings" />
+        <TextBlock Classes="muted" TextWrapping="Wrap"
+                   Text="Fields are kept when you press Save settings at the bottom. Buttons inside the cards, such as Clear unused cache or Factory reset, act right away." />
 
         <Border Classes="card">
           <StackPanel Spacing="8">
@@ -291,12 +312,8 @@
             <TextBox Text="{Binding CacheLimitGb}" Watermark="Cache size limit (GB)" />
             <CheckBox Content="Start F3M Desktop when I sign in" IsChecked="{Binding LaunchAtLogin}"
                       ToolTip.Tip="Starts minimised to the tray, so update checks and website links work right away." />
-            <TextBlock Classes="muted" Text="Changes on this page apply when you press Save settings." TextWrapping="Wrap" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button Classes="primary" Content="Save settings" Command="{Binding SaveCommand}" />
-              <Button Content="Clear unused cache" Command="{Binding ClearUnusedCacheCommand}"
-                      ToolTip.Tip="Delete downloads that are neither deployed nor pinned in any profile. You see how much is freed before anything is deleted." />
-            </StackPanel>
+            <Button Content="Clear unused cache" Command="{Binding ClearUnusedCacheCommand}" HorizontalAlignment="Left"
+                    ToolTip.Tip="Right away: delete downloads that are neither deployed nor pinned in any profile. You see how much is freed before anything is deleted." />
           </StackPanel>
         </Border>
 
@@ -323,9 +340,9 @@
           </StackPanel>
         </Border>
 
-        <TextBlock v:Links.Markup="{Binding Status}" Classes="muted" TextWrapping="Wrap" />
       </StackPanel>
     </ScrollViewer>
+    </DockPanel>
   </DataTemplate>
 
 </DataTemplates>

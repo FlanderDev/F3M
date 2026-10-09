@@ -16,42 +16,89 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         _app = app;
         _shell = shell;
-        var s = app.Settings;
-        _serverUrl = s.ServerUrl;
-        _gameFolder = s.GameFolder;
-        _gameExecutable = s.GameExecutable;
-        _steamAppId = s.SteamAppId;
-        _updateCheckHours = s.UpdateCheckHours.ToString();
-        _cacheLimitGb = s.CacheLimitGb.ToString();
-        _launchAtLogin = s.StartAtLogin;
         DataFolder = app.Paths.Root;
+        LoadFromSettings();
+    }
+
+    private void LoadFromSettings()
+    {
+        var s = _app.Settings;
+        ServerUrl = s.ServerUrl;
+        GameFolder = s.GameFolder;
+        GameExecutable = s.GameExecutable;
+        SteamAppId = s.SteamAppId;
+        UpdateCheckHours = s.UpdateCheckHours.ToString();
+        CacheLimitGb = s.CacheLimitGb.ToString();
+        LaunchAtLogin = s.StartAtLogin;
+        UpdatePending();
     }
 
     [ObservableProperty]
-    private string _serverUrl;
+    private string _serverUrl = string.Empty;
 
     [ObservableProperty]
-    private string _gameFolder;
+    private string _gameFolder = string.Empty;
 
     /// <summary>Relative to the game folder, for example "Game.exe".</summary>
     [ObservableProperty]
-    private string _gameExecutable;
+    private string _gameExecutable = string.Empty;
 
     /// <summary>Leave empty to start the executable directly.</summary>
     [ObservableProperty]
-    private string _steamAppId;
+    private string _steamAppId = string.Empty;
 
     [ObservableProperty]
-    private string _updateCheckHours;
+    private string _updateCheckHours = string.Empty;
 
     [ObservableProperty]
-    private string _cacheLimitGb;
+    private string _cacheLimitGb = string.Empty;
 
     [ObservableProperty]
     private bool _launchAtLogin;
 
     [ObservableProperty]
     private string _status = string.Empty;
+
+    /// <summary>Which fields differ from the saved settings, shown in the save bar.</summary>
+    [ObservableProperty]
+    private string _pendingText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(DiscardCommand))]
+    private bool _hasChanges;
+
+    partial void OnServerUrlChanged(string value) => UpdatePending();
+    partial void OnGameFolderChanged(string value) => UpdatePending();
+    partial void OnGameExecutableChanged(string value) => UpdatePending();
+    partial void OnSteamAppIdChanged(string value) => UpdatePending();
+    partial void OnUpdateCheckHoursChanged(string value) => UpdatePending();
+    partial void OnCacheLimitGbChanged(string value) => UpdatePending();
+    partial void OnLaunchAtLoginChanged(bool value) => UpdatePending();
+
+    private void UpdatePending()
+    {
+        var changed = ChangedFields();
+        HasChanges = changed.Count > 0;
+        PendingText = HasChanges ? $"Unsaved changes: {string.Join(", ", changed)}." : "All settings are saved.";
+    }
+
+    private List<string> ChangedFields()
+    {
+        var s = _app.Settings;
+        var changed = new List<string>();
+        if (NormalizedServerUrl != s.ServerUrl) changed.Add("server address");
+        if (GameFolderChanged) changed.Add("game folder");
+        if (GameExecutable.Trim() != s.GameExecutable) changed.Add("executable");
+        if (SteamAppId.Trim() != s.SteamAppId) changed.Add("Steam app ID");
+        if (UpdateCheckHours.Trim() != s.UpdateCheckHours.ToString()) changed.Add("update interval");
+        if (CacheLimitGb.Trim() != s.CacheLimitGb.ToString()) changed.Add("cache limit");
+        if (LaunchAtLogin != s.StartAtLogin) changed.Add("start at login");
+        return changed;
+    }
+
+    private string NormalizedServerUrl => ServerUrl.Trim().TrimEnd('/');
+
+    private bool GameFolderChanged => GameFolder.Trim() != _app.Settings.GameFolder;
 
     public string DataFolder { get; }
 
@@ -157,23 +204,56 @@ public sealed partial class SettingsViewModel : ObservableObject
         GameExecutable = Path.GetRelativePath(root, Path.GetFullPath(file)).Replace('\\', '/');
     }
 
-    [RelayCommand]
-    private void Save()
+    /// <summary>
+    /// Saves every field on the page at once, then applies what changed: a different game folder brings up that
+    /// folder's profiles (after a confirmation), a different server reloads the mod list, and start at login is
+    /// registered or removed. The status line says what was done.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasChanges))]
+    private async Task SaveAsync()
     {
-        if (!int.TryParse(UpdateCheckHours, out var hours) || hours < 1 || hours > 168)
+        if (!int.TryParse(UpdateCheckHours.Trim(), out var hours) || hours < 1 || hours > 168)
         {
             Status = "Check for updates every 1 to 168 hours.";
             return;
         }
 
-        if (!int.TryParse(CacheLimitGb, out var limit) || limit < 1)
+        if (!int.TryParse(CacheLimitGb.Trim(), out var limit) || limit < 1)
         {
             Status = "The cache limit must be at least 1 GB.";
             return;
         }
 
         var s = _app.Settings;
-        s.ServerUrl = ServerUrl.Trim().TrimEnd('/');
+        var changed = ChangedFields();
+        var folderChanged = GameFolderChanged;
+        var serverChanged = NormalizedServerUrl != s.ServerUrl;
+        var loginChanged = LaunchAtLogin != s.StartAtLogin;
+        var hoursChanged = hours != s.UpdateCheckHours;
+        var limitChanged = limit != s.CacheLimitGb;
+
+        if (folderChanged)
+        {
+            if (_app.Ops.Items.Any(i => !i.IsFinished))
+            {
+                Status = "Wait until the running downloads and deploys finish before changing the game folder.";
+                return;
+            }
+
+            var newFolder = GameFolder.Trim();
+            var profileCount = _app.Profiles.CountFor(newFolder);
+            var oldFolder = string.IsNullOrWhiteSpace(s.GameFolder) ? null : s.GameFolder;
+            var body =
+                $"F3M keeps profiles and deploy records separately for each game folder. After saving it manages " +
+                $"{(newFolder.Length == 0 ? "no game folder" : Markup.Link(newFolder))}" +
+                (newFolder.Length == 0 ? "." : profileCount == 0 ? ", which has no profiles yet." : $", which has {profileCount} profile(s).") +
+                (oldFolder is null ? string.Empty
+                    : $"\n\nThe mods deployed in {Markup.Link(oldFolder)} stay there. Its profiles come back when you switch back to it.") +
+                "\n\nNothing is copied, moved or deleted.";
+            if (!await _shell.ConfirmAsync("Change the game folder", body, "Save and switch")) return;
+        }
+
+        s.ServerUrl = NormalizedServerUrl;
         s.GameFolder = GameFolder.Trim();
         s.GameExecutable = GameExecutable.Trim();
         s.SteamAppId = SteamAppId.Trim();
@@ -181,21 +261,57 @@ public sealed partial class SettingsViewModel : ObservableObject
         s.CacheLimitGb = limit;
         s.StartAtLogin = LaunchAtLogin;
 
+        var done = new List<string> { $"Saved {string.Join(", ", changed)}." };
         try
         {
             _app.SaveSettings();
-            StartAtLogin.Set(LaunchAtLogin, Program.LaunchPath);
-            Status = "Saved.";
+            if (loginChanged)
+            {
+                StartAtLogin.Set(LaunchAtLogin, Program.LaunchPath);
+                done.Add(LaunchAtLogin ? "F3M Desktop now starts when you sign in." : "F3M Desktop no longer starts when you sign in.");
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
             AppLog.Error("Settings could not be saved", ex);
             Status = "Settings could not be saved. See the diagnostics log.";
             return;
         }
 
-        _ = _shell.RefreshStateAsync();
-        _ = _shell.CheckUpdatesAsync();
+        // Values were normalised on save (trimmed, no trailing slash); show them as stored.
+        LoadFromSettings();
+
+        if (hoursChanged)
+        {
+            _shell.SetUpdateInterval(hours);
+            done.Add($"The next update check is in {hours} hour(s).");
+        }
+
+        if (limitChanged) done.Add("The new cache limit applies from the next download.");
+        if (folderChanged) done.Add("Showing the profiles of the new game folder.");
+        Status = string.Join(" ", done);
+
+        if (serverChanged)
+        {
+            Status += " Loading the mod list from the new server…";
+            await _shell.RefreshCommand.ExecuteAsync(null);
+            Status = string.Join(" ", done) + " The mod list was reloaded from the new server.";
+        }
+        else
+        {
+            await _shell.RefreshStateAsync();
+            if (folderChanged) await _shell.CheckUpdatesAsync();
+        }
+    }
+
+    /// <summary>Puts every field back to the saved settings.</summary>
+    [RelayCommand(CanExecute = nameof(HasChanges))]
+    private void Discard()
+    {
+        LoadFromSettings();
+        FoundInstalls.Clear();
+        DetectStatus = string.Empty;
+        Status = "Changes discarded.";
     }
 
     [RelayCommand]

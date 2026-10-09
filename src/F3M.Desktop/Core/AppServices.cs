@@ -148,8 +148,10 @@ public sealed class AppServices : IDisposable
     }
 
     /// <summary>Stable per game folder, used for profile and state folders.</summary>
-    public string GameId =>
-        FileOps.Sha256Text(Path.GetFullPath(string.IsNullOrWhiteSpace(Settings.GameFolder) ? "none" : Settings.GameFolder))[..16];
+    public string GameId => GameIdFor(Settings.GameFolder);
+
+    public static string GameIdFor(string gameFolder) =>
+        FileOps.Sha256Text(Path.GetFullPath(string.IsNullOrWhiteSpace(gameFolder) ? "none" : gameFolder))[..16];
 
     /// <summary>Absolute URL for a server-relative path. Throws a user message when no server is set.</summary>
     public Uri ServerUri(string relative)
