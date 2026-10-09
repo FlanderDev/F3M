@@ -5,10 +5,10 @@ using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using F3M.Shared.Generated;
 
 #if !DEBUG
 try
@@ -19,13 +19,25 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
+builder.Services.Configure<CatalogOptions>(builder.Configuration.GetSection(CatalogOptions.SectionName));
+builder.Services.AddScoped<CatalogService>();
+
 #region FileSystemPreparation
 Directory.CreateDirectory(Assets.Files);
 Directory.CreateDirectory(Assets.Images);
 
+var catalogOptions = builder.Configuration.GetSection(CatalogOptions.SectionName).Get<CatalogOptions>() ?? new CatalogOptions();
+Directory.CreateDirectory(catalogOptions.Directory);
+
 var databaseDirectory = Path.Combine(Assets.StorageRoot, "Database");
 Directory.CreateDirectory(databaseDirectory);
 #endregion
+
+// The keys that protect login cookies live in the storage volume, so sign-ins survive container rebuilds.
+// Without this they sit inside the container and every redeploy signs everyone out.
+builder.Services.AddDataProtection()
+    .SetApplicationName(Configuration.AppName)
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Assets.StorageRoot, "Secrets", "DataProtection")));
 
 var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
@@ -87,6 +99,8 @@ app.MapPost("/login", async (
         return Results.Unauthorized();
 
     var result = await signInManager.CheckPasswordSignInAsync(user, login.Password, lockoutOnFailure: true);
+    if (result.IsLockedOut)
+        return Results.StatusCode(StatusCodes.Status429TooManyRequests); // The login page explains the wait.
     if (!result.Succeeded)
         return Results.Unauthorized();
 
@@ -130,6 +144,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    await scope.ServiceProvider.GetRequiredService<CatalogService>().InitializeAsync();
 
     // Seed a debug admin user for local development/testing
 #if DEBUG
@@ -171,11 +186,27 @@ app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-// Serve user-uploaded mod files and preview thumbnails from the persistent asset directory (outside wwwroot)
+// Serve preview thumbnails from the persistent asset directory (outside wwwroot).
+// Mod files are deliberately NOT served from here: they are only reachable through the download
+// endpoint, which counts the download. (They used to sit under the same public folder, so anyone who
+// had seen a file's generated name in the API could fetch it directly.)
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.PublicContent)), // FileSystem Path
-    RequestPath = Assets.ServedPath // Served Path
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.Images)), // FileSystem Path
+    RequestPath = $"{Assets.ServedPath}/{nameof(Assets.Images)}", // Served Path, same as Assets.ImageUrl()
+    OnPrepareResponse = context => context.Context.Response.Headers.XContentTypeOptions = "nosniff"
+});
+
+// The public catalog: signed JSON read by the desktop app. Read-only, with a short cache so the index stays fresh.
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.GetFullPath(catalogOptions.Directory)),
+    RequestPath = "/catalog",
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers.CacheControl = "public, max-age=60";
+        context.Context.Response.Headers.XContentTypeOptions = "nosniff";
+    }
 });
 
 app.UseRouting();

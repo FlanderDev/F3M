@@ -1,0 +1,446 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using F3M.Desktop.Core;
+using F3M.Desktop.Services;
+
+namespace F3M.Desktop.ViewModels;
+
+/// <summary>Server, game folder and launch settings, link registration, and cache and diagnostics actions.</summary>
+public sealed partial class SettingsViewModel : ObservableObject
+{
+    private readonly AppServices _app;
+    private readonly MainViewModel _shell;
+
+    public SettingsViewModel(AppServices app, MainViewModel shell)
+    {
+        _app = app;
+        _shell = shell;
+        DataFolder = app.Paths.Root;
+        LoadFromSettings();
+    }
+
+    private void LoadFromSettings()
+    {
+        var s = _app.Settings;
+        ServerUrl = s.ServerUrl;
+        GameFolder = s.GameFolder;
+        GameExecutable = s.GameExecutable;
+        SteamAppId = s.SteamAppId;
+        UpdateCheckHours = s.UpdateCheckHours.ToString();
+        LaunchAtLogin = s.StartAtLogin;
+        UpdatePending();
+    }
+
+    [ObservableProperty]
+    private string _serverUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _gameFolder = string.Empty;
+
+    /// <summary>Relative to the game folder, for example "Game.exe".</summary>
+    [ObservableProperty]
+    private string _gameExecutable = string.Empty;
+
+    /// <summary>Leave empty to start the executable directly.</summary>
+    [ObservableProperty]
+    private string _steamAppId = string.Empty;
+
+    [ObservableProperty]
+    private string _updateCheckHours = string.Empty;
+
+    [ObservableProperty]
+    private bool _launchAtLogin;
+
+    [ObservableProperty]
+    private string _status = string.Empty;
+
+    /// <summary>Which fields differ from the saved settings, shown in the save bar.</summary>
+    [ObservableProperty]
+    private string _pendingText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(DiscardCommand))]
+    private bool _hasChanges;
+
+    partial void OnServerUrlChanged(string value) => UpdatePending();
+    partial void OnGameFolderChanged(string value) => UpdatePending();
+    partial void OnGameExecutableChanged(string value) => UpdatePending();
+    partial void OnSteamAppIdChanged(string value) => UpdatePending();
+    partial void OnUpdateCheckHoursChanged(string value) => UpdatePending();
+    partial void OnLaunchAtLoginChanged(bool value) => UpdatePending();
+
+    private void UpdatePending()
+    {
+        var changed = ChangedFields();
+        HasChanges = changed.Count > 0;
+        PendingText = HasChanges ? $"Unsaved changes: {string.Join(", ", changed)}." : "All settings are saved.";
+    }
+
+    private List<string> ChangedFields()
+    {
+        var s = _app.Settings;
+        var changed = new List<string>();
+        if (NormalizedServerUrl != s.ServerUrl) changed.Add("server address");
+        if (GameFolderChanged) changed.Add("game folder");
+        if (GameExecutable.Trim() != s.GameExecutable) changed.Add("executable");
+        if (SteamAppId.Trim() != s.SteamAppId) changed.Add("Steam app ID");
+        if (UpdateCheckHours.Trim() != s.UpdateCheckHours.ToString()) changed.Add("update interval");
+        if (LaunchAtLogin != s.StartAtLogin) changed.Add("start at login");
+        return changed;
+    }
+
+    private string NormalizedServerUrl => ServerUrl.Trim().TrimEnd('/');
+
+    private bool GameFolderChanged => GameFolder.Trim() != _app.Settings.GameFolder;
+
+    public string DataFolder { get; }
+
+    [RelayCommand]
+    private void OpenServer()
+    {
+        var url = ServerUrl.Trim();
+        if (Launcher.IsOpenable(url) && !Path.IsPathFullyQualified(url)) Launcher.Open(url);
+        else Status = "The server address is not a web address.";
+    }
+
+    [RelayCommand]
+    private void OpenGameFolder()
+    {
+        var folder = GameFolder.Trim();
+        if (Path.IsPathFullyQualified(folder) && Directory.Exists(folder)) Launcher.Open(folder);
+        else Status = "The game folder does not exist. Choose it or use Auto-detect.";
+    }
+
+    [RelayCommand]
+    private async Task PickGameFolderAsync()
+    {
+        var path = await _app.PickFolder();
+        if (!string.IsNullOrEmpty(path)) GameFolder = path;
+    }
+
+    /// <summary>Installs found by Auto-detect when there is more than one, to pick from.</summary>
+    public ObservableCollection<GameInstallRow> FoundInstalls { get; } = [];
+
+    /// <summary>Auto-detect's result, shown right under its button.</summary>
+    [ObservableProperty]
+    private string _detectStatus = string.Empty;
+
+    /// <summary>
+    /// Finds the game. One install is filled in directly; several are listed to choose from. Nothing is kept until
+    /// Save, so the user can check the result first.
+    /// </summary>
+    [RelayCommand]
+    private async Task AutoDetectGameAsync()
+    {
+        FoundInstalls.Clear();
+        DetectStatus = "Looking for the game. This can take a few seconds…";
+        List<GameInstall> found;
+        try
+        {
+            found = await Task.Run(() => GameLocator.Find(CancellationToken.None));
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Game detection failed", ex);
+            DetectStatus = "The search failed. Choose the game folder by hand.";
+            return;
+        }
+
+        if (found.Count == 0)
+        {
+            DetectStatus = $"{GameLocator.ExecutableName} was not found. Choose the game folder by hand.";
+            return;
+        }
+
+        if (found.Count == 1)
+        {
+            UseInstall(found[0]);
+            return;
+        }
+
+        // Results come in order of confidence: the running game, then Steam, then the folder scan.
+        foreach (var install in found) FoundInstalls.Add(new GameInstallRow(install, UseInstall));
+        DetectStatus = $"Found {found.Count} installs. Pick the one to manage:";
+    }
+
+    private void UseInstall(GameInstall install)
+    {
+        FoundInstalls.Clear();
+        GameFolder = install.Folder;
+        GameExecutable = install.Executable;
+        if (install.SteamAppId is not null) SteamAppId = install.SteamAppId;
+
+        DetectStatus = $"Using {Markup.Link(install.Folder)} ({install.Source})." +
+                       (install.SteamAppId is not null ? $" Steam app ID {install.SteamAppId} filled in." : string.Empty) +
+                       " Press Save settings to keep it.";
+    }
+
+    [RelayCommand]
+    private async Task PickExecutableAsync()
+    {
+        if (string.IsNullOrWhiteSpace(GameFolder))
+        {
+            Status = "Choose the game folder first.";
+            return;
+        }
+
+        var file = await _app.PickFile();
+        if (string.IsNullOrEmpty(file)) return;
+
+        var root = Path.GetFullPath(GameFolder).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!Path.GetFullPath(file).StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            Status = "Pick the executable inside the game folder.";
+            return;
+        }
+
+        GameExecutable = Path.GetRelativePath(root, Path.GetFullPath(file)).Replace('\\', '/');
+    }
+
+    /// <summary>
+    /// Saves every field on the page at once, then applies what changed: a different game folder brings up that
+    /// folder's profiles (after a confirmation), a different server reloads the mod list, and start at login is
+    /// registered or removed. The status line says what was done.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasChanges))]
+    private async Task SaveAsync()
+    {
+        if (!int.TryParse(UpdateCheckHours.Trim(), out var hours) || hours < 1 || hours > 168)
+        {
+            Status = "Check for updates every 1 to 168 hours.";
+            return;
+        }
+
+        var s = _app.Settings;
+        var changed = ChangedFields();
+        var folderChanged = GameFolderChanged;
+        var serverChanged = NormalizedServerUrl != s.ServerUrl;
+        var loginChanged = LaunchAtLogin != s.StartAtLogin;
+        var hoursChanged = hours != s.UpdateCheckHours;
+
+        if (folderChanged)
+        {
+            if (_app.Ops.Items.Any(i => !i.IsFinished))
+            {
+                Status = "Wait until the running downloads and deploys finish before changing the game folder.";
+                return;
+            }
+
+            var newFolder = GameFolder.Trim();
+            var profileCount = _app.Profiles.CountFor(newFolder);
+            var oldFolder = string.IsNullOrWhiteSpace(s.GameFolder) ? null : s.GameFolder;
+            var body =
+                $"F3M keeps profiles and deploy records separately for each game folder. After saving it manages " +
+                $"{(newFolder.Length == 0 ? "no game folder" : Markup.Link(newFolder))}" +
+                (newFolder.Length == 0 ? "." : profileCount == 0 ? ", which has no profiles yet." : $", which has {profileCount} profile(s).") +
+                (oldFolder is null ? string.Empty
+                    : $"\n\nThe mods deployed in {Markup.Link(oldFolder)} stay there. Its profiles come back when you switch back to it.") +
+                "\n\nNothing is copied, moved or deleted.";
+            if (!await _shell.ConfirmAsync("Change the game folder", body, "Save and switch")) return;
+        }
+
+        s.ServerUrl = NormalizedServerUrl;
+        s.GameFolder = GameFolder.Trim();
+        s.GameExecutable = GameExecutable.Trim();
+        s.SteamAppId = SteamAppId.Trim();
+        s.UpdateCheckHours = hours;
+        s.StartAtLogin = LaunchAtLogin;
+
+        var done = new List<string> { $"Saved {string.Join(", ", changed)}." };
+        try
+        {
+            _app.SaveSettings();
+            if (loginChanged)
+            {
+                StartAtLogin.Set(LaunchAtLogin, Program.LaunchPath);
+                done.Add(LaunchAtLogin ? "F3M Desktop now starts when you sign in." : "F3M Desktop no longer starts when you sign in.");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            AppLog.Error("Settings could not be saved", ex);
+            Status = "Settings could not be saved. See the diagnostics log.";
+            return;
+        }
+
+        // Values were normalised on save (trimmed, no trailing slash); show them as stored.
+        LoadFromSettings();
+
+        if (hoursChanged)
+        {
+            _shell.SetUpdateInterval(hours);
+            done.Add($"The next update check is in {hours} hour(s).");
+        }
+
+        if (folderChanged) done.Add("Showing the profiles of the new game folder.");
+        Status = string.Join(" ", done);
+
+        if (serverChanged)
+        {
+            Status += " Loading the mod list from the new server…";
+            await _shell.RefreshCommand.ExecuteAsync(null);
+            Status = string.Join(" ", done) + " The mod list was reloaded from the new server.";
+        }
+        else
+        {
+            await _shell.RefreshStateAsync();
+            if (folderChanged) await _shell.CheckUpdatesAsync();
+        }
+    }
+
+    /// <summary>Puts every field back to the saved settings.</summary>
+    [RelayCommand(CanExecute = nameof(HasChanges))]
+    private void Discard()
+    {
+        LoadFromSettings();
+        FoundInstalls.Clear();
+        DetectStatus = string.Empty;
+        Status = "Changes discarded.";
+    }
+
+    [RelayCommand]
+    private void RegisterLinks()
+    {
+        try
+        {
+            ProtocolRegistration.Register(Program.LaunchPath);
+            Status = "f3m:// links now open F3M Desktop for this user.";
+        }
+        catch (UserException ex)
+        {
+            Status = ex.Message;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            AppLog.Error("f3m:// links could not be registered", ex);
+            Status = "f3m:// links could not be registered. See the diagnostics log.";
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClearUnusedCacheAsync()
+    {
+        try
+        {
+            var (count, bytes) = _app.Downloads.UnusedCache();
+            if (count == 0)
+            {
+                Status = "Nothing unused to clear.";
+                return;
+            }
+
+            var ok = await _shell.ConfirmAsync(
+                "Clear unused cache",
+                $"Remove {count} cached version(s), freeing {FileOps.FormatBytes(bytes)}. " +
+                "Deployed and pinned versions are kept. They download again when needed.",
+                "Clear");
+            if (!ok) return;
+
+            _app.Downloads.ClearUnused();
+            Status = $"Freed {FileOps.FormatBytes(bytes)}.";
+        }
+        catch (UserException ex)
+        {
+            Status = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Lists what the app created with its sizes, asks (downloaded mods only when ticked), removes it and restarts.
+    /// The game folder is never touched.
+    /// </summary>
+    [RelayCommand]
+    private async Task FactoryResetAsync()
+    {
+        if (_app.FactoryReset.BlockedReason() is { } blocked)
+        {
+            Status = blocked;
+            return;
+        }
+
+        List<ResetItem> items;
+        ResetModStats mods;
+        try
+        {
+            items = await Task.Run(_app.FactoryReset.Survey);
+            mods = await Task.Run(_app.FactoryReset.ModStatistics);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.Error("Factory reset survey failed", ex);
+            Status = "The data folder could not be read. See the diagnostics log.";
+            return;
+        }
+
+        var game = string.IsNullOrWhiteSpace(_app.Settings.GameFolder) ? "the game folder" : Markup.Link(_app.Settings.GameFolder);
+        string Describe(bool includeDownloads)
+        {
+            var lines = new List<string>
+            {
+                "Removes everything F3M Desktop created on this computer, then restarts it with default settings. " +
+                "Profiles cannot be recovered; share one first if you want to keep it.",
+                string.Empty,
+                $"**Not touched:** {game} and the mods deployed in it. F3M forgets that it placed them: they stay in the game " +
+                "until you remove them by hand, and a later deploy replaces them.",
+                string.Empty,
+            };
+
+            var cacheBytes = items.Where(i => i.Label == "Downloaded mods").Sum(i => i.Bytes);
+            lines.Add("**Mods**");
+            lines.Add($"    Profiles: {mods.Profiles} profile(s) with {mods.ProfileMods} different mod(s), {mods.PinnedMods} pinned. Removed.");
+            lines.Add($"    Downloaded: {mods.CachedMods} mod(s) in {mods.CachedVersions} version(s), {FileOps.FormatBytes(cacheBytes)}. " +
+                      (includeDownloads ? "Removed." : "Kept."));
+            lines.Add($"    In the game folder: {mods.DeployedMods} mod(s) deployed. Not touched.");
+            lines.Add(string.Empty);
+            lines.Add("**Folders**");
+
+            foreach (var item in items)
+            {
+                var kept = item.IsDownload && !includeDownloads;
+                var size = item.IsRegistration ? "removed" : $"{item.Files} file(s), {FileOps.FormatBytes(item.Bytes)}";
+                lines.Add(kept ? $"{item.Label}: {size}, kept" : $"**{item.Label}**: {size}");
+                lines.Add("    " + (item.IsRegistration ? item.Location : Markup.Link(item.Location)));
+            }
+
+            var removed = items.Where(i => includeDownloads || !i.IsDownload).ToList();
+            var keptBytes = items.Where(i => i.IsDownload && !includeDownloads).Sum(i => i.Bytes);
+            lines.Add(string.Empty);
+            lines.Add($"In total {removed.Sum(i => i.Files)} file(s), {FileOps.FormatBytes(removed.Sum(i => i.Bytes))} are removed." +
+                      (keptBytes > 0 ? $" Downloaded mods ({FileOps.FormatBytes(keptBytes)}) are kept and reused." : string.Empty));
+            return string.Join("\n", lines);
+        }
+
+        var includeDownloads = await _app.ConfirmWithOption("Factory reset", Describe, "Reset and restart", "Also delete downloaded mods");
+        if (includeDownloads is null) return;
+
+        Status = "Resetting…";
+        var failed = await Task.Run(() => _app.FactoryReset.Run(includeDownloads.Value));
+        if (failed.Count > 0)
+        {
+            await _shell.ConfirmAsync("Factory reset",
+                "These could not be removed, probably because another program has them open:\n" +
+                string.Join("\n", failed.Select(f => "    " + f)) +
+                "\n\nEverything else was removed. Close that program and reset again to finish.", "Restart");
+        }
+
+        _app.Restart();
+    }
+
+    [RelayCommand]
+    private void CopyDiagnostics()
+    {
+        _app.CopyText($"F3M Desktop {typeof(SettingsViewModel).Assembly.GetName().Version}\n{AppLog.Tail(200)}");
+        Status = "Diagnostics copied. Paste them into your bug report.";
+    }
+}
+
+/// <summary>One install in Auto-detect's list, with the button that picks it.</summary>
+public sealed partial class GameInstallRow(GameInstall install, Action<GameInstall> use)
+{
+    public string Folder => install.Folder;
+    public string Source => install.SteamAppId is null ? install.Source : $"{install.Source}, app ID {install.SteamAppId}";
+
+    [RelayCommand]
+    private void Use() => use(install);
+}

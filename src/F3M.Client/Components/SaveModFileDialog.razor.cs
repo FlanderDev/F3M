@@ -15,8 +15,21 @@ public partial class SaveModFileDialog
     [Parameter] public EventCallback<string> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
+    /// <summary>
+    /// Folders the user created inside the dialog, as full paths relative to the
+    /// virtual root (e.g. "BepInEx/plugins/MyMod"). They are re-applied every time
+    /// the dialog opens. Optional: when omitted the dialog remembers them for the
+    /// lifetime of the component instance. Pass a list owned by the parent to keep
+    /// them across re-mounts or to share them between several dialogs; the dialog
+    /// adds to that list in place.
+    /// </summary>
+    [Parameter] public List<string>? CustomFolders { get; set; }
+
     // ── Virtual filesystem ────────────────────────────────────────────────────
     private record FsNode(string Name, bool IsDir, List<FsNode> Children);
+
+    private readonly List<string> _ownFolders = [];
+    private List<string> Folders => CustomFolders ?? _ownFolders;
 
     private static FsNode GetTree() =>
         new(".", true,
@@ -78,6 +91,8 @@ public partial class SaveModFileDialog
     private ElementReference _newFolderRef;
     private ElementReference _fileNameRef;
     private bool _initialised;
+    private bool _focusFileName;
+    private bool _focusNewFolder;
 
     // ── Computed path ─────────────────────────────────────────────────────────
 
@@ -110,11 +125,14 @@ public partial class SaveModFileDialog
         _initialised = true;
 
         var root = GetTree();
+        foreach (var folder in Folders)
+            EnsurePath(root, folder.Split('/', StringSplitOptions.RemoveEmptyEntries));
         _crumbs = [new("/", root)];
         _fileName = DefaultName;
         _selected = null;
         _newFolderMode = false;
         _newFolderName = string.Empty;
+        _focusFileName = true;          // focus filename once, on open
 
         if (!string.IsNullOrWhiteSpace(InitialPath))
             NavigateToPath(InitialPath);
@@ -122,9 +140,18 @@ public partial class SaveModFileDialog
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Focus the filename input when the dialog first appears
-        if (Visible && _initialised)
+        if (!Visible || !_initialised) return;
+
+        // One-shot focus requests; never re-focus on ordinary re-renders
+        if (_focusNewFolder)
         {
+            _focusNewFolder = false;
+            _focusFileName = false;
+            try { await _newFolderRef.FocusAsync(); } catch { }
+        }
+        else if (_focusFileName)
+        {
+            _focusFileName = false;
             try { await _fileNameRef.FocusAsync(); } catch { }
         }
     }
@@ -180,30 +207,55 @@ public partial class SaveModFileDialog
 
     // ── New folder ────────────────────────────────────────────────────────────
 
-    private async Task BeginNewFolder()
+    private void BeginNewFolder()
     {
         _newFolderMode = true;
         _newFolderName = string.Empty;
-        await Task.Yield();
-        try { await _newFolderRef.FocusAsync(); } catch { }
+        _focusNewFolder = true;
+    }
+
+    /// <summary>Walks <paramref name="segments"/> below <paramref name="start"/>, creating missing folders.</summary>
+    private static void EnsurePath(FsNode start, IEnumerable<string> segments)
+    {
+        var node = start;
+        foreach (var segment in segments)
+        {
+            var child = node.Children.FirstOrDefault(n =>
+                n.IsDir && string.Equals(n.Name, segment, StringComparison.OrdinalIgnoreCase));
+            if (child is null)
+            {
+                child = new FsNode(segment, true, []);
+                node.Children.Add(child);
+            }
+            node = child;
+        }
     }
 
     private void CommitNewFolder()
     {
-        var name = _newFolderName.Trim();
-        if (!string.IsNullOrEmpty(name) &&
-            !Current.Children.Any(n => string.Equals(n.Name, name, StringComparison.OrdinalIgnoreCase)))
+        var segments = _newFolderName.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length > 0 &&
+            !Current.Children.Any(n => !n.IsDir && string.Equals(n.Name, segments[0], StringComparison.OrdinalIgnoreCase)))
         {
-            Current.Children.Add(new FsNode(name, true, []));
+            EnsurePath(Current, segments);
+
+            // Remember it so the folder is still there the next time the dialog opens.
+            var dir = CurrentDir;
+            var relative = string.Join("/", segments);
+            var full = string.IsNullOrEmpty(dir) ? relative : $"{dir}/{relative}";
+            if (!Folders.Contains(full, StringComparer.OrdinalIgnoreCase))
+                Folders.Add(full);
         }
         _newFolderMode = false;
         _newFolderName = string.Empty;
+        _focusFileName = true;          // hand focus back after finishing
     }
 
     private void CancelNewFolder()
     {
         _newFolderMode = false;
         _newFolderName = string.Empty;
+        _focusFileName = true;
     }
 
     // ── Confirm / cancel ──────────────────────────────────────────────────────

@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="F3M.Desktop.Views.ConfirmWindow"
+        SizeToContent="WidthAndHeight"
+        MinWidth="340" MaxWidth="640" MaxHeight="560"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+  <!-- Sized to the message: a one-line question gets a small dialog, long lists scroll. -->
+  <Grid RowDefinitions="*,Auto,Auto" Margin="20,18,20,16">
+    <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Disabled">
+      <TextBlock x:Name="BodyText" TextWrapping="Wrap" MaxWidth="560" LineHeight="20" />
+    </ScrollViewer>
+    <!-- Only shown by AskWithOptionAsync. -->
+    <CheckBox x:Name="OptionBox" Grid.Row="1" IsVisible="False" Margin="0,12,0,0" />
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" />
+      <Button x:Name="OkButton" Classes="primary" Content="OK" IsDefault="True" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -23,6 +23,9 @@
             <span><i class="bi bi-files"></i> @Mod.Files.Count file@(Mod.Files.Count != 1 ? "s" : string.Empty)</span>
             <span class="mod-card-version">v@(Mod.Version)</span>
         </div>
+        <div class="mt-2">
+            <AddToCollectionButton GroupId="@Mod.ModGroupId" Name="@Mod.Name" />
+        </div>
     </div>
 </div>
 

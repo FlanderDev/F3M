@@ -1,5 +1,6 @@
 using F3M.Client.Identity.Models;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -69,6 +70,13 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
                 // success!
                 return new FormResult { Succeeded = true };
             }
+
+            if (result.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                return new FormResult
+                {
+                    Succeeded = false,
+                    ErrorList = ["Too many failed attempts. Wait five minutes, then try again."]
+                };
         }
         catch (Exception ex)
         {
@@ -79,7 +87,7 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
         return new FormResult
         {
             Succeeded = false,
-            ErrorList = ["Invalid email and/or password."]
+            ErrorList = ["Wrong username or password."]
         };
     }
 
@@ -180,4 +188,6 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
         await GetAuthenticationStateAsync();
         return authenticated;
     }
+
+    public void RefreshAuthenticationState() => NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
 }

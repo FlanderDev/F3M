@@ -22,4 +22,10 @@ public interface IAccountManagement
     public Task LogoutAsync();
 
     public Task<bool> CheckAuthenticatedAsync();
+
+    /// <summary>
+    /// Re-reads the sign-in state from the server and updates every view that shows it. Use after a sign-in that
+    /// happened outside <see cref="LoginAsync"/>, such as F95zone verification.
+    /// </summary>
+    public void RefreshAuthenticationState();
 }
