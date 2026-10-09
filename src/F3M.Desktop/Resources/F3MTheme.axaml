@@ -55,6 +55,14 @@
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="FontSize" Value="18" />
   </Style>
+  <!-- link: a clickable web link or path (Views/Links.cs). -->
+  <Style Selector="TextBlock.link">
+    <Setter Property="Foreground" Value="{DynamicResource F3M.Brush.Info}" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="TextBlock.link:pointerover">
+    <Setter Property="TextDecorations" Value="Underline" />
+  </Style>
   <Style Selector="TextBlock.muted">
     <Setter Property="Foreground" Value="{DynamicResource F3M.Brush.Muted}" />
     <Setter Property="FontSize" Value="12" />

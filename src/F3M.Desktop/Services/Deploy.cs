@@ -62,15 +62,16 @@ public sealed class DeployPlan
         }
     }
 
-    /// <summary>Plain text for the confirmation dialog.</summary>
+    /// <summary>Text for the confirmation dialog, in <see cref="Markup"/>: listed files are clickable.</summary>
     public string Describe(string gameRoot)
     {
         var sb = new StringBuilder();
         sb.AppendLine(Summary);
         if (DownloadBytes > 0) sb.AppendLine($"About {FileOps.FormatBytes(DownloadBytes)} to download first.");
-        AppendList(sb, "Generated files that will be removed:", GeneratedRemovals.Select(p => FileOps.ToRelative(gameRoot, p)));
-        AppendList(sb, "Files F3M did not place, which will be replaced:", Overwrites);
-        AppendList(sb, "Kept as they are:", Kept);
+        AppendList(sb, "Generated files that will be removed:", GeneratedRemovals.Select(p => Markup.Link(p, FileOps.ToRelative(gameRoot, p))));
+        AppendList(sb, "Files F3M did not place, which will be replaced:",
+            Overwrites.Select(to => Markup.Link(Path.Combine(gameRoot, to.Replace('/', Path.DirectorySeparatorChar)), to)));
+        AppendList(sb, "Kept as they are:", Kept.Select(Markup.Escape));
         return sb.ToString();
     }
 

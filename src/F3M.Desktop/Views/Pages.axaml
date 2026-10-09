@@ -1,7 +1,8 @@
 <DataTemplates xmlns="https://github.com/avaloniaui"
                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                xmlns:vm="using:F3M.Desktop.ViewModels"
-               xmlns:svc="using:F3M.Desktop.Services">
+               xmlns:svc="using:F3M.Desktop.Services"
+               xmlns:v="using:F3M.Desktop.Views">
 
   <!-- Library: the active profile's mods, with per-mod actions (plan 4.1, 6.6). -->
   <DataTemplate DataType="vm:LibraryViewModel">
@@ -58,7 +59,7 @@
           <Button Grid.Column="3" Content="Refresh" Command="{Binding RefreshCatalogCommand}"
                   ToolTip.Tip="Load the newest mod list from the server." />
         </Grid>
-        <TextBlock DockPanel.Dock="Bottom" Classes="muted" Text="{Binding Status}" Margin="0,8,0,0" />
+        <TextBlock DockPanel.Dock="Bottom" Classes="muted" v:Links.Markup="{Binding Status}" Margin="0,8,0,0" TextWrapping="Wrap" />
         <ScrollViewer>
           <ItemsControl ItemsSource="{Binding Cards}">
             <ItemsControl.ItemsPanel>
@@ -176,12 +177,12 @@
               <TextBlock Text="Share" Classes="heading" />
               <TextBlock Text="A web link that lists this profile's mods. Others can open it in a browser and press Use this setup to import it into their F3M Desktop. Pins are left out." Classes="muted" TextWrapping="Wrap" />
               <Button Content="Create link" Command="{Binding ShareCommand}" HorizontalAlignment="Left" />
-              <TextBox Text="{Binding ShareLink}" IsReadOnly="True" />
+              <TextBlock Text="{Binding ShareLink}" v:Links.Target="{Binding ShareLink}" TextWrapping="Wrap" />
               <Button Content="Copy link" Command="{Binding CopyLinkCommand}" HorizontalAlignment="Left" />
             </StackPanel>
           </Border>
 
-          <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap" />
+          <TextBlock v:Links.Markup="{Binding Status}" Classes="muted" TextWrapping="Wrap" />
         </StackPanel>
       </ScrollViewer>
     </Grid>
@@ -235,7 +236,11 @@
           <StackPanel Spacing="8">
             <TextBlock Text="Server address" FontWeight="SemiBold" />
             <TextBlock Classes="muted" Text="The F3M website the mod list comes from. Leave it as it is unless you run your own server." TextWrapping="Wrap" />
-            <TextBox Text="{Binding ServerUrl}" Watermark="https://" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBox Text="{Binding ServerUrl}" Watermark="https://" />
+              <Button Grid.Column="1" Content="Open" Command="{Binding OpenServerCommand}"
+                      ToolTip.Tip="Open this address in your browser." />
+            </Grid>
           </StackPanel>
         </Border>
 
@@ -243,20 +248,24 @@
           <StackPanel Spacing="8">
             <TextBlock Text="Game" FontWeight="SemiBold" />
             <TextBlock Classes="muted" Text="Game folder: where the game is installed. Mods are deployed into it." TextWrapping="Wrap" />
-            <TextBox Text="{Binding GameFolder}" Watermark="Game folder" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBox Text="{Binding GameFolder}" Watermark="Game folder" />
+              <Button Grid.Column="1" Content="Open" Command="{Binding OpenGameFolderCommand}"
+                      ToolTip.Tip="Open the game folder in your file manager." />
+            </Grid>
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Content="Auto-detect" Classes="primary" Command="{Binding AutoDetectGameCommand}"
                       ToolTip.Tip="Looks for the game: a running game, your Steam libraries, then the usual install folders. Fills in the folder, the executable and, for Steam, the app ID. Nothing is kept until you press Save settings." />
               <Button Content="Choose game folder" Command="{Binding PickGameFolderCommand}" />
             </StackPanel>
-            <TextBlock Classes="muted" Text="{Binding DetectStatus}" TextWrapping="Wrap"
+            <TextBlock Classes="muted" v:Links.Markup="{Binding DetectStatus}" TextWrapping="Wrap"
                        IsVisible="{Binding DetectStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             <ItemsControl ItemsSource="{Binding FoundInstalls}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="vm:GameInstallRow">
                   <Grid ColumnDefinitions="*,Auto" Margin="0,2">
                     <StackPanel VerticalAlignment="Center">
-                      <TextBlock Text="{Binding Folder}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Folder}" />
+                      <TextBlock Text="{Binding Folder}" v:Links.Target="{Binding Folder}" TextTrimming="CharacterEllipsis" />
                       <TextBlock Classes="muted" Text="{Binding Source}" FontSize="12" />
                     </StackPanel>
                     <Button Grid.Column="1" Content="Use" Command="{Binding UseCommand}" Margin="8,0,0,0"
@@ -296,7 +305,10 @@
             <TextBlock Text="Links and diagnostics" FontWeight="SemiBold" />
             <TextBlock Classes="muted" Text="Lets buttons on the website, such as Use this setup, open this app. Do it once, and again if you move the app." TextWrapping="Wrap" />
             <Button Content="Register f3m:// links" Command="{Binding RegisterLinksCommand}" HorizontalAlignment="Left" />
-            <TextBlock Classes="muted" Text="{Binding DataFolder, StringFormat='Data folder: {0}'}" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Classes="muted" Text="Data folder:" />
+              <TextBlock FontSize="12" Text="{Binding DataFolder}" v:Links.Target="{Binding DataFolder}" TextWrapping="Wrap" />
+            </StackPanel>
             <TextBlock Classes="muted" Text="Something not working? Copy diagnostics and paste them into your bug report." TextWrapping="Wrap" />
             <Button Content="Copy diagnostics" Command="{Binding CopyDiagnosticsCommand}" HorizontalAlignment="Left" />
           </StackPanel>
@@ -311,7 +323,7 @@
           </StackPanel>
         </Border>
 
-        <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap" />
+        <TextBlock v:Links.Markup="{Binding Status}" Classes="muted" TextWrapping="Wrap" />
       </StackPanel>
     </ScrollViewer>
   </DataTemplate>

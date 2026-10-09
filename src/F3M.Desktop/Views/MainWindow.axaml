@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:F3M.Desktop.ViewModels"
         xmlns:core="using:F3M.Desktop.Core"
+        xmlns:v="using:F3M.Desktop.Views"
         x:Class="F3M.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="F3M Desktop"
@@ -65,7 +66,7 @@
     <Border Grid.Row="3" Classes="bar" BorderThickness="0,1,0,0" Padding="16,6">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Grid.Column="0" Text="{Binding StatusText}" Classes="muted" />
-        <TextBlock Grid.Column="1" Text="{Binding Message}" Foreground="{DynamicResource F3M.Brush.Text}" />
+        <TextBlock Grid.Column="1" v:Links.Markup="{Binding Message}" Foreground="{DynamicResource F3M.Brush.Text}" />
       </Grid>
     </Border>
   </Grid>
