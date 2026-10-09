@@ -97,6 +97,9 @@ public sealed class Deploy(AppServices app)
     private string StateFile => Path.Combine(app.Paths.State, app.GameId + ".json");
     private string JournalFile => Path.Combine(app.Paths.Journal, "current.ndjson");
 
+    /// <summary>An interrupted or failed deploy whose rollback has not finished yet.</summary>
+    public bool HasPendingRollback => File.Exists(JournalFile);
+
     public DeployedState LoadState()
     {
         try
@@ -295,6 +298,11 @@ public sealed class Deploy(AppServices app)
                 throw new UserException($"The cached copy of {file.Record.To} is missing. Download the mod again.");
         }
 
+        // An earlier deploy that could not be fully undone must be undone first: a new journal would replace its record.
+        if (!Rollback())
+            throw new UserException("An earlier deploy could not be fully undone, because a file in the game folder is in use. " +
+                                    "Close the game and anything else using the game folder, then try again.");
+
         var root = app.Game.RootOrThrow();
         var journal = new DeployJournal(JournalFile, Path.Combine(app.Paths.Journal, Guid.NewGuid().ToString("N")));
         var createdDirs = new Dictionary<int, List<string>>();
@@ -356,27 +364,35 @@ public sealed class Deploy(AppServices app)
             });
 
             journal.Finish();
-            foreach (var doc in plan.Added) app.Downloads.Touch(doc.GroupId, doc.VersionId);
             AppLog.Info($"Deployed {plan.ProfileName}: {plan.Summary}");
         }
         catch (OperationCanceledException)
         {
-            Rollback();
+            if (!Rollback()) throw new UserException(IncompleteRollback);
             throw;
         }
         catch (Exception ex)
         {
             AppLog.Error("Deploy failed, rolling back", ex);
-            Rollback();
+            if (!Rollback()) throw new UserException($"The deploy failed: {ex.Message} {IncompleteRollback}");
             throw new UserException($"The deploy failed and was rolled back. {ex.Message}");
         }
     }
 
-    /// <summary>Restores the game folder from the journal, newest change first. Called on failure and at startup.</summary>
-    public void Rollback()
-    {
-        if (!File.Exists(JournalFile)) return;
+    private const string IncompleteRollback =
+        "Some files could not be put back yet, because they are in use. Their backups are kept: close the game and " +
+        "press Deploy, or restart F3M Desktop, to finish undoing it.";
 
+    /// <summary>
+    /// Restores the game folder from the journal, newest change first. Called on failure, at startup and before a
+    /// deploy. Every step can be repeated safely, so when one fails the journal and its backups are kept and the whole
+    /// rollback runs again next time. Returns false in that case, true when nothing is left to undo.
+    /// </summary>
+    public bool Rollback()
+    {
+        if (!File.Exists(JournalFile)) return true;
+
+        var failed = 0;
         var lines = File.ReadAllLines(JournalFile).Where(l => l.Length > 0).ToList();
         var header = lines.Count > 0 ? JsonSerializer.Deserialize<JournalHeader>(lines[0], FileOps.JsonCompact) : null;
         foreach (var line in lines.Skip(1).Reverse())
@@ -404,7 +420,14 @@ public sealed class Deploy(AppServices app)
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 AppLog.Error("A rollback step failed", ex);
+                failed++;
             }
+        }
+
+        if (failed > 0)
+        {
+            AppLog.Error($"Rollback incomplete: {failed} step(s) failed. The journal and backups are kept for the next attempt.");
+            return false;
         }
 
         if (header is not null)
@@ -415,6 +438,7 @@ public sealed class Deploy(AppServices app)
 
         File.Delete(JournalFile);
         AppLog.Info("Recovered an interrupted deploy: the game folder was rolled back");
+        return true;
     }
 
     /// <summary>

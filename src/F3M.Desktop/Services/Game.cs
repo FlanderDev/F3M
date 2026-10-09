@@ -23,11 +23,12 @@ public sealed class Game(AppServices app)
 
     public bool HasBepInEx => IsConfigured && Directory.Exists(Path.Combine(RootOrThrow(), "BepInEx"));
 
-    /// <summary>Process name used to detect the game while it runs, without the extension.</summary>
-    public string ProcessName =>
-        string.IsNullOrWhiteSpace(app.Settings.GameExecutable)
-            ? string.Empty
-            : Path.GetFileNameWithoutExtension(app.Settings.GameExecutable);
+    /// <summary>
+    /// Process name used to detect the game while it runs, without the extension. Without an executable (a Steam-only
+    /// setup) the game's own executable name is used, so a running game is still noticed.
+    /// </summary>
+    public string ProcessName => Path.GetFileNameWithoutExtension(
+        string.IsNullOrWhiteSpace(app.Settings.GameExecutable) ? GameLocator.ExecutableName : app.Settings.GameExecutable);
 
     public bool IsRunning()
     {
@@ -54,8 +55,8 @@ public sealed class Game(AppServices app)
             problems.Add("Set the game executable in Settings.");
         if (profileHasPlugins && !HasBepInEx)
             problems.Add("BepInEx is missing from the game folder. Install BepInEx first.");
-        if (File.Exists(Path.Combine(app.Paths.Journal, "current.ndjson")))
-            problems.Add("A deploy was interrupted. Deploy again to finish it.");
+        if (app.Deploy.HasPendingRollback)
+            problems.Add("An earlier deploy is not fully undone yet. Close the game and press Deploy to finish undoing it.");
         if (app.Ops.Items.Any(i => i.Kind == "Deploy" && !i.IsFinished))
             problems.Add("A deploy is in progress.");
         return problems;

@@ -28,7 +28,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         GameExecutable = s.GameExecutable;
         SteamAppId = s.SteamAppId;
         UpdateCheckHours = s.UpdateCheckHours.ToString();
-        CacheLimitGb = s.CacheLimitGb.ToString();
         LaunchAtLogin = s.StartAtLogin;
         UpdatePending();
     }
@@ -51,9 +50,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string _updateCheckHours = string.Empty;
 
     [ObservableProperty]
-    private string _cacheLimitGb = string.Empty;
-
-    [ObservableProperty]
     private bool _launchAtLogin;
 
     [ObservableProperty]
@@ -72,7 +68,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnGameExecutableChanged(string value) => UpdatePending();
     partial void OnSteamAppIdChanged(string value) => UpdatePending();
     partial void OnUpdateCheckHoursChanged(string value) => UpdatePending();
-    partial void OnCacheLimitGbChanged(string value) => UpdatePending();
     partial void OnLaunchAtLoginChanged(bool value) => UpdatePending();
 
     private void UpdatePending()
@@ -91,7 +86,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (GameExecutable.Trim() != s.GameExecutable) changed.Add("executable");
         if (SteamAppId.Trim() != s.SteamAppId) changed.Add("Steam app ID");
         if (UpdateCheckHours.Trim() != s.UpdateCheckHours.ToString()) changed.Add("update interval");
-        if (CacheLimitGb.Trim() != s.CacheLimitGb.ToString()) changed.Add("cache limit");
         if (LaunchAtLogin != s.StartAtLogin) changed.Add("start at login");
         return changed;
     }
@@ -218,19 +212,12 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        if (!int.TryParse(CacheLimitGb.Trim(), out var limit) || limit < 1)
-        {
-            Status = "The cache limit must be at least 1 GB.";
-            return;
-        }
-
         var s = _app.Settings;
         var changed = ChangedFields();
         var folderChanged = GameFolderChanged;
         var serverChanged = NormalizedServerUrl != s.ServerUrl;
         var loginChanged = LaunchAtLogin != s.StartAtLogin;
         var hoursChanged = hours != s.UpdateCheckHours;
-        var limitChanged = limit != s.CacheLimitGb;
 
         if (folderChanged)
         {
@@ -258,7 +245,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         s.GameExecutable = GameExecutable.Trim();
         s.SteamAppId = SteamAppId.Trim();
         s.UpdateCheckHours = hours;
-        s.CacheLimitGb = limit;
         s.StartAtLogin = LaunchAtLogin;
 
         var done = new List<string> { $"Saved {string.Join(", ", changed)}." };
@@ -287,7 +273,6 @@ public sealed partial class SettingsViewModel : ObservableObject
             done.Add($"The next update check is in {hours} hour(s).");
         }
 
-        if (limitChanged) done.Add("The new cache limit applies from the next download.");
         if (folderChanged) done.Add("Showing the profiles of the new game folder.");
         Status = string.Join(" ", done);
 

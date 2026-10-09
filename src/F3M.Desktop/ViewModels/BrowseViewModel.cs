@@ -63,6 +63,9 @@ public sealed partial class BrowseViewModel : ObservableObject
     }
 
     public ObservableCollection<ModCard> Cards { get; } = [];
+
+    /// <summary>Whether the catalog has been put on the page at least once.</summary>
+    public bool HasCards => _all.Count > 0;
     public ObservableCollection<string> Categories { get; } = [];
     public ObservableCollection<string> Sorts { get; } = new() { "Newest", "Name" };
 

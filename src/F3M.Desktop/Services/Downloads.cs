@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Net;
 using F3M.Desktop.Core;
@@ -81,7 +82,11 @@ public static class PlacementRules
 /// </summary>
 public sealed class Downloads(AppServices app)
 {
-    private const int MaxParallelFiles = 2;
+    /// <summary>
+    /// Versions being downloaded right now. A second request for the same version waits for the first instead of
+    /// downloading it again, so two operations never write the same .part file.
+    /// </summary>
+    private readonly ConcurrentDictionary<(int GroupId, int VersionId), Task> _inFlight = new();
 
     public string CacheDir(int groupId, int versionId) =>
         Path.Combine(app.Paths.Cache, groupId.ToString(), versionId.ToString());
@@ -107,34 +112,28 @@ public sealed class Downloads(AppServices app)
         foreach (var doc in missing)
         {
             index++;
-            op.SetDetail($"{doc.Name} {doc.Version} ({index} of {missing.Count})");
-            await InstallAsync(doc, op, ct);
-        }
+            var key = (doc.GroupId, doc.VersionId);
+            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!_inFlight.TryAdd(key, done.Task))
+            {
+                // Another operation is downloading this version: wait for it, then use its result.
+                op.SetDetail($"{doc.Name} {doc.Version} is already downloading. Waiting for it ({index} of {missing.Count})");
+                if (_inFlight.TryGetValue(key, out var other)) await other.WaitAsync(ct);
+                if (!IsCached(doc.GroupId, doc.VersionId))
+                    throw new UserException($"The other download of {doc.Name} {doc.Version} did not finish. Try again.");
+                continue;
+            }
 
-        if (missing.Count > 0) EvictToLimit();
-    }
-
-    /// <summary>Marks a version as used now, so least-recently-used eviction keeps recent ones.</summary>
-    public void Touch(int groupId, int versionId)
-    {
-        var marker = Path.Combine(CacheDir(groupId, versionId), "version.json");
-        if (File.Exists(marker)) File.SetLastWriteTimeUtc(marker, DateTime.UtcNow);
-    }
-
-    /// <summary>Removes the least recently used versions until the cache is under the limit. Protected versions stay.</summary>
-    public void EvictToLimit()
-    {
-        var limit = (long)app.Settings.CacheLimitGb * 1024 * 1024 * 1024;
-        var protectedVersions = ProtectedVersions();
-        var entries = CachedVersions().ToList();
-        var total = entries.Sum(e => e.Size);
-
-        foreach (var entry in entries.Where(e => !protectedVersions.Contains((e.GroupId, e.VersionId))).OrderBy(e => e.LastUsed))
-        {
-            if (total <= limit) break;
-            TryDeleteTree(entry.Path);
-            total -= entry.Size;
-            AppLog.Info($"Evicted cache {entry.GroupId}/{entry.VersionId} to stay under the limit");
+            try
+            {
+                op.SetDetail($"{doc.Name} {doc.Version} ({index} of {missing.Count})");
+                await InstallAsync(doc, op, ct);
+            }
+            finally
+            {
+                _inFlight.TryRemove(key, out _);
+                done.SetResult();
+            }
         }
     }
 
@@ -169,7 +168,7 @@ public sealed class Downloads(AppServices app)
         return keep;
     }
 
-    private sealed record CacheEntry(string Path, int GroupId, int VersionId, long Size, DateTime LastUsed);
+    private sealed record CacheEntry(string Path, int GroupId, int VersionId, long Size);
 
     private IEnumerable<CacheEntry> CachedVersions()
     {
@@ -181,8 +180,7 @@ public sealed class Downloads(AppServices app)
             {
                 var marker = Path.Combine(versionDir, "version.json");
                 if (!int.TryParse(Path.GetFileName(versionDir), out var versionId) || !File.Exists(marker)) continue;
-                yield return new CacheEntry(versionDir, groupId, versionId,
-                    FileOps.DirectorySize(versionDir), File.GetLastWriteTimeUtc(marker));
+                yield return new CacheEntry(versionDir, groupId, versionId, FileOps.DirectorySize(versionDir));
             }
         }
     }

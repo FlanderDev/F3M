@@ -308,10 +308,9 @@
             <TextBlock Text="Updates and cache" FontWeight="SemiBold" />
             <TextBlock Classes="muted" Text="How often to look for newer versions of your mods (1 to 168 hours). Updates are never installed without asking." TextWrapping="Wrap" />
             <TextBox Text="{Binding UpdateCheckHours}" Watermark="Check for updates every (hours)" />
-            <TextBlock Classes="muted" Text="How much disk space downloaded mods may use (GB). Above it, the downloads used longest ago are removed; deployed and pinned ones are kept." TextWrapping="Wrap" Margin="0,6,0,0" />
-            <TextBox Text="{Binding CacheLimitGb}" Watermark="Cache size limit (GB)" />
             <CheckBox Content="Start F3M Desktop when I sign in" IsChecked="{Binding LaunchAtLogin}"
                       ToolTip.Tip="Starts minimised to the tray, so update checks and website links work right away." />
+            <TextBlock Classes="muted" Text="Downloaded mods stay in the cache until you clear them, so switching profiles never downloads them again." TextWrapping="Wrap" Margin="0,6,0,0" />
             <Button Content="Clear unused cache" Command="{Binding ClearUnusedCacheCommand}" HorizontalAlignment="Left"
                     ToolTip.Tip="Right away: delete downloads that are neither deployed nor pinned in any profile. You see how much is freed before anything is deleted." />
           </StackPanel>
