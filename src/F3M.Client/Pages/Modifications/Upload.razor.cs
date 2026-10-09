@@ -1,5 +1,6 @@
 using F3M.Client.Business;
 using F3M.Client.Models;
+using F3M.Client.Services;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -44,6 +45,66 @@ public partial class Upload
 
     // Passed by reference into ModFileList; the component mutates it in place.
     private readonly List<FileEntry> fileEntries = [];
+
+    private bool HasInvalidInstallPaths =>
+        fileEntries.Any(e => !InstallPaths.TryPlan(e.OriginalName, e.InstallPath, out _));
+
+    private bool HasInvalidGeneratedPaths =>
+        GeneratedPathChecks.HasErrors(GeneratedPathChecks.Evaluate(dto.GeneratedPaths, ShippedPaths));
+
+    // Game paths this upload installs itself: each plain file's target, and each archive entry's extracted path.
+    // The pattern editor checks generated-file patterns against them. Recomputed only when the files change,
+    // since listing an archive means reading its index.
+    private IReadOnlyList<string> shippedPaths = [];
+    private string shippedKey = string.Empty;
+
+    private IReadOnlyList<string> ShippedPaths
+    {
+        get
+        {
+            var key = string.Join('\n', fileEntries.Select(e =>
+                $"{e.OriginalName}\t{e.InstallPath}\t{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(e.Bytes)}"));
+
+            if (key != shippedKey)
+            {
+                shippedKey = key;
+                shippedPaths = ComputeShippedPaths();
+            }
+
+            return shippedPaths;
+        }
+    }
+
+    private List<string> ComputeShippedPaths()
+    {
+        var paths = new List<string>();
+        foreach (var entry in fileEntries)
+        {
+            if (!InstallPaths.TryPlan(entry.OriginalName, entry.InstallPath, out var placement))
+                continue;
+
+            if (!placement.IsArchive)
+            {
+                paths.Add(placement.Target);
+                continue;
+            }
+
+            var listing = ArchiveInspector.List(entry.Bytes);
+            if (listing.Error is not null)
+                continue;
+
+            foreach (var archiveEntry in listing.Entries)
+            {
+                if (InstallPaths.TryExpand(placement.Target, archiveEntry.RelativePath, out var target))
+                    paths.Add(target);
+            }
+        }
+
+        return paths;
+    }
+
+    // Warnings the server returned for the last upload (overlaps with other mods' patterns, deep wildcards).
+    private List<string> uploadWarnings = [];
     private string? uploadError;
     private bool uploading;
     private bool uploadSuccess;
@@ -122,6 +183,13 @@ public partial class Upload
                 content.Add(new StringContent(entry.OriginalName), "originalNames");
             }
 
+            for (var i = 0; i < dto.GeneratedPaths.Count; i++)
+            {
+                var generated = dto.GeneratedPaths[i];
+                content.Add(new StringContent(generated.Pattern), $"GeneratedPaths[{i}].Pattern");
+                content.Add(new StringContent(generated.Kind.ToString()), $"GeneratedPaths[{i}].Kind");
+            }
+
             progress = 50; StateHasChanged();
 
             var response = await Http.PostAsync("api/mods/upload", content);
@@ -133,6 +201,13 @@ public partial class Upload
                 uploadedId = uploaded?.Id ?? 0;
                 uploadSuccess = true;
                 progress = 100;
+
+                if (response.Headers.TryGetValues("X-F3M-Warnings", out var warningValues))
+                {
+                    uploadWarnings = Uri.UnescapeDataString(string.Concat(warningValues))
+                        .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToList();
+                }
             }
             else
             {
@@ -156,6 +231,7 @@ public partial class Upload
         previewDataUrl = null;
         uploadError = null;
         uploadSuccess = false;
+        uploadWarnings = [];
         uploading = false;
         progress = 0;
         uploadedId = 0;

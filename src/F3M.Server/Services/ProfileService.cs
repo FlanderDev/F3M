@@ -3,7 +3,6 @@ using F3M.Server.Helpers;
 using F3M.Server.Models;
 using F3M.Shared.Api;
 using F3M.Shared.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;

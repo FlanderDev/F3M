@@ -52,6 +52,9 @@ public class Mod : IId, IName
     // Navigation
     public List<ModFile> Files { get; set; } = [];
 
+    /// <summary>Patterns for files this version creates at runtime (plan 5.8).</summary>
+    public List<ModGeneratedPath> GeneratedPaths { get; set; } = [];
+
     /// <summary>
     /// ModGroups (logical mods) that this version depends on — persisted. Points at the group,
     /// not a specific version, so a dependency always follows that mod's current latest version
@@ -83,6 +86,17 @@ public class ModFile
     [MaxLength(260)]
     public string InstallPath { get; set; } = string.Empty;   // suggested install path
 
+    /// <summary>SHA-256 of the uploaded file (lower-case hex), computed on upload. Empty for files uploaded before catalog support.</summary>
+    [MaxLength(64)]
+    public string Sha256 { get; set; } = string.Empty;
+
+    /// <summary>True for archives, which are extracted into <see cref="TargetPath"/>; false for plain files.</summary>
+    public bool IsArchive { get; set; }
+
+    /// <summary>Game-relative target: the file's own path for plain files, the folder for archives ('/' separated).</summary>
+    [MaxLength(260)]
+    public string TargetPath { get; set; } = string.Empty;
+
     public long FileSizeBytes { get; set; }
 
     public string FileSizeDisplay =>
@@ -112,6 +126,9 @@ public class ModUploadDto
 
     /// <summary>If set, this upload is a new version of an existing mod group.</summary>
     public int? ModGroupId { get; set; }
+
+    /// <summary>Files the mod creates at runtime that are not part of the archive (plan 5.8).</summary>
+    public List<GeneratedPathDto> GeneratedPaths { get; set; } = [];
 }
 
 /// <summary>One entry in the multi-file list on the upload form.</summary>

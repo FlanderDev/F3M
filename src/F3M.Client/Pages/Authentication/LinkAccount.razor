@@ -1,123 +1,212 @@
 @page "/auth/link-account"
-@inject NavigationManager Nav
+@inject IAccountManagement Acct
 @inject IF95LinkApi F95Link
+@inject IJSRuntime JS
 
-<PageTitle>F3M – Link F95zone Account</PageTitle>
+<PageTitle>F3M - Create account</PageTitle>
 
 <div class="f3m-auth-page">
-    <div class="f3m-auth-card">
+    <div class="f3m-auth-card f3m-auth-card-wide">
 
         <div class="f3m-auth-logo">
             <span class="f3m-logo-badge" style="width:48px;height:48px;font-size:1.1rem;">F3M</span>
         </div>
 
-        @if (dto.VerificationGuid == null)
+        <!-- Progress -->
+        <ol class="f3m-steps mb-4">
+            <li class="@StepClass(Step.Details)"><span>1</span>Your profile</li>
+            <li class="@StepClass(Step.Verify)"><span>2</span>Verify</li>
+            <li class="@StepClass(Step.Done)"><span>3</span>Done</li>
+        </ol>
+
+        @switch (step)
         {
-            <h2 class="fw-black text-center mb-1">Link F95zone Account</h2>
-            <p class="text-center small mb-4" style="color:var(--f3m-muted)">
-                New users are registered automatically. Returning users are logged in.
-            </p>
+            case Step.Details:
+                <h2 class="fw-black text-center mb-1">Create your account</h2>
+                <p class="text-center small f3m-auth-sub mb-4">
+                    F3M accounts are tied to F95zone profiles. New here? This creates your account.
+                    Already have one? This signs you in and sets a new password.
+                </p>
 
-            @if (error is not null)
-            {
-                <div class="alert alert-danger py-2 small mb-3">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
-                </div>
-            }
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold small">F95zone Profile URL</label>
-                <input class="form-control f3m-input"
-                       placeholder="https://f95zone.to/members/YourUserName.12345/"
-                       @bind="profileUrl"
-                       @bind:event="oninput" />
-                <div class="form-text" style="color:var(--f3m-muted)">
-                    Find your URL by clicking your username → View profile.
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold small">Password</label>
-                <input type="password"
-                       class="form-control f3m-input"
-                       placeholder="At least 8 characters"
-                       @bind="password"
-                       @bind:event="oninput" />
-            </div>
-
-            <div class="mb-4">
-                <label class="form-label fw-semibold small">Confirm Password</label>
-                <input type="password"
-                       class="form-control f3m-input @(PasswordMismatch ? "is-invalid" : "")"
-                       placeholder="Repeat your password"
-                       @bind="confirmPassword"
-                       @bind:event="oninput"
-                       @onkeydown="OnConfirmKeyDown" />
-                @if (PasswordMismatch)
+                @if (error is not null)
                 {
-                    <div class="invalid-feedback">Passwords do not match.</div>
+                    <div class="alert alert-danger py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                        @if (usernameTaken)
+                        {
+                            <div class="mt-2">
+                                Please contact an admin to sort it out:
+                                <IconAnchor Href="@Configuration.AdminContactUrl" IconUrl="favicons/thirdParty/f95zoneLogo.png" Content="FlanderDev" />
+                            </div>
+                        }
+                    </div>
                 }
-            </div>
 
-            <button class="btn btn-warning fw-bold w-100" @onclick="HandleStart" disabled="@loading">
-                @if (loading)
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small" for="link-url">Your F95zone profile URL</label>
+                    <input id="link-url" class="form-control f3m-input @(ShowUrlInvalid ? "is-invalid" : string.Empty)"
+                           placeholder="@F95Profile.ExampleUrl" autocomplete="off"
+                           @bind="profileUrl" @bind:event="oninput" />
+                    @if (ShowUrlInvalid)
+                    {
+                        <div class="invalid-feedback">This doesn't look like a profile URL yet. It should look like @F95Profile.ExampleUrl</div>
+                    }
+                    else if (UrlParsed && !NameRefused)
+                    {
+                        <div class="f3m-name-preview mt-2">
+                            <i class="bi bi-person-badge text-warning me-2"></i>
+                            Your username will be <strong>@parsedName</strong>
+                            <span class="d-block small f3m-auth-sub">We'll confirm it on the next step.</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-text f3m-auth-sub">
+                            On F95zone, click your name, then <em>Your profile</em>, and copy the address from your browser.
+                        </div>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small" for="link-password">Choose a password</label>
+                    <input id="link-password" type="password" class="form-control f3m-input"
+                           placeholder="At least 8 characters" autocomplete="new-password"
+                           @bind="password" @bind:event="oninput" />
+                    <div class="form-text @(password.Length >= 8 ? "text-success" : "f3m-auth-sub")">
+                        <i class="bi @(password.Length >= 8 ? "bi-check-circle" : "bi-circle") me-1"></i>At least 8 characters
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small" for="link-confirm">Repeat the password</label>
+                    <input id="link-confirm" type="password"
+                           class="form-control f3m-input @(PasswordMismatch ? "is-invalid" : string.Empty)"
+                           placeholder="Same password again" autocomplete="new-password"
+                           @bind="confirmPassword" @bind:event="oninput" @onkeydown="OnConfirmKeyDown" />
+                    @if (PasswordMismatch)
+                    {
+                        <div class="invalid-feedback">The passwords don't match.</div>
+                    }
+                </div>
+
+                <button class="btn btn-warning fw-bold w-100" @onclick="HandleStart" disabled="@(loading || !CanStart)">
+                    @if (loading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    Continue<i class="bi bi-arrow-right ms-2"></i>
+                </button>
+
+                <p class="text-center small mt-4 mb-0 f3m-auth-sub">
+                    Already have an account?
+                    <a href="@Paths.Login" class="text-warning fw-semibold">Sign in</a>
+                </p>
+                break;
+
+            case Step.Verify:
+                <h2 class="fw-black text-center mb-1">Prove it's your profile</h2>
+                <p class="text-center small f3m-auth-sub mb-4">Post the code below on your own F95zone profile.</p>
+
+                @if (dto.ExistingAccount)
                 {
-                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-person-check-fill me-2"></i>
+                        You already have the account <strong>@dto.Username</strong>.
+                        Verifying signs you in and replaces its password with the one you just chose.
+                    </div>
                 }
-                <i class="bi bi-link-45deg me-1"></i>Start Verification
-            </button>
+                else
+                {
+                    <div class="f3m-name-preview mb-3">
+                        <i class="bi bi-person-badge text-warning me-2"></i>
+                        Your username will be <strong>@dto.Username</strong>
+                    </div>
+                }
 
-            <p class="text-center small mt-4 mb-0">
-                Admin account?
-                <a href="/login" class="text-warning fw-semibold">Sign in with password</a>
-            </p>
-        }
-        else
-        {
-            <h2 class="fw-black text-center mb-1">Verify Ownership</h2>
-            <p class="text-center small mb-4" style="color:var(--f3m-muted)">
-                Post the code below on your own F95zone profile wall.
-            </p>
-
-            @if (error is not null)
-            {
-                <div class="alert alert-danger py-2 small mb-3">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                <div class="f3m-guid-box mb-3">
+                    <div class="small fw-semibold mb-2 f3m-auth-sub">
+                        <i class="bi bi-key-fill me-1 text-warning"></i>Your code
+                    </div>
+                    <div class="f3m-guid-code">@dto.VerificationGuid</div>
+                    <button class="btn btn-sm btn-outline-warning mt-2" @onclick="CopyCode">
+                        <i class="bi @(copied ? "bi-check2" : "bi-clipboard") me-1"></i>@(copied ? "Copied" : "Copy code")
+                    </button>
+                    <div class="small mt-2 f3m-auth-sub"><i class="bi bi-clock me-1"></i>Valid for 24 hours</div>
                 </div>
-            }
 
-            <div class="f3m-guid-box mb-3">
-                <div class="small fw-semibold mb-2" style="color:var(--f3m-muted)">
-                    <i class="bi bi-key-fill me-1 text-warning"></i>Your verification code
-                </div>
-                <div class="f3m-guid-code">@dto.VerificationGuid</div>
-                <div class="small mt-2" style="color:var(--f3m-muted)">
-                    <i class="bi bi-clock me-1"></i>Expires in 24 hours
-                </div>
-            </div>
+                <ol class="f3m-howto small mb-4">
+                    <li>
+                        Open <a href="@F95Profile.Url(dto.F95Username!, dto.F95UserId!)" target="_blank" rel="noopener" class="text-warning">your F95zone profile</a>
+                        (opens in a new tab).
+                    </li>
+                    <li>Write a new profile post that contains the code, and post it.</li>
+                    <li>Come back here and press <strong>I've posted it</strong>.</li>
+                </ol>
 
-            <ol class="small mb-4" style="color:var(--f3m-muted); padding-left:1.2rem; line-height:1.8">
-                <li>
-                    Go to your own profile:
-                    <a href="@($"https://f95zone.to/members/{dto.F95Username}.{dto.F95UserId}/")" target="_blank" class="text-warning">
-                        Your F95zone Profile
+                @if (pendingMessage is not null)
+                {
+                    <div class="alert alert-secondary py-2 small">
+                        <i class="bi bi-hourglass-split me-2"></i>@pendingMessage
+                    </div>
+                }
+                @if (error is not null)
+                {
+                    <div class="alert alert-danger py-2 small">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                    </div>
+                }
+
+                <button class="btn btn-warning fw-bold w-100 mb-2" @onclick="HandleCheck" disabled="@loading">
+                    @if (loading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Looking for your post…</span>
+                    }
+                    else
+                    {
+                        <span><i class="bi bi-check2-circle me-1"></i>I've posted it</span>
+                    }
+                </button>
+                <button class="btn btn-link btn-sm w-100 f3m-auth-sub" @onclick="ResetToStart">
+                    <i class="bi bi-arrow-left me-1"></i>Use a different profile
+                </button>
+                break;
+
+            case Step.Done:
+                <div class="text-center mb-3">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
+                </div>
+                <h2 class="fw-black text-center mb-1">
+                    @(isNewUser ? $"Welcome, {finalUsername}!" : $"Welcome back, {finalUsername}!")
+                </h2>
+                <p class="text-center small f3m-auth-sub mb-4">
+                    @(isNewUser ? "Your account is ready and you're signed in." : "You're signed in and your new password is set.")
+                </p>
+
+                <div class="f3m-name-preview mb-3">
+                    <div class="small f3m-auth-sub mb-1">Next time, sign in with</div>
+                    <div><i class="bi bi-person-fill text-warning me-2"></i>Username <strong>@finalUsername</strong></div>
+                    <div><i class="bi bi-key-fill text-warning me-2"></i>The password you just chose</div>
+                </div>
+
+                <p class="small f3m-auth-sub mb-4">
+                    <i class="bi bi-info-circle me-1"></i>
+                    You can delete the code post from your F95zone profile now.
+                </p>
+
+                <div class="small fw-semibold mb-2">What's next?</div>
+                <div class="d-grid gap-2">
+                    <a class="btn btn-warning fw-bold" href="/">
+                        <i class="bi bi-grid me-2"></i>Browse mods
                     </a>
-                </li>
-                <li>Post a new message on your wall containing the code shown above.</li>
-                <li>Click <strong>Check Verification</strong> below.</li>
-            </ol>
-
-            <button class="btn btn-warning fw-bold w-100 mb-2" @onclick="HandleCheck" disabled="@loading">
-                @if (loading)
-                {
-                    <span class="spinner-border spinner-border-sm me-2"></span>
-                }
-                <i class="bi bi-arrow-repeat me-1"></i>Check Verification
-            </button>
-
-            <button class="btn btn-outline-secondary w-100 btn-sm" @onclick="ResetToStart">
-                <i class="bi bi-arrow-left me-1"></i>Start over
-            </button>
+                    <a class="btn btn-outline-secondary" href="@Paths.Upload">
+                        <i class="bi bi-cloud-arrow-up me-2"></i>Upload a mod
+                    </a>
+                    <a class="btn btn-outline-secondary" href="@Configuration.DesktopDownloadUrl" target="_blank" rel="noopener">
+                        <i class="bi bi-download me-2"></i>Get the desktop app
+                    </a>
+                </div>
+                break;
         }
     </div>
 </div>

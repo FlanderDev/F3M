@@ -4,7 +4,6 @@ using F3M.Server.Models;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -21,6 +20,7 @@ public class AdminService(
     AppDbContext db,
     UserManager<AppUser> userManager,
     IHttpContextAccessor httpContextAccessor,
+    CatalogService catalog,
     ILogger<AdminService> logger) : IAdminApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
@@ -74,10 +74,11 @@ public class AdminService(
                    ?? throw new KeyNotFoundException($"No user with id {id} was found.");
 
         var isAdmin = await userManager.IsInRoleAsync(user, AppRoles.Admin);
-        if (isAdmin)
-            await userManager.RemoveFromRoleAsync(user, AppRoles.Admin);
-        else
-            await userManager.AddToRoleAsync(user, AppRoles.Admin);
+        var roleResult = isAdmin
+            ? await userManager.RemoveFromRoleAsync(user, AppRoles.Admin)
+            : await userManager.AddToRoleAsync(user, AppRoles.Admin);
+        if (!roleResult.Succeeded)
+            throw new InvalidOperationException(string.Join(" ", roleResult.Errors.Select(e => e.Description)));
 
         isAdmin = !isAdmin;
         logger.LogInformation("Admin {Caller} toggled admin={IsAdmin} for user {Username}", callerId, isAdmin, user.UserName);
@@ -107,8 +108,16 @@ public class AdminService(
         var user = await userManager.FindByIdAsync(id.ToString())
                    ?? throw new KeyNotFoundException($"No user with id {id} was found.");
 
-        await userManager.DeleteAsync(user);
+        var deleteResult = await userManager.DeleteAsync(user);
+        if (!deleteResult.Succeeded)
+            throw new InvalidOperationException(string.Join(" ", deleteResult.Errors.Select(e => e.Description)));
 
         logger.LogInformation("Admin {Caller} deleted user {Username}", callerId, user.UserName);
+    }
+
+    public async Task<CatalogRebuildResult> RebuildCatalogAsync(CancellationToken ct = default)
+    {
+        logger.LogInformation("Admin {Caller} started a catalog rebuild", userManager.GetUserId(CurrentPrincipal));
+        return await catalog.RebuildAllAsync(ct);
     }
 }

@@ -10,7 +10,75 @@
         <h1 class="fw-black mb-1 fs-2">
             <i class="bi bi-shield-fill text-warning me-2"></i>Admin Panel
         </h1>
-        <p class="small mb-0">Manage users and permissions.</p>
+        <p class="small mb-0">Manage users, permissions and the mod catalog.</p>
+    </div>
+
+    <!-- Catalog maintenance -->
+    <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+            <div style="max-width:620px;">
+                <h2 class="fs-5 fw-bold mb-2">
+                    <i class="bi bi-journal-check text-warning me-2"></i>Mod catalog
+                </h2>
+                <p class="small mb-2">
+                    The catalog is the signed list of approved mods that the desktop app and shared collections read.
+                    It updates on its own whenever a mod is uploaded, edited or deleted.
+                </p>
+                <p class="small mb-1">Rebuild it by hand when:</p>
+                <ul class="small mb-2">
+                    <li>a new server version was deployed, or a backup was restored;</li>
+                    <li>mods were changed directly in the database;</li>
+                    <li>the desktop app is missing mods, or cannot verify the catalog;</li>
+                    <li>the server log says <em>"Run the catalog rebuild to repair it"</em>.</li>
+                </ul>
+                <p class="small mb-0">
+                    A rebuild re-signs every approved version, removes entries for versions that no longer exist,
+                    and fills in file details for mods uploaded before the catalog existed.
+                    It is safe to run at any time, and the site stays online while it runs.
+                </p>
+            </div>
+            <button class="btn btn-warning fw-semibold" @onclick="RebuildCatalog" disabled="@rebuilding">
+                @if (rebuilding)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span><span>Rebuilding…</span>
+                }
+                else
+                {
+                    <span><i class="bi bi-arrow-repeat me-1"></i>Rebuild catalog</span>
+                }
+            </button>
+        </div>
+
+        @if (rebuildError is not null)
+        {
+            <div class="alert alert-danger small mt-3 mb-0">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>@rebuildError
+            </div>
+        }
+        else if (rebuildResult is not null)
+        {
+            <div class="alert @(rebuildResult.Errors.Count > 0 ? "alert-warning" : "alert-success") small mt-3 mb-0">
+                <div>
+                    <i class="bi @(rebuildResult.Errors.Count > 0 ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill") me-2"></i>
+                    Catalog rebuilt: @rebuildResult.VersionsPublished version@(rebuildResult.VersionsPublished != 1 ? "s" : string.Empty) published,
+                    @rebuildResult.VersionsRemoved outdated entr@(rebuildResult.VersionsRemoved != 1 ? "ies" : "y") removed,
+                    @rebuildResult.FilesBackfilled file@(rebuildResult.FilesBackfilled != 1 ? "s" : string.Empty) updated.
+                </div>
+                @if (rebuildResult.Errors.Count > 0)
+                {
+                    <p class="mt-2 mb-1">
+                        These versions were left out because their files could not be read.
+                        Re-upload or delete them, then rebuild again:
+                    </p>
+                    <ul class="mb-0">
+                        @foreach (var error in rebuildResult.Errors)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
     </div>
 
     @if (loading)

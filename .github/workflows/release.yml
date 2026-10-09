@@ -17,6 +17,7 @@ jobs:
       tag:       ${{ steps.version.outputs.tag }}
       name:      ${{ steps.version.outputs.name }}
       started:   ${{ steps.version.outputs.started }}
+      desktop:   ${{ steps.version.outputs.desktop }}
     steps:
       - name: Compute version tag
         id: version
@@ -25,6 +26,7 @@ jobs:
           echo "tag=$TAG"                      >> "$GITHUB_OUTPUT"
           echo "name=${TAG#release/}"          >> "$GITHUB_OUTPUT"
           echo "started=$(date -u +'%s')"      >> "$GITHUB_OUTPUT"
+          echo "desktop=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
   # ── Job 2: Linux (Alpine container) build ─────────────────────────────────
   build-linux:
@@ -151,10 +153,25 @@ jobs:
           name: windows-selfcontained-build
           path: F3M-windows-x64-selfcontained-${{ needs.version.outputs.name }}.zip
 
-  # ── Job 4: tag & release (waits for both builds) ──────────────────────────
+  # ── Job 4: desktop app packages (separate workflow files, see .github/workflows) ──
+  desktop-windows:
+    name: Desktop (Windows, Velopack)
+    needs: version
+    uses: ./.github/workflows/desktop-windows-velopack.yml
+    with:
+      version: ${{ needs.version.outputs.desktop }}
+
+  desktop-linux:
+    name: Desktop (Linux, AppImage)
+    needs: version
+    uses: ./.github/workflows/desktop-linux-appimage.yml
+    with:
+      version: ${{ needs.version.outputs.desktop }}
+
+  # ── Job 5: tag & release (waits for all builds) ───────────────────────────
   release:
     name: Tag & Release
-    needs: [version, build-linux, build-windows]
+    needs: [version, build-linux, build-windows, desktop-windows, desktop-linux]
     runs-on: ubuntu-latest   # no container needed — Git is pre-installed
 
     steps:
@@ -180,6 +197,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: windows-selfcontained-build
+
+      - name: Download desktop Velopack output
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-velopack
+          path: release-assets
+
+      - name: Download desktop AppImage
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-appimage
+          path: release-assets
 
       - name: Compute pipeline duration
         id: duration
@@ -214,4 +243,5 @@ jobs:
             F3M-windows-${{ needs.version.outputs.name }}.zip
             F3M-linux-x64-selfcontained-${{ needs.version.outputs.name }}.zip
             F3M-windows-x64-selfcontained-${{ needs.version.outputs.name }}.zip
+            release-assets/*
           fail_on_unmatched_files: true

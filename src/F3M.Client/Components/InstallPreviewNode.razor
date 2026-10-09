@@ -1,0 +1,31 @@
+@* One row of the preview tree; folders render their children by nesting this component. *@
+<div class="f3m-pv-row @(Node.Conflict ? "f3m-pv-conflict" : string.Empty)" style="padding-left:@(Depth * 16)px">
+    @if (Node.IsFile)
+    {
+        <i class="bi bi-file-earmark text-secondary"></i>
+        <span class="f3m-pv-name" title="@Node.Source">@Node.Name</span>
+        <span class="f3m-pv-meta">@Node.Size.FileSize()</span>
+    }
+    else
+    {
+        <button type="button" class="f3m-pv-toggle" @onclick="() => open = !open">
+            <i class="bi @(open ? "bi-chevron-down" : "bi-chevron-right")"></i>
+            <i class="bi @(open ? "bi-folder2-open" : "bi-folder2") text-warning mx-1"></i>
+            <span class="f3m-pv-name">@Node.Name</span>
+        </button>
+        <span class="f3m-pv-meta">@Node.FileCount file@(Node.FileCount == 1 ? string.Empty : "s")</span>
+    }
+</div>
+
+@if (!Node.IsFile && open)
+{
+    foreach (var child in Node.Children.Values.Take(MaxChildren))
+    {
+        <InstallPreviewNode @key="child.Name" Node="child" Depth="Depth + 1" />
+    }
+
+    if (Node.Children.Count > MaxChildren)
+    {
+        <div class="f3m-pv-row f3m-pv-meta" style="padding-left:@((Depth + 1) * 16)px">… and @(Node.Children.Count - MaxChildren) more here</div>
+    }
+}
