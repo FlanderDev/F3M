@@ -4,7 +4,6 @@ using F3M.Shared.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace F3M.Server.Data;
 
@@ -128,22 +127,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         // migrations. Actual users are seeded at runtime in Program.cs (via UserManager,
         // so passwords go through Identity's hasher) rather than here, since HasData
         // requires static, precomputed values and Identity's PasswordHasher salts randomly.
+        // ConcurrencyStamp is fixed too: IdentityRole sets a random one in its constructor, which would make every
+        // migration rewrite these rows. The values are the ones InitialCreate seeded.
         modelBuilder.Entity<IdentityRole<int>>().HasData(
-            new IdentityRole<int> { Id = 1, Name = AppRoles.User, NormalizedName = "USER" },
-            new IdentityRole<int> { Id = 2, Name = AppRoles.Admin, NormalizedName = "ADMIN" }
+            new IdentityRole<int> { Id = 1, Name = AppRoles.User, NormalizedName = "USER", ConcurrencyStamp = "69db13d5-503a-4e7d-ba78-0b83959f2d50" },
+            new IdentityRole<int> { Id = 2, Name = AppRoles.Admin, NormalizedName = "ADMIN", ConcurrencyStamp = "6013ea0d-1a56-4376-8289-0330a2a31595" }
         );
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        // Ensure existing provider configuration is preserved and add warning suppression
-        if (!optionsBuilder.IsConfigured)
-        {
-            // The connection string/provider should already be configured in Program.cs; keep fallback here if needed
-            // optionsBuilder.UseSqlite("Data Source=Storage\\Database\\F3M.db");
-        }
-
-        // Suppress the PendingModelChangesWarning which can be triggered by dynamic values used in HasData
-        optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
 }
