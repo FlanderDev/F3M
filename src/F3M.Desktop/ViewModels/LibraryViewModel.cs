@@ -72,22 +72,33 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     public ObservableCollection<LibraryRow> Rows { get; } = [];
 
+    /// <summary>Bumped by every refresh. A refresh whose number is no longer current drops its result.</summary>
+    private int _refreshGeneration;
+
     [ObservableProperty]
     private string _summary = string.Empty;
 
+    /// <summary>
+    /// Rebuilds the list. Refreshes can overlap (every state change starts one), so the rows are built first and only
+    /// the newest refresh puts them on screen.
+    /// </summary>
     public async Task RefreshAsync()
     {
-        Rows.Clear();
+        var generation = ++_refreshGeneration;
         var profile = _shell.ActiveProfile;
         if (profile is null)
         {
+            Rows.Clear();
             Summary = "No profile yet. Browse the catalog and add a mod.";
             return;
         }
 
+        var rows = new List<LibraryRow>();
+        string summary;
         try
         {
             var resolved = await _app.Catalog.ResolveAsync(profile.GroupIds, profile.Pins, CancellationToken.None);
+            if (generation != _refreshGeneration) return;
             var deployed = _app.Deploy.LoadState().Mods.ToDictionary(m => m.GroupId);
 
             foreach (var (groupId, doc) in resolved.OrderBy(r => r.Value.Name, StringComparer.OrdinalIgnoreCase))
@@ -104,7 +115,7 @@ public sealed partial class LibraryViewModel : ObservableObject
                         ? $"Deployed v{mod.Version}"
                         : $"Deployed v{mod.Version}, update to v{doc.Version}";
 
-                Rows.Add(new LibraryRow(
+                rows.Add(new LibraryRow(
                     this, groupId, doc.VersionId, doc.Name, doc.Version, state,
                     isDependency, requiredBy,
                     mod?.Files.Any(f => f.Kind == "config") ?? false,
@@ -113,12 +124,17 @@ public sealed partial class LibraryViewModel : ObservableObject
 
             var direct = profile.GroupIds.Count;
             var dependencies = resolved.Count - profile.GroupIds.Count(id => resolved.ContainsKey(id));
-            Summary = $"{profile.Name}: {direct} mod(s), {dependencies} dependenc{(dependencies == 1 ? "y" : "ies")}";
+            summary = $"{profile.Name}: {direct} mod(s), {dependencies} dependenc{(dependencies == 1 ? "y" : "ies")}";
         }
         catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException)
         {
-            Summary = ex.Message;
+            summary = ex.Message;
         }
+
+        if (generation != _refreshGeneration) return;
+        Rows.Clear();
+        foreach (var row in rows) Rows.Add(row);
+        Summary = summary;
     }
 
     /// <summary>Removes a mod from the profile. Dependents block the removal unless the user also removes them.</summary>

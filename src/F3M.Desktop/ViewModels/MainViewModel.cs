@@ -110,7 +110,12 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ShowBrowse() => CurrentPage = BrowsePage;
+    private void ShowBrowse()
+    {
+        CurrentPage = BrowsePage;
+        // Normally loaded at startup; this covers a startup that could not reach the server.
+        if (!BrowsePage.HasCards && !BrowsePage.IsLoading) _ = BrowsePage.ReloadAsync();
+    }
 
     [RelayCommand]
     private void ShowLibrary() => CurrentPage = LibraryPage;
@@ -213,6 +218,11 @@ public sealed partial class MainViewModel : ObservableObject
         {
             PendingText = "Choose the game folder in Settings.";
         }
+        else if (_app.Deploy.HasPendingRollback)
+        {
+            CanDeploy = true;
+            PendingText = "An earlier deploy is not fully undone. Close the game and press Deploy to finish it.";
+        }
         else if (ActiveProfile is null)
         {
             PendingText = "No profile yet. Add a mod from Browse.";
@@ -304,6 +314,20 @@ public sealed partial class MainViewModel : ObservableObject
     {
         try
         {
+            // Finish undoing an earlier deploy first; its backups hold the original files.
+            if (_app.Deploy.HasPendingRollback)
+            {
+                if (!await Task.Run(_app.Deploy.Rollback))
+                {
+                    Notify("An earlier deploy still can't be undone: a file in the game folder is in use. Close the game and try again.");
+                    await RefreshStateAsync();
+                    return false;
+                }
+
+                Notify("The earlier deploy was undone.");
+                await RefreshStateAsync();
+            }
+
             var plan = await _app.Deploy.PlanAsync(profile, CancellationToken.None);
             if (plan.Blocked.Count > 0)
             {

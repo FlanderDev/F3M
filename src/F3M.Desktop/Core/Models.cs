@@ -16,7 +16,6 @@ public sealed class AppSettings
 
     public bool DeployBeforePlay { get; set; } = true;
     public int UpdateCheckHours { get; set; } = 6;
-    public int CacheLimitGb { get; set; } = 5;
     public bool StartAtLogin { get; set; }
 }
 

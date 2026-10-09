@@ -227,7 +227,9 @@ public partial class App : Application
         // An interrupted deploy (crash or power loss) is undone before anything reads the game folder.
         try
         {
-            await Task.Run(services.Deploy.Rollback);
+            if (!await Task.Run(services.Deploy.Rollback))
+                shell.Notify("An interrupted deploy could not be fully undone: a file in the game folder is in use. " +
+                             "Close the game and press Deploy to finish undoing it.");
         }
         catch (Exception ex)
         {
@@ -236,6 +238,9 @@ public partial class App : Application
 
         await shell.RefreshStateAsync();
         await shell.CheckUpdatesAsync();
+
+        // The update check has loaded the newest index when it could; Browse uses it, or loads it now.
+        await shell.BrowsePage.ReloadAsync();
         if (link is not null) await shell.HandleMessageAsync(link);
     }
 }
