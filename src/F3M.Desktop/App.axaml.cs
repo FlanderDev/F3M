@@ -59,6 +59,7 @@ public partial class App : Application
         services.ConfirmWithOption = (title, body, ok, option) =>
             ConfirmWindow.AskWithOptionAsync(main, title, body, ok, option, destructive: true);
         services.Restart = () => Restart(services, desktop);
+        services.PrepareForExit = () => PrepareForExit(services);
         services.Notify = shell.Notify;
         services.CopyText = text => _ = main.Clipboard?.SetTextAsync(text);
         services.PickFolder = async () =>
@@ -152,9 +153,7 @@ public partial class App : Application
     /// </summary>
     private void Restart(AppServices services, IClassicDesktopStyleApplicationLifetime desktop)
     {
-        services.Exiting = true;
-        _listening?.Cancel();
-        _tray?.Dispose();
+        PrepareForExit(services);
         try
         {
             var info = new ProcessStartInfo(Program.LaunchPath) { UseShellExecute = false };
@@ -167,6 +166,14 @@ public partial class App : Application
         }
 
         desktop.Shutdown();
+    }
+
+    /// <summary>Stops taking links and removes the tray icon, for a restart or an update that ends the process.</summary>
+    private void PrepareForExit(AppServices services)
+    {
+        services.Exiting = true;
+        _listening?.Cancel();
+        _tray?.Dispose();
     }
 
     /// <summary>Exit asks first when a deploy is running, cancels it (which rolls it back), and waits for that to finish.</summary>
@@ -242,5 +249,6 @@ public partial class App : Application
         // The update check has loaded the newest index when it could; Browse uses it, or loads it now.
         await shell.BrowsePage.ReloadAsync();
         if (link is not null) await shell.HandleMessageAsync(link);
+        await shell.AppUpdate.CheckAtStartupAsync();
     }
 }

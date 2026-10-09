@@ -27,6 +27,9 @@ public static class Configuration
     /// <summary>Where users reach an admin: FlanderDev's F95zone profile.</summary>
     public const string AdminContactUrl = "https://f95zone.to/members/flanderdev.2601924/";
 
+    /// <summary>The source code on GitHub, opened from the desktop app's logo.</summary>
+    public const string RepositoryUrl = "https://github.com/FlanderDev/F3M";
+
     /// <summary>Where the desktop app is downloaded: the newest GitHub release, whatever its tag.</summary>
     public const string DesktopDownloadUrl = "https://github.com/FlanderDev/F3M/releases/latest";
 
