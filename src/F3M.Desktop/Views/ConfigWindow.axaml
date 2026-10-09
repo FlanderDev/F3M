@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:F3M.Desktop.ViewModels"
+        x:Class="F3M.Desktop.Views.ConfigWindow"
+        x:DataType="vm:ConfigViewModel"
+        Title="{Binding Title}"
+        Width="720" Height="640"
+        MinWidth="560" MinHeight="420"
+        WindowStartupLocation="CenterOwner">
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+
+    <!-- Which .cfg file of the mod (plan 8.2). -->
+    <ComboBox Grid.Row="0" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
+              HorizontalAlignment="Stretch" Margin="0,0,0,12" />
+
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl ItemsSource="{Binding Settings}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:CfgSettingVm">
+            <Border Classes="card" Margin="0,0,0,8">
+              <StackPanel Spacing="4">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Grid.Column="0" Text="{Binding Key}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <Button Grid.Column="1" Classes="nav" Content="Reset" Command="{Binding ResetCommand}" />
+                </Grid>
+                <TextBlock Text="{Binding Description}" Classes="muted" TextWrapping="Wrap" />
+                <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding Flag}" Content="Enabled" />
+                <ComboBox IsVisible="{Binding IsChoice}" ItemsSource="{Binding Choices}" SelectedItem="{Binding Choice}"
+                          MinWidth="240" />
+                <TextBox IsVisible="{Binding IsText}" Text="{Binding Text}" MaxWidth="360" HorizontalAlignment="Left" />
+                <TextBlock Text="{Binding Error}" Foreground="{DynamicResource F3M.Brush.Error}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Hint}" Classes="muted" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,12,0,0">
+      <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+      <Button Grid.Column="1" Content="Reset file" Command="{Binding ResetFileCommand}" />
+      <Button Grid.Column="2" Classes="primary" Content="Save" Command="{Binding SaveCommand}" />
+    </Grid>
+  </Grid>
+</Window>

@@ -1,0 +1,82 @@
+@page "/collection"
+@inject CatalogClient Catalog
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>F3M - Collection</PageTitle>
+
+<div class="f3m-page-header">
+    <div class="container-fluid px-4 py-4">
+        <div class="row align-items-center g-3">
+            <div class="col">
+                <p class="small mb-1">Shared collection</p>
+                <h1 class="fw-black mb-0 fs-3">@(_link?.Name ?? "Untitled collection")</h1>
+                @if (_view is not null)
+                {
+                    <p class="small mb-0">
+                        @_view.Mods.Count mod@(_view.Mods.Count != 1 ? "s" : string.Empty)
+                        · @CatalogCard.FormatBytes(_view.TotalBytes) total download
+                        @if (_view.Dependencies.Count > 0)
+                        {
+                            <span>· @_view.Dependencies.Count dependenc@(_view.Dependencies.Count != 1 ? "ies" : "y") added automatically</span>
+                        }
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid px-4 py-4">
+    @if (_error is not null)
+    {
+        <div class="alert alert-warning">
+            <strong>This collection link can't be read.</strong> @_error
+        </div>
+    }
+    else if (_view is null)
+    {
+        <p>Loading collection…</p>
+    }
+    else
+    {
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <button class="btn btn-warning" @onclick="UseSetupAsync">
+                <i class="bi bi-box-arrow-up-right"></i> Use this setup
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="CopyLinkAsync">
+                <i class="bi bi-link-45deg"></i> @(_copied ? "Link copied" : "Copy link")
+            </button>
+        </div>
+
+        @if (_desktopMissing)
+        {
+            <div class="alert alert-info">
+                The F3M desktop app didn't respond. Install it, then press <strong>Use this setup</strong> again.
+                You can still read the list and copy the link.
+            </div>
+        }
+
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-3">
+            @foreach (var entry in _view.Mods)
+            {
+                <div class="col">
+                    <CatalogCard Entry="entry" />
+                </div>
+            }
+        </div>
+
+        @if (_view.Dependencies.Count > 0)
+        {
+            <h2 class="fs-5 mt-5">Dependencies added automatically</h2>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-3">
+                @foreach (var entry in _view.Dependencies)
+                {
+                    <div class="col">
+                        <CatalogCard Entry="entry" />
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>

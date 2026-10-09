@@ -1,0 +1,108 @@
+@page "/collection/build"
+@implements IDisposable
+@inject CollectionStore Store
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>F3M - My collection</PageTitle>
+
+<div class="f3m-page-header">
+    <div class="container-fluid px-4 py-4">
+        <h1 class="fw-black mb-0 fs-3">My collection</h1>
+        <p class="small mb-0">@Store.Items.Count of @CollectionLink.MaxMods mods · saved in this browser only</p>
+    </div>
+</div>
+
+<div class="container-fluid px-4 py-4">
+    @if (Store.Items.Count == 0)
+    {
+        <p>Your collection is empty. Add mods from the <a href="/">browse page</a>.</p>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <label class="form-label" for="collection-name">Name</label>
+                <input id="collection-name" class="form-control mb-3" maxlength="@CollectionLink.MaxNameLength"
+                       value="@Store.Name" placeholder="Untitled collection" @onchange="OnNameChanged" />
+
+                <ol class="list-group">
+                    @for (var i = 0; i < Store.Items.Count; i++)
+                    {
+                        var index = i;
+                        var item = Store.Items[i];
+                        <li class="list-group-item d-flex align-items-center gap-2">
+                            <span class="flex-grow-1">@item.Name</span>
+                            <button class="btn btn-sm btn-outline-secondary" title="Move up"
+                                    disabled="@(index == 0)" @onclick="() => Store.MoveAsync(index, -1)">
+                                <i class="bi bi-arrow-up"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" title="Move down"
+                                    disabled="@(index == Store.Items.Count - 1)" @onclick="() => Store.MoveAsync(index, 1)">
+                                <i class="bi bi-arrow-down"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" title="Remove"
+                                    @onclick="() => Store.RemoveAsync(item.GroupId)">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </li>
+                    }
+                </ol>
+            </div>
+
+            <div class="col-lg-5">
+                <h2 class="fs-5">Share</h2>
+                @if (Store.ToLink() is { } link)
+                {
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button class="btn btn-warning" @onclick="UseSetupAsync">
+                            <i class="bi bi-box-arrow-up-right"></i> Use this setup
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="() => CopyLinkAsync(link)">
+                            <i class="bi bi-link-45deg"></i> @(_copied ? "Link copied" : "Copy link")
+                        </button>
+                        <a class="btn btn-outline-secondary" href="@link.ToWebPath()">Preview</a>
+                    </div>
+                    <p class="small text-break">Web link: <code>@Nav.ToAbsoluteUri(link.ToWebPath())</code></p>
+                }
+
+                @if (_desktopMissing)
+                {
+                    <div class="alert alert-info">
+                        The F3M desktop app didn't respond. Install it, then press <strong>Use this setup</strong> again.
+                    </div>
+                }
+
+                <button class="btn btn-link text-danger px-0" @onclick="Store.ClearAsync">Clear collection</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _copied;
+    private bool _desktopMissing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Store.Changed += OnChanged;
+        await Store.LoadAsync();
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private Task OnNameChanged(ChangeEventArgs e) => Store.RenameAsync(e.Value?.ToString());
+
+    private async Task UseSetupAsync()
+    {
+        if (Store.ToLink() is not { } link) return;
+        _desktopMissing = !await JS.InvokeAsync<bool>("f3m.openInDesktop", link.ToProtocolUri());
+    }
+
+    private async Task CopyLinkAsync(CollectionLink link)
+    {
+        _copied = await JS.InvokeAsync<bool>("f3m.copyText", Nav.ToAbsoluteUri(link.ToWebPath()).ToString());
+    }
+
+    public void Dispose() => Store.Changed -= OnChanged;
+}

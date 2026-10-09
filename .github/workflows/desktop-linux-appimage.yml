@@ -1,0 +1,70 @@
+# Builds the F3M Desktop app for Linux and packs it as an AppImage.
+# Called by release.yml on every release, and runnable on its own from the Actions tab.
+# Only the desktop app is packaged here. The server is handled in release.yml.
+name: Desktop (Linux, AppImage)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Desktop app version (SemVer), e.g. 0.1.42
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Desktop app version (SemVer), e.g. 0.1.42
+        required: true
+        type: string
+
+jobs:
+  appimage:
+    name: AppImage (linux-x64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish desktop app (self-contained, linux-x64)
+        run: |
+          dotnet publish desktop/F3M.Desktop/F3M.Desktop.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=false \
+            -p:Version=${{ inputs.version }} \
+            --output publish-desktop
+
+      - name: Assemble AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp -a publish-desktop/. AppDir/usr/bin/
+          cp desktop/F3M.Desktop/Packaging/linux/F3M.Desktop.desktop AppDir/F3M.Desktop.desktop
+          cp desktop/F3M.Desktop/Packaging/linux/AppRun AppDir/AppRun
+          cp desktop/F3M.Desktop/Assets/icon.png AppDir/F3M.Desktop.png
+          chmod +x AppDir/AppRun AppDir/usr/bin/F3M.Desktop
+
+      - name: Download appimagetool
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+      - name: Build AppImage
+        run: |
+          mkdir -p releases
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir \
+            releases/F3M.Desktop-${{ inputs.version }}-x86_64.AppImage
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-appimage
+          path: releases/*.AppImage
+          if-no-files-found: error

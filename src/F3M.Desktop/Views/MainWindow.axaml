@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:F3M.Desktop.ViewModels"
+        xmlns:core="using:F3M.Desktop.Core"
+        x:Class="F3M.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="F3M Desktop"
+        Width="1180" Height="780"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen">
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+    <!-- Top bar: badge, active profile, Deploy, Play (plan 3.3, 7.1). -->
+    <Border Grid.Row="0" Classes="bar">
+      <Grid ColumnDefinitions="Auto,240,Auto,Auto,Auto,*" ColumnSpacing="10">
+        <Border Grid.Column="0" Classes="logo">
+          <TextBlock Text="F3M" FontSize="16" />
+        </Border>
+        <ComboBox Grid.Column="1" ItemsSource="{Binding ProfileChoices}" SelectedItem="{Binding ProfileSelection}"
+                  HorizontalAlignment="Stretch" PlaceholderText="No profile">
+          <ComboBox.ItemTemplate>
+            <DataTemplate DataType="core:ProfileDef">
+              <TextBlock Text="{Binding Name}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button Grid.Column="2" Content="Deploy" Command="{Binding DeployNowCommand}" IsEnabled="{Binding CanDeploy}" />
+        <Button Grid.Column="3" Classes="primary" Content="Play" Command="{Binding PlayCommand}" />
+        <CheckBox Grid.Column="4" Content="Deploy before playing" IsChecked="{Binding DeployBeforePlay}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="5" Text="{Binding PlayNote}" Classes="muted" VerticalAlignment="Center" HorizontalAlignment="Right" />
+      </Grid>
+    </Border>
+
+    <!-- Segmented navigation and the pending-changes line. -->
+    <Border Grid.Row="1" Classes="bar" Padding="12,6">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="4">
+        <Button Grid.Column="0" Classes="nav" Content="Library" Command="{Binding ShowLibraryCommand}" />
+        <Button Grid.Column="1" Classes="nav" Content="Browse" Command="{Binding ShowBrowseCommand}" />
+        <Button Grid.Column="2" Classes="nav" Content="Profiles" Command="{Binding ShowProfilesCommand}" />
+        <Button Grid.Column="3" Classes="nav" Content="Downloads" Command="{Binding ShowDownloadsCommand}" />
+        <Button Grid.Column="4" Classes="nav" Content="Settings" Command="{Binding ShowSettingsCommand}" />
+        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
+          <TextBlock Text="{Binding PendingText}" Classes="muted" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding UpdateBanner}" Foreground="{DynamicResource F3M.Brush.Accent}" VerticalAlignment="Center" />
+        </StackPanel>
+        <Button Grid.Column="6" Classes="primary" Content="Apply updates" Command="{Binding ApplyUpdatesCommand}" />
+      </Grid>
+    </Border>
+
+    <!-- The page: Library, Browse, Profiles, Downloads or Settings. -->
+    <ContentControl Grid.Row="2" Content="{Binding CurrentPage}" />
+
+    <!-- Status line: operations, game state, and short messages (plan 4.3). -->
+    <Border Grid.Row="3" Classes="bar" BorderThickness="0,1,0,0" Padding="16,6">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding StatusText}" Classes="muted" />
+        <TextBlock Grid.Column="1" Text="{Binding Message}" Foreground="{DynamicResource F3M.Brush.Text}" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

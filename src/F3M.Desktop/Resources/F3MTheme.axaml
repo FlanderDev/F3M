@@ -1,0 +1,84 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Window and text defaults, from the website's body rules. -->
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.Background}" />
+    <Setter Property="Foreground" Value="{DynamicResource F3M.Brush.Text}" />
+  </Style>
+
+  <!-- Surfaces: .f3m-surface and the mod card. -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource F3M.Brush.Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource F3M.Radius.Card}" />
+    <Setter Property="Padding" Value="14" />
+  </Style>
+
+  <!-- Navbar and filter bar strips (.f3m-navbar, .f3m-page-header). -->
+  <Style Selector="Border.bar">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource F3M.Brush.Border}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="16,10" />
+  </Style>
+
+  <!-- The amber F3M badge (.f3m-logo-badge). -->
+  <Style Selector="Border.logo">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.Accent}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="12,4" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.logo > TextBlock">
+    <Setter Property="Foreground" Value="#000000" />
+    <Setter Property="FontWeight" Value="ExtraBold" />
+    <Setter Property="FontFamily" Value="Syne" />
+  </Style>
+
+  <!-- Category chips and state badges (.f3m-chip). Icon and text, never colour alone. -->
+  <Style Selector="Border.badge">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.AccentDim}" />
+    <Setter Property="CornerRadius" Value="99" />
+    <Setter Property="Padding" Value="8,2" />
+  </Style>
+  <Style Selector="Border.badge > TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource F3M.Brush.Accent}" />
+    <Setter Property="FontFamily" Value="Syne" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+
+  <!-- Text roles. -->
+  <Style Selector="TextBlock.heading">
+    <Setter Property="FontFamily" Value="Syne" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="18" />
+  </Style>
+  <Style Selector="TextBlock.muted">
+    <Setter Property="Foreground" Value="{DynamicResource F3M.Brush.Muted}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <!-- Buttons: primary is the amber .btn-warning; nav is the segmented navigation. -->
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.Accent}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource F3M.Brush.Accent}" />
+    <Setter Property="Foreground" Value="#000000" />
+    <Setter Property="FontFamily" Value="Syne" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="CornerRadius" Value="{DynamicResource F3M.Radius.Control}" />
+  </Style>
+  <Style Selector="Button.nav">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource F3M.Brush.Muted}" />
+    <Setter Property="FontFamily" Value="Syne" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+  <Style Selector="Button.nav:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource F3M.Brush.Accent}" />
+  </Style>
+
+</Styles>

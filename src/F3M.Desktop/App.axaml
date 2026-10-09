@@ -1,0 +1,35 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="F3M.Desktop.App"
+             RequestedThemeVariant="Dark">
+
+  <!-- Design tokens, ported from f3m.css (plan 3.1). Views refer to these keys, never to hex values. -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://F3M.Desktop/Views/Pages.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+
+      <SolidColorBrush x:Key="F3M.Brush.Background">#0D0E10</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Surface">#17191C</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Surface2">#1E2124</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Border">#14FFFFFF</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Accent">#FFC107</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.AccentDim">#1AFFC107</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Text">#E2E4E8</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Muted">#6B7280</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Success">#4ADE80</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Warning">#FFC107</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Error">#F87171</SolidColorBrush>
+      <SolidColorBrush x:Key="F3M.Brush.Info">#60A5FA</SolidColorBrush>
+      <CornerRadius x:Key="F3M.Radius.Card">10</CornerRadius>
+      <CornerRadius x:Key="F3M.Radius.Control">8</CornerRadius>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://F3M.Desktop/Resources/F3MTheme.axaml" />
+  </Application.Styles>
+
+</Application>
