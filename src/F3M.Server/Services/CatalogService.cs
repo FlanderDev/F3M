@@ -70,15 +70,19 @@ public sealed class CatalogService(
 
         Directory.CreateDirectory(Path.GetDirectoryName(_opts.KeyPath)!);
 
-        // Owner-only from the moment the file exists (honoured on Linux, ignored on Windows).
+        // Owner-only from the moment the file exists on Unix. Windows has no such mode (setting it throws there),
+        // so the file inherits the folder's ACL.
         var temporary = _opts.KeyPath + ".tmp";
-        using (var stream = new FileStream(temporary, new FileStreamOptions
+        var options = new FileStreamOptions
         {
             Mode = FileMode.Create,
             Access = FileAccess.Write,
             Share = FileShare.None,
-            UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
-        }))
+        };
+        if (!OperatingSystem.IsWindows())
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+
+        using (var stream = new FileStream(temporary, options))
         using (var writer = new StreamWriter(stream))
         {
             writer.Write(pem);
