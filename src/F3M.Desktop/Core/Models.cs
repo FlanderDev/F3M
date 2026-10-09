@@ -5,7 +5,7 @@ namespace F3M.Desktop.Core;
 /// <summary>User settings, stored in settings.json. Paths are absolute; the server URL has no trailing slash.</summary>
 public sealed class AppSettings
 {
-    public string ServerUrl { get; set; } = string.Empty;
+    public string ServerUrl { get; set; } = F3M.Shared.Configuration.PublicSiteUrl;
     public string GameFolder { get; set; } = string.Empty;
 
     /// <summary>Game executable, relative to <see cref="GameFolder"/>. Empty until the user picks it.</summary>
