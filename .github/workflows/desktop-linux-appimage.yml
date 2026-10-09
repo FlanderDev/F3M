@@ -50,16 +50,22 @@ jobs:
           cp src/F3M.Desktop/Assets/icon.png AppDir/F3M.Desktop.png
           chmod +x AppDir/AppRun AppDir/usr/bin/F3M.Desktop
 
-      - name: Download appimagetool
+      # Pinned and checksummed. appimagetool would otherwise also fetch the AppImage runtime from a moving
+      # "continuous" release, so the runtime is pinned here too and passed in with --runtime-file.
+      - name: Download appimagetool and runtime
         run: |
           curl -fsSL -o appimagetool \
-            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl -fsSL -o runtime-x86_64 \
+            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c -
+          echo "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  runtime-x86_64" | sha256sum -c -
           chmod +x appimagetool
 
       - name: Build AppImage
         run: |
           mkdir -p releases
-          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir \
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run --runtime-file runtime-x86_64 AppDir \
             releases/F3M.Desktop-${{ inputs.version }}-x86_64.AppImage
 
       - name: Upload AppImage

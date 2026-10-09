@@ -70,7 +70,7 @@ public static class SingleInstance
         }
     }
 
-    [SupportedOSPlatform("linux")]
+    [UnsupportedOSPlatform("windows")]
     private static async Task ListenSocketAsync(string path, Action<string> onMessage, CancellationToken ct)
     {
         // A socket file left by a crash. A live instance would have answered TrySend first.

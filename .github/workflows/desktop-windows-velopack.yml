@@ -31,8 +31,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Pinned to the Velopack package version in F3M.Desktop.csproj; vpk refuses to pack an app without VelopackApp.
       - name: Install Velopack CLI
-        run: dotnet tool install --global vpk
+        run: dotnet tool install --global vpk --version 1.2.161
 
       - name: Publish desktop app (self-contained, win-x64)
         shell: pwsh
