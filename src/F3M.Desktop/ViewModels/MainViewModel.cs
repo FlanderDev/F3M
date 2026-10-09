@@ -176,6 +176,14 @@ public sealed partial class MainViewModel : ObservableObject
         await CheckUpdatesAsync();
     }
 
+    /// <summary>Applies a new update-check interval right away; the next check is that long from now.</summary>
+    public void SetUpdateInterval(int hours)
+    {
+        _updateTimer.Stop();
+        _updateTimer.Interval = TimeSpan.FromHours(Math.Max(1, hours));
+        _updateTimer.Start();
+    }
+
     /// <summary>Shows a short message in the status line. It clears itself after a few seconds.</summary>
     public void Notify(string text)
     {

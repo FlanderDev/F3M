@@ -18,6 +18,13 @@ public sealed class Profiles(AppServices app)
 {
     private string Folder => Path.Combine(app.Paths.Profiles, app.GameId);
 
+    /// <summary>How many profiles exist for a game folder, without switching to it.</summary>
+    public int CountFor(string gameFolder)
+    {
+        var folder = Path.Combine(app.Paths.Profiles, AppServices.GameIdFor(gameFolder));
+        return Directory.Exists(folder) ? Directory.EnumerateFiles(folder, "*.json").Count() : 0;
+    }
+
     public List<ProfileDef> List()
     {
         var result = new List<ProfileDef>();
