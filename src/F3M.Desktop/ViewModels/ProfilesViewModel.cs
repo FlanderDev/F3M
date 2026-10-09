@@ -110,7 +110,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
             return;
         }
 
-        if (!await _shell.ConfirmAsync("Delete profile", $"Delete {Selected.Name}? Cached mods are kept.", "Delete")) return;
+        if (!await _shell.ConfirmAsync("Delete profile", $"Delete the profile **{Selected.Name}**?\n\nIts mods stay in the cache, and the game folder is not touched.", "Delete")) return;
         _app.Profiles.Delete(Selected);
         Status = "Deleted.";
         Selected = null;

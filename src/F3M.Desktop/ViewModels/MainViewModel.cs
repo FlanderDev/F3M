@@ -277,7 +277,7 @@ public sealed partial class MainViewModel : ObservableObject
                 var group = _app.Catalog.Group(mod.GroupId);
                 if (group is null || group.LatestVersionId == mod.VersionId || pinned.Contains(mod.GroupId)) continue;
                 var doc = await _app.Catalog.GetVersionAsync(mod.GroupId, group.LatestVersionId, CancellationToken.None);
-                notes.Add($"{doc.Name} {mod.Version} to {doc.Version}\n{doc.Description}");
+                notes.Add($"**{doc.Name}** {mod.Version} to {doc.Version}\n{doc.Description}");
             }
         }
         catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException)
@@ -311,7 +311,7 @@ public sealed partial class MainViewModel : ObservableObject
 
             if (plan.NeedsDownload.Count > 0)
             {
-                var body = $"{plan.Describe(_app.Game.RootOrThrow())}\nDownloads first, then the deploy starts.";
+                var body = $"Profile **{profile.Name}**: {plan.Describe(_app.Game.RootOrThrow())}\nDownloads first, then the deploy starts.";
                 if (!await ConfirmAsync(profile.Name, body, "Download and deploy")) return false;
 
                 var download = await _app.Ops.RunAsync("Download", $"Download for {profile.Name}", _app.Ops.DownloadGate,
@@ -331,12 +331,14 @@ public sealed partial class MainViewModel : ObservableObject
             }
             else if (askFirst)
             {
-                if (!await ConfirmAsync($"Switch to {profile.Name}", plan.Describe(_app.Game.RootOrThrow()), "Switch")) return false;
+                if (!await ConfirmAsync($"Switch to {profile.Name}",
+                        $"Switch the game folder to **{profile.Name}**: {plan.Describe(_app.Game.RootOrThrow())}", "Switch")) return false;
             }
 
             if (plan.NeedsConfirmation && !askFirst)
             {
-                if (!await ConfirmAsync($"Deploy {profile.Name}", plan.Describe(_app.Game.RootOrThrow()), "Deploy")) return false;
+                if (!await ConfirmAsync($"Deploy {profile.Name}",
+                        $"Deploy **{profile.Name}**: {plan.Describe(_app.Game.RootOrThrow())}", "Deploy")) return false;
             }
 
             var result = await _app.Ops.RunAsync("Deploy", $"Deploy {profile.Name}", _app.Ops.DeployGate,
@@ -450,7 +452,7 @@ public sealed partial class MainViewModel : ObservableObject
             var versionId = request.VersionId ?? group.LatestVersionId;
             var doc = await _app.Catalog.GetVersionAsync(request.GroupId, versionId, CancellationToken.None);
             var size = doc.Files.Sum(f => f.Size);
-            var body = $"{doc.Name} {doc.Version} by {doc.Author}\nSize: {FileOps.FormatBytes(size)}\n\n" +
+            var body = $"**{doc.Name}** {doc.Version} by {doc.Author}\nSize: {FileOps.FormatBytes(size)}\n\n" +
                        "Requested from your browser. The app cannot tell which site sent this request.";
             if (!await ConfirmAsync("Download mod", body, "Download")) return;
             await DownloadModAsync(request.GroupId, versionId, doc.Name);
@@ -467,7 +469,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             var summary = await _app.Profiles.PreviewImportAsync(request.Collection, CancellationToken.None);
             var lines = new List<string> { $"Mods ({summary.Mods.Count}):" };
-            lines.AddRange(summary.Mods.Select(m => $"  {m.Name} by {m.Author}"));
+            lines.AddRange(summary.Mods.Select(m => $"  **{m.Name}** by {m.Author}"));
             if (summary.AddedDependencies.Count > 0)
                 lines.Add($"Dependencies added automatically: {string.Join(", ", summary.AddedDependencies)}");
             if (summary.Unavailable.Count > 0)
