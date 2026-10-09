@@ -21,6 +21,12 @@ public static class Configuration
 
     public const string AppName = nameof(F3M);
 
+    /// <summary>The public website and server. The desktop app's default server address.</summary>
+    public const string PublicSiteUrl = "https://f3m.felix-leander.de";
+
+    /// <summary>Where the desktop app is downloaded: the newest GitHub release, whatever its tag.</summary>
+    public const string DesktopDownloadUrl = "https://github.com/FlanderDev/F3M/releases/latest";
+
     public static readonly string[] DefaultCategories = ["BepInEx-Plugin", "Custom-Missions 1", "Custom-Missions 2", "Cosplay-Loader", "Texture Edits", "Others"];
     public static readonly string[] AllowedFileExtension = [".dll", ".zip", ".rar", ".7z", ".pak", ".mod"];
     public static readonly string[] AllowedThumbnailExtension = [".jpg", ".jpeg", ".png", ".webp"];
