@@ -259,9 +259,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         List<ResetItem> items;
+        ResetModStats mods;
         try
         {
             items = await Task.Run(_app.FactoryReset.Survey);
+            mods = await Task.Run(_app.FactoryReset.ModStatistics);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -282,6 +284,15 @@ public sealed partial class SettingsViewModel : ObservableObject
                 "until you remove them by hand, and a later deploy replaces them.",
                 string.Empty,
             };
+
+            var cacheBytes = items.Where(i => i.Label == "Downloaded mods").Sum(i => i.Bytes);
+            lines.Add("**Mods**");
+            lines.Add($"    Profiles: {mods.Profiles} profile(s) with {mods.ProfileMods} different mod(s), {mods.PinnedMods} pinned. Removed.");
+            lines.Add($"    Downloaded: {mods.CachedMods} mod(s) in {mods.CachedVersions} version(s), {FileOps.FormatBytes(cacheBytes)}. " +
+                      (includeDownloads ? "Removed." : "Kept."));
+            lines.Add($"    In the game folder: {mods.DeployedMods} mod(s) deployed. Not touched.");
+            lines.Add(string.Empty);
+            lines.Add("**Folders**");
 
             foreach (var item in items)
             {
