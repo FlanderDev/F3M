@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Controls.Templates;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -19,7 +20,13 @@ public partial class App : Application
     private TrayMenu? _tray;
     private CancellationTokenSource? _listening;
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+
+        // Page templates are matched by view-model type, so they belong in DataTemplates, not in resources.
+        DataTemplates.AddRange((DataTemplates)AvaloniaXamlLoader.Load(new Uri("avares://F3M.Desktop/Views/Pages.axaml")));
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {

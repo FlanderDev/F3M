@@ -51,7 +51,7 @@ public sealed partial class OperationItem : ObservableObject
         Status = status;
         Detail = detail;
         if (status == "Done") Progress = 100;
-    });
+    }).GetTask();
 }
 
 /// <summary>

@@ -33,7 +33,7 @@ jobs:
 
       - name: Publish desktop app (self-contained, linux-x64)
         run: |
-          dotnet publish desktop/F3M.Desktop/F3M.Desktop.csproj \
+          dotnet publish src/F3M.Desktop/F3M.Desktop.csproj \
             --configuration Release \
             --runtime linux-x64 \
             --self-contained true \
@@ -45,9 +45,9 @@ jobs:
         run: |
           mkdir -p AppDir/usr/bin
           cp -a publish-desktop/. AppDir/usr/bin/
-          cp desktop/F3M.Desktop/Packaging/linux/F3M.Desktop.desktop AppDir/F3M.Desktop.desktop
-          cp desktop/F3M.Desktop/Packaging/linux/AppRun AppDir/AppRun
-          cp desktop/F3M.Desktop/Assets/icon.png AppDir/F3M.Desktop.png
+          cp src/F3M.Desktop/Packaging/linux/F3M.Desktop.desktop AppDir/F3M.Desktop.desktop
+          cp src/F3M.Desktop/Packaging/linux/AppRun AppDir/AppRun
+          cp src/F3M.Desktop/Assets/icon.png AppDir/F3M.Desktop.png
           chmod +x AppDir/AppRun AppDir/usr/bin/F3M.Desktop
 
       - name: Download appimagetool

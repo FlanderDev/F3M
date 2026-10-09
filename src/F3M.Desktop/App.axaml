@@ -6,10 +6,6 @@
   <!-- Design tokens, ported from f3m.css (plan 3.1). Views refer to these keys, never to hex values. -->
   <Application.Resources>
     <ResourceDictionary>
-      <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://F3M.Desktop/Views/Pages.axaml" />
-      </ResourceDictionary.MergedDictionaries>
-
       <SolidColorBrush x:Key="F3M.Brush.Background">#0D0E10</SolidColorBrush>
       <SolidColorBrush x:Key="F3M.Brush.Surface">#17191C</SolidColorBrush>
       <SolidColorBrush x:Key="F3M.Brush.Surface2">#1E2124</SolidColorBrush>
