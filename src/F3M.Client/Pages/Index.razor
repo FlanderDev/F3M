@@ -16,6 +16,7 @@
                 <p class="small mb-0">@(result?.TotalCount ?? 0) mods available</p>
             </div>
             <div class="col-auto">
+                <CollectionBadge />
                 <AuthorizeView>
                     <Authorized>
                         <a href="@Paths.Upload" class="btn btn-warning fw-bold px-4">

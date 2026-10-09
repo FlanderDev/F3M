@@ -126,8 +126,8 @@ public partial class ModsService(AppDbContext db, IHttpContextAccessor httpConte
 
     public async Task<Stream> DownloadFile(int id, int fileId, CancellationToken ct = default)
     {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id, ct)
-                  ?? throw new KeyNotFoundException($"No mod with id {id} was found.");
+        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id && m.IsApproved, ct)
+                  ?? throw new KeyNotFoundException($"No mod with id {id} was found or is not approved.");
 
         var file = mod.Files.FirstOrDefault(f => f.Id == fileId)
                    ?? throw new KeyNotFoundException("File not found in this mod version.");

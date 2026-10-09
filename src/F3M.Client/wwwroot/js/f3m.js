@@ -69,5 +69,15 @@ window.f3m = {
         } catch {
             return false;
         }
+    },
+
+    /** Reads a value from localStorage. Returns null when storage is blocked or empty. */
+    getItem: function (key) {
+        try { return window.localStorage.getItem(key); } catch { return null; }
+    },
+
+    /** Writes a value to localStorage. Silently does nothing when storage is blocked. */
+    setItem: function (key, value) {
+        try { window.localStorage.setItem(key, value); } catch { /* storage blocked */ }
     }
 };
