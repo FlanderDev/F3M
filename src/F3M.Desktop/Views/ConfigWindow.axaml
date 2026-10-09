@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:F3M.Desktop.ViewModels"
+        xmlns:v="using:F3M.Desktop.Views"
         x:Class="F3M.Desktop.Views.ConfigWindow"
         x:DataType="vm:ConfigViewModel"
         Title="{Binding Title}"
@@ -16,6 +17,7 @@
                  Text="The mod's own settings. Saving writes them to its settings file in the game folder and keeps a backup of the old file. Close the game first: settings can't be saved while it runs." />
       <ComboBox ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" HorizontalAlignment="Stretch"
                 ToolTip.Tip="Some mods have more than one settings file." />
+      <TextBlock Classes="muted" Text="{Binding SelectedFilePath}" v:Links.Target="{Binding SelectedFilePath}" TextWrapping="Wrap" />
     </StackPanel>
 
     <ScrollViewer Grid.Row="1">
@@ -44,7 +46,7 @@
     </ScrollViewer>
 
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,12,0,0">
-      <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+      <TextBlock Grid.Column="0" v:Links.Markup="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
       <Button Grid.Column="1" Content="Reset file" Command="{Binding ResetFileCommand}"
               ToolTip.Tip="Set every value in this file back to its default. Nothing is saved until you press Save." />
       <Button Grid.Column="2" Classes="primary" Content="Save" Command="{Binding SaveCommand}" />

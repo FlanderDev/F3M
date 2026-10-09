@@ -56,6 +56,22 @@ public sealed partial class SettingsViewModel : ObservableObject
     public string DataFolder { get; }
 
     [RelayCommand]
+    private void OpenServer()
+    {
+        var url = ServerUrl.Trim();
+        if (Launcher.IsOpenable(url) && !Path.IsPathFullyQualified(url)) Launcher.Open(url);
+        else Status = "The server address is not a web address.";
+    }
+
+    [RelayCommand]
+    private void OpenGameFolder()
+    {
+        var folder = GameFolder.Trim();
+        if (Path.IsPathFullyQualified(folder) && Directory.Exists(folder)) Launcher.Open(folder);
+        else Status = "The game folder does not exist. Choose it or use Auto-detect.";
+    }
+
+    [RelayCommand]
     private async Task PickGameFolderAsync()
     {
         var path = await _app.PickFolder();
@@ -114,7 +130,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         GameExecutable = install.Executable;
         if (install.SteamAppId is not null) SteamAppId = install.SteamAppId;
 
-        DetectStatus = $"Using {install.Folder} ({install.Source})." +
+        DetectStatus = $"Using {Markup.Link(install.Folder)} ({install.Source})." +
                        (install.SteamAppId is not null ? $" Steam app ID {install.SteamAppId} filled in." : string.Empty) +
                        " Press Save settings to keep it.";
     }
@@ -254,7 +270,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        var game = string.IsNullOrWhiteSpace(_app.Settings.GameFolder) ? "the game folder" : _app.Settings.GameFolder;
+        var game = string.IsNullOrWhiteSpace(_app.Settings.GameFolder) ? "the game folder" : Markup.Link(_app.Settings.GameFolder);
         string Describe(bool includeDownloads)
         {
             var lines = new List<string>
@@ -272,7 +288,7 @@ public sealed partial class SettingsViewModel : ObservableObject
                 var kept = item.IsDownload && !includeDownloads;
                 var size = item.IsRegistration ? "removed" : $"{item.Files} file(s), {FileOps.FormatBytes(item.Bytes)}";
                 lines.Add(kept ? $"{item.Label}: {size}, kept" : $"**{item.Label}**: {size}");
-                lines.Add($"    {item.Location}");
+                lines.Add("    " + (item.IsRegistration ? item.Location : Markup.Link(item.Location)));
             }
 
             var removed = items.Where(i => includeDownloads || !i.IsDownload).ToList();

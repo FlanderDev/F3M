@@ -1,6 +1,4 @@
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
-using Avalonia.Media;
 
 namespace F3M.Desktop.Views;
 
@@ -14,7 +12,7 @@ public partial class ConfirmWindow : Window
         OkButton.Click += (_, _) => Close(true);
     }
 
-    /// <summary>Text between ** markers in <paramref name="body"/> is highlighted, for names the question is about.</summary>
+    /// <summary><paramref name="body"/> is markup (see <see cref="Links.MarkupProperty"/>): ** highlights names, [[ ]] makes links.</summary>
     public static Task<bool> AskAsync(Window owner, string title, string body, string okText)
     {
         var window = new ConfirmWindow { Title = title };
@@ -42,21 +40,5 @@ public partial class ConfirmWindow : Window
         return ok ? window.OptionBox.IsChecked == true : null;
     }
 
-    private void SetBody(string body)
-    {
-        var inlines = new InlineCollection();
-        var accent = this.TryFindResource("F3M.Brush.Accent", out var brush) ? brush as IBrush : null;
-        var parts = body.Split("**");
-        for (var i = 0; i < parts.Length; i++)
-        {
-            if (parts[i].Length == 0) continue;
-            // Odd parts sit between markers; an unpaired marker leaves the rest as plain text.
-            var highlighted = i % 2 == 1 && i < parts.Length - 1;
-            inlines.Add(highlighted
-                ? new Run(parts[i]) { FontWeight = FontWeight.SemiBold, Foreground = accent }
-                : new Run(parts[i]));
-        }
-
-        BodyText.Inlines = inlines;
-    }
+    private void SetBody(string body) => Links.SetMarkup(BodyText, body);
 }

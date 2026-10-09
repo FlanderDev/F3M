@@ -101,6 +101,10 @@ public sealed partial class ConfigViewModel(AppServices app) : ObservableObject
     [ObservableProperty]
     private string _status = string.Empty;
 
+    /// <summary>The full path of the selected file, shown as a link to it.</summary>
+    [ObservableProperty]
+    private string _selectedFilePath = string.Empty;
+
     partial void OnSelectedFileChanged(string? value) => Load(value);
 
     /// <summary>Lists the config files a deployed mod placed and opens the first one.</summary>
@@ -125,11 +129,13 @@ public sealed partial class ConfigViewModel(AppServices app) : ObservableObject
         Settings.Clear();
         _document = null;
         Status = string.Empty;
+        SelectedFilePath = string.Empty;
         if (relative is null) return;
 
         try
         {
             _path = FileOps.ResolveUnder(app.Game.RootOrThrow(), relative);
+            SelectedFilePath = _path;
             if (!File.Exists(_path))
             {
                 Status = "The file is missing from the game folder. Deploy the profile again.";

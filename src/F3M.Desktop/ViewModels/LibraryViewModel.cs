@@ -138,10 +138,10 @@ public sealed partial class LibraryViewModel : ObservableObject
             var dependents = await _app.Profiles.DependentIdsAsync(profile, row.GroupId, CancellationToken.None);
             if (dependents.Count > 0)
             {
-                var names = string.Join(", ", dependents.Select(id => $"**{_app.Catalog.Group(id)?.Name ?? id.ToString()}**"));
+                var names = string.Join(", ", dependents.Select(id => $"**{Markup.Escape(_app.Catalog.Group(id)?.Name ?? id.ToString())}**"));
                 var ok = await _shell.ConfirmAsync(
                     "Other mods need this one",
-                    $"**{row.Name}** is required by {names}. Without it they will not load.\n\nDisable them as well?",
+                    $"**{Markup.Escape(row.Name)}** is required by {names}. Without it they will not load.\n\nDisable them as well?",
                     "Also disable dependents");
                 if (!ok) return;
                 toRemove.AddRange(dependents);
@@ -199,9 +199,9 @@ public sealed partial class LibraryViewModel : ObservableObject
                 return;
             }
 
-            var list = string.Join("\n", files.Take(30).Select(f => "  " + FileOps.ToRelative(root, f)));
+            var list = string.Join("\n", files.Take(30).Select(f => "  " + Markup.Link(f, FileOps.ToRelative(root, f))));
             if (!await _shell.ConfirmAsync("Clear generated files",
-                    $"These files match the generated-file patterns of **{row.Name}**:\n{list}", "Remove files"))
+                    $"These files match the generated-file patterns of **{Markup.Escape(row.Name)}**:\n{list}", "Remove files"))
                 return;
 
             var removed = 0;
