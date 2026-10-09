@@ -36,6 +36,7 @@ builder.Services.AddScoped<ITelemetryApi, HttpTelemetryApi>();
 builder.Services.AddScoped<IF95LinkApi, HttpF95LinkApi>();
 builder.Services.AddScoped<IModsApi, HttpModsApi>();
 builder.Services.AddScoped<CatalogClient>();
+builder.Services.AddScoped<CollectionStore>();
 
 await builder
     .Build()
