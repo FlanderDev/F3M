@@ -11,8 +11,12 @@
   <Grid RowDefinitions="Auto,*,Auto" Margin="16">
 
     <!-- Which .cfg file of the mod (plan 8.2). -->
-    <ComboBox Grid.Row="0" ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}"
-              HorizontalAlignment="Stretch" Margin="0,0,0,12" />
+    <StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,12">
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="The mod's own settings. Saving writes them to its settings file in the game folder and keeps a backup of the old file. Close the game first: settings can't be saved while it runs." />
+      <ComboBox ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" HorizontalAlignment="Stretch"
+                ToolTip.Tip="Some mods have more than one settings file." />
+    </StackPanel>
 
     <ScrollViewer Grid.Row="1">
       <ItemsControl ItemsSource="{Binding Settings}">
@@ -22,7 +26,8 @@
               <StackPanel Spacing="4">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                   <TextBlock Grid.Column="0" Text="{Binding Key}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                  <Button Grid.Column="1" Classes="nav" Content="Reset" Command="{Binding ResetCommand}" />
+                  <Button Grid.Column="1" Classes="nav" Content="Reset" Command="{Binding ResetCommand}"
+                          ToolTip.Tip="Set this value back to the mod's default. Nothing is saved until you press Save." />
                 </Grid>
                 <TextBlock Text="{Binding Description}" Classes="muted" TextWrapping="Wrap" />
                 <CheckBox IsVisible="{Binding IsBoolean}" IsChecked="{Binding Flag}" Content="Enabled" />
@@ -40,7 +45,8 @@
 
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,12,0,0">
       <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
-      <Button Grid.Column="1" Content="Reset file" Command="{Binding ResetFileCommand}" />
+      <Button Grid.Column="1" Content="Reset file" Command="{Binding ResetFileCommand}"
+              ToolTip.Tip="Set every value in this file back to its default. Nothing is saved until you press Save." />
       <Button Grid.Column="2" Classes="primary" Content="Save" Command="{Binding SaveCommand}" />
     </Grid>
   </Grid>

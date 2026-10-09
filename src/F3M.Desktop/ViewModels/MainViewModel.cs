@@ -267,13 +267,15 @@ public sealed partial class MainViewModel : ObservableObject
         if (ActiveProfile is null) return;
 
         // The changelog: each new version's description, since the document has no separate changelog field yet.
+        // Pinned mods keep their version on deploy, so they are not listed as updates (same rule as the banner).
         var notes = new List<string>();
+        var pinned = ActiveProfile.Pins.Keys.ToHashSet();
         try
         {
             foreach (var mod in SafeState()?.Mods ?? Enumerable.Empty<DeployedMod>())
             {
                 var group = _app.Catalog.Group(mod.GroupId);
-                if (group is null || group.LatestVersionId == mod.VersionId) continue;
+                if (group is null || group.LatestVersionId == mod.VersionId || pinned.Contains(mod.GroupId)) continue;
                 var doc = await _app.Catalog.GetVersionAsync(mod.GroupId, group.LatestVersionId, CancellationToken.None);
                 notes.Add($"{doc.Name} {mod.Version} to {doc.Version}\n{doc.Description}");
             }

@@ -18,16 +18,20 @@
           <TextBlock Text="F3M" FontSize="16" />
         </Border>
         <ComboBox Grid.Column="1" ItemsSource="{Binding ProfileChoices}" SelectedItem="{Binding ProfileSelection}"
-                  HorizontalAlignment="Stretch" PlaceholderText="No profile">
+                  HorizontalAlignment="Stretch" PlaceholderText="No profile"
+                  ToolTip.Tip="The active profile: the set of mods in your game folder. Choosing another one asks first, then installs that profile's mods instead.">
           <ComboBox.ItemTemplate>
             <DataTemplate DataType="core:ProfileDef">
               <TextBlock Text="{Binding Name}" />
             </DataTemplate>
           </ComboBox.ItemTemplate>
         </ComboBox>
-        <Button Grid.Column="2" Content="Deploy" Command="{Binding DeployNowCommand}" IsEnabled="{Binding CanDeploy}" />
-        <Button Grid.Column="3" Classes="primary" Content="Play" Command="{Binding PlayCommand}" />
-        <CheckBox Grid.Column="4" Content="Deploy before playing" IsChecked="{Binding DeployBeforePlay}" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Content="Deploy" Command="{Binding DeployNowCommand}" IsEnabled="{Binding CanDeploy}"
+                ToolTip.Tip="Make the game folder match the active profile: install added or updated mods and remove the ones you took out. If anything fails, the game folder is put back as it was." />
+        <Button Grid.Column="3" Classes="primary" Content="Play" Command="{Binding PlayCommand}"
+                ToolTip.Tip="Start the game. Set the game executable or a Steam app ID in Settings first." />
+        <CheckBox Grid.Column="4" Content="Deploy before playing" IsChecked="{Binding DeployBeforePlay}" VerticalAlignment="Center"
+                  ToolTip.Tip="When on, Play deploys pending changes first, so the game always starts with the mods you see in the Library." />
         <TextBlock Grid.Column="5" Text="{Binding PlayNote}" Classes="muted" VerticalAlignment="Center" HorizontalAlignment="Right" />
       </Grid>
     </Border>
@@ -35,16 +39,22 @@
     <!-- Segmented navigation and the pending-changes line. -->
     <Border Grid.Row="1" Classes="bar" Padding="12,6">
       <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="4">
-        <Button Grid.Column="0" Classes="nav" Content="Library" Command="{Binding ShowLibraryCommand}" />
-        <Button Grid.Column="1" Classes="nav" Content="Browse" Command="{Binding ShowBrowseCommand}" />
-        <Button Grid.Column="2" Classes="nav" Content="Profiles" Command="{Binding ShowProfilesCommand}" />
-        <Button Grid.Column="3" Classes="nav" Content="Downloads" Command="{Binding ShowDownloadsCommand}" />
-        <Button Grid.Column="4" Classes="nav" Content="Settings" Command="{Binding ShowSettingsCommand}" />
+        <Button Grid.Column="0" Classes="nav" Content="Library" Command="{Binding ShowLibraryCommand}"
+                ToolTip.Tip="The mods in your active profile and what is installed." />
+        <Button Grid.Column="1" Classes="nav" Content="Browse" Command="{Binding ShowBrowseCommand}"
+                ToolTip.Tip="Find mods on the F3M website and add them to your profile." />
+        <Button Grid.Column="2" Classes="nav" Content="Profiles" Command="{Binding ShowProfilesCommand}"
+                ToolTip.Tip="Keep several mod setups and switch between them, or share one as a link." />
+        <Button Grid.Column="3" Classes="nav" Content="Downloads" Command="{Binding ShowDownloadsCommand}"
+                ToolTip.Tip="Running and finished downloads and deploys, and the size of the download cache." />
+        <Button Grid.Column="4" Classes="nav" Content="Settings" Command="{Binding ShowSettingsCommand}"
+                ToolTip.Tip="Game folder, server address, updates, and maintenance." />
         <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
           <TextBlock Text="{Binding PendingText}" Classes="muted" VerticalAlignment="Center" />
           <TextBlock Text="{Binding UpdateBanner}" Foreground="{DynamicResource F3M.Brush.Accent}" VerticalAlignment="Center" />
         </StackPanel>
-        <Button Grid.Column="6" Classes="primary" Content="Apply updates" Command="{Binding ApplyUpdatesCommand}" />
+        <Button Grid.Column="6" Classes="primary" Content="Apply updates" Command="{Binding ApplyUpdatesCommand}"
+                ToolTip.Tip="Shows what changed in each newer version, then updates and deploys them. Pinned mods stay where they are." />
       </Grid>
     </Border>
 

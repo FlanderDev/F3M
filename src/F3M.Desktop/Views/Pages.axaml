@@ -9,6 +9,8 @@
       <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
         <TextBlock Classes="heading" Text="Library" />
         <TextBlock Classes="muted" Text="{Binding Summary}" />
+        <TextBlock Classes="muted" TextWrapping="Wrap"
+                   Text="Changes here only reach the game folder when you press Deploy. Dependencies are added and removed for you." />
       </StackPanel>
       <ScrollViewer>
         <ItemsControl ItemsSource="{Binding Rows}">
@@ -23,11 +25,16 @@
                                Classes="muted" IsVisible="{Binding IsDependency}" />
                   </StackPanel>
                   <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Content="Config" Command="{Binding ConfigCommand}" IsVisible="{Binding HasConfig}" />
-                    <Button Content="Pin version" Command="{Binding PinCommand}" />
-                    <Button Content="Unpin" Command="{Binding UnpinCommand}" />
-                    <Button Content="Clear generated" Command="{Binding ClearGeneratedCommand}" IsVisible="{Binding IsDeployed}" />
-                    <Button Content="Remove" Command="{Binding RemoveCommand}" />
+                    <Button Content="Config" Command="{Binding ConfigCommand}" IsVisible="{Binding HasConfig}"
+                            ToolTip.Tip="Edit this mod's settings file without opening it in a text editor." />
+                    <Button Content="Pin version" Command="{Binding PinCommand}"
+                            ToolTip.Tip="Keep this exact version, even when a newer one comes out. Only affects this profile on this computer." />
+                    <Button Content="Unpin" Command="{Binding UnpinCommand}"
+                            ToolTip.Tip="Follow the latest version again." />
+                    <Button Content="Clear generated" Command="{Binding ClearGeneratedCommand}" IsVisible="{Binding IsDeployed}"
+                            ToolTip.Tip="Delete files the mod created while the game ran, such as caches or logs. The mod stays installed. You see the list before anything is deleted." />
+                    <Button Content="Remove" Command="{Binding RemoveCommand}"
+                            ToolTip.Tip="Take this mod out of the profile. It leaves the game folder on the next Deploy; the download stays in the cache." />
                   </StackPanel>
                 </Grid>
               </Border>
@@ -48,7 +55,8 @@
                     HorizontalAlignment="Stretch" />
           <ComboBox Grid.Column="2" ItemsSource="{Binding Sorts}" SelectedItem="{Binding Sort}"
                     HorizontalAlignment="Stretch" />
-          <Button Grid.Column="3" Content="Refresh" Command="{Binding RefreshCatalogCommand}" />
+          <Button Grid.Column="3" Content="Refresh" Command="{Binding RefreshCatalogCommand}"
+                  ToolTip.Tip="Load the newest mod list from the server." />
         </Grid>
         <TextBlock DockPanel.Dock="Bottom" Classes="muted" Text="{Binding Status}" Margin="0,8,0,0" />
         <ScrollViewer>
@@ -72,7 +80,8 @@
                         <Border Grid.Column="0" Classes="badge">
                           <TextBlock Text="{Binding Category}" />
                         </Border>
-                        <TextBlock Grid.Column="1" Text="{Binding State}" Classes="muted" HorizontalAlignment="Right" />
+                        <TextBlock Grid.Column="1" Text="{Binding State}" Classes="muted" HorizontalAlignment="Right"
+                                   ToolTip.Tip="Deployed: in your game folder. In profile: added, not deployed yet. Cached: downloaded, not in this profile." />
                       </Grid>
                       <Button Content="Details" Command="{Binding OpenCommand}" HorizontalAlignment="Stretch" Margin="0,6,0,0" />
                     </StackPanel>
@@ -100,9 +109,13 @@
           </Border>
           <TextBlock Text="{Binding Detail.Unsupported}" Foreground="{DynamicResource F3M.Brush.Error}" TextWrapping="Wrap" />
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-            <Button Classes="primary" Content="Add to profile" Command="{Binding AddSelectedCommand}" />
-            <Button Content="Download" Command="{Binding DownloadSelectedCommand}" />
+            <Button Classes="primary" Content="Add to profile" Command="{Binding AddSelectedCommand}"
+                    ToolTip.Tip="Add this mod and what it requires to the active profile. Press Deploy to install it." />
+            <Button Content="Download" Command="{Binding DownloadSelectedCommand}"
+                    ToolTip.Tip="Only download it into the cache, for later or offline use. Nothing is installed." />
           </StackPanel>
+          <TextBlock Classes="muted" TextWrapping="Wrap"
+                     Text="Add to profile is all you need: missing files are downloaded during Deploy." />
         </StackPanel>
       </Border>
     </Grid>
@@ -114,7 +127,10 @@
       <DockPanel Grid.Column="0">
         <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
           <TextBlock Classes="heading" Text="Profiles" />
-          <Button Content="New profile" Command="{Binding NewProfileCommand}" HorizontalAlignment="Stretch" />
+          <TextBlock Classes="muted" TextWrapping="Wrap"
+                     Text="A profile is a list of mods. Keep one per playstyle and switch between them; only one is in the game folder at a time." />
+          <Button Content="New profile" Command="{Binding NewProfileCommand}" HorizontalAlignment="Stretch"
+                  ToolTip.Tip="Start an empty profile. Switch to it, then add mods from Browse." />
         </StackPanel>
         <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}">
           <ListBox.ItemTemplate>
@@ -143,10 +159,14 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               <WrapPanel Margin="0,10,0,0">
-                <Button Content="Duplicate" Command="{Binding DuplicateCommand}" Margin="0,0,8,8" />
-                <Button Content="Capture current" Command="{Binding CaptureCurrentCommand}" Margin="0,0,8,8" />
-                <Button Classes="primary" Content="Switch to this profile" Command="{Binding SwitchCommand}" Margin="0,0,8,8" />
-                <Button Content="Delete" Command="{Binding DeleteCommand}" Margin="0,0,8,8" />
+                <Button Content="Duplicate" Command="{Binding DuplicateCommand}" Margin="0,0,8,8"
+                        ToolTip.Tip="Copy this profile, including its pinned versions, to try changes without losing it." />
+                <Button Content="Capture current" Command="{Binding CaptureCurrentCommand}" Margin="0,0,8,8"
+                        ToolTip.Tip="Save the mods that are in the game folder right now as a new profile. Pins are not copied." />
+                <Button Classes="primary" Content="Switch to this profile" Command="{Binding SwitchCommand}" Margin="0,0,8,8"
+                        ToolTip.Tip="Make this the active profile. You see a summary first, then the game folder is changed to match it." />
+                <Button Content="Delete" Command="{Binding DeleteCommand}" Margin="0,0,8,8"
+                        ToolTip.Tip="Delete this profile. Downloaded mods stay in the cache. The deployed profile can't be deleted." />
               </WrapPanel>
             </StackPanel>
           </Border>
@@ -154,7 +174,7 @@
           <Border Classes="card">
             <StackPanel Spacing="8">
               <TextBlock Text="Share" Classes="heading" />
-              <TextBlock Text="A web link that lists this profile's mods. Pins are left out." Classes="muted" TextWrapping="Wrap" />
+              <TextBlock Text="A web link that lists this profile's mods. Others can open it in a browser and press Use this setup to import it into their F3M Desktop. Pins are left out." Classes="muted" TextWrapping="Wrap" />
               <Button Content="Create link" Command="{Binding ShareCommand}" HorizontalAlignment="Left" />
               <TextBox Text="{Binding ShareLink}" IsReadOnly="True" />
               <Button Content="Copy link" Command="{Binding CopyLinkCommand}" HorizontalAlignment="Left" />
@@ -173,10 +193,14 @@
       <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
         <StackPanel Grid.Column="0" Spacing="2">
           <TextBlock Classes="heading" Text="Downloads" />
+          <TextBlock Classes="muted" TextWrapping="Wrap"
+                     Text="Downloads are kept in a local cache, so switching profiles or reinstalling doesn't download them again." />
           <TextBlock Classes="muted" Text="{Binding CacheInfo}" />
         </StackPanel>
-        <Button Grid.Column="1" Content="Refresh size" Command="{Binding RefreshCacheInfoCommand}" VerticalAlignment="Center" />
-        <Button Grid.Column="2" Content="Clear finished" Command="{Binding ClearFinishedCommand}" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Refresh size" Command="{Binding RefreshCacheInfoCommand}" VerticalAlignment="Center"
+                ToolTip.Tip="Recount how much space unused downloads take." />
+        <Button Grid.Column="2" Content="Clear finished" Command="{Binding ClearFinishedCommand}" VerticalAlignment="Center"
+                ToolTip.Tip="Remove finished entries from this list. Downloaded files are kept." />
       </Grid>
       <ScrollViewer>
         <ItemsControl ItemsSource="{Binding Items}">
@@ -189,7 +213,8 @@
                   <ProgressBar Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Minimum="0" Maximum="100" Value="{Binding Progress}" Height="6" />
                   <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Text="{Binding Detail}" Classes="muted" />
-                    <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" />
+                    <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}"
+                            ToolTip.Tip="Stop this operation. A cancelled deploy puts the game folder back as it was." />
                   </Grid>
                 </Grid>
               </Border>
@@ -209,7 +234,7 @@
         <Border Classes="card">
           <StackPanel Spacing="8">
             <TextBlock Text="Server address" FontWeight="SemiBold" />
-            <TextBlock Classes="muted" Text="The website address, for example https://f3m.example.com" TextWrapping="Wrap" />
+            <TextBlock Classes="muted" Text="The F3M website the mod list comes from. Leave it as it is unless you run your own server." TextWrapping="Wrap" />
             <TextBox Text="{Binding ServerUrl}" Watermark="https://" />
           </StackPanel>
         </Border>
@@ -217,23 +242,31 @@
         <Border Classes="card">
           <StackPanel Spacing="8">
             <TextBlock Text="Game" FontWeight="SemiBold" />
+            <TextBlock Classes="muted" Text="Game folder: where the game is installed. Mods are deployed into it." TextWrapping="Wrap" />
             <TextBox Text="{Binding GameFolder}" Watermark="Game folder" />
             <Button Content="Choose game folder" Command="{Binding PickGameFolderCommand}" HorizontalAlignment="Left" />
+            <TextBlock Classes="muted" Text="Executable: the file Play starts, for example Game.exe." TextWrapping="Wrap" Margin="0,6,0,0" />
             <TextBox Text="{Binding GameExecutable}" Watermark="Executable, relative to the game folder" />
             <Button Content="Choose executable" Command="{Binding PickExecutableCommand}" HorizontalAlignment="Left" />
-            <TextBox Text="{Binding SteamAppId}" Watermark="Steam app ID (optional, launches through Steam)" />
+            <TextBlock Classes="muted" Text="Steam app ID (optional): when set, Play starts the game through Steam instead. It's the number in the game's Steam store address." TextWrapping="Wrap" Margin="0,6,0,0" />
+            <TextBox Text="{Binding SteamAppId}" Watermark="Steam app ID" />
           </StackPanel>
         </Border>
 
         <Border Classes="card">
           <StackPanel Spacing="8">
             <TextBlock Text="Updates and cache" FontWeight="SemiBold" />
+            <TextBlock Classes="muted" Text="How often to look for newer versions of your mods (1 to 168 hours). Updates are never installed without asking." TextWrapping="Wrap" />
             <TextBox Text="{Binding UpdateCheckHours}" Watermark="Check for updates every (hours)" />
+            <TextBlock Classes="muted" Text="How much disk space downloaded mods may use (GB). Above it, the downloads used longest ago are removed; deployed and pinned ones are kept." TextWrapping="Wrap" Margin="0,6,0,0" />
             <TextBox Text="{Binding CacheLimitGb}" Watermark="Cache size limit (GB)" />
-            <CheckBox Content="Start F3M Desktop when I sign in" IsChecked="{Binding LaunchAtLogin}" />
+            <CheckBox Content="Start F3M Desktop when I sign in" IsChecked="{Binding LaunchAtLogin}"
+                      ToolTip.Tip="Starts minimised to the tray, so update checks and website links work right away." />
+            <TextBlock Classes="muted" Text="Changes on this page apply when you press Save settings." TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Classes="primary" Content="Save settings" Command="{Binding SaveCommand}" />
-              <Button Content="Clear unused cache" Command="{Binding ClearUnusedCacheCommand}" />
+              <Button Content="Clear unused cache" Command="{Binding ClearUnusedCacheCommand}"
+                      ToolTip.Tip="Delete downloads that are neither deployed nor pinned in any profile. You see how much is freed before anything is deleted." />
             </StackPanel>
           </StackPanel>
         </Border>
@@ -241,9 +274,10 @@
         <Border Classes="card">
           <StackPanel Spacing="8">
             <TextBlock Text="Links and diagnostics" FontWeight="SemiBold" />
-            <TextBlock Classes="muted" Text="Lets f3m:// links from the website open this app." TextWrapping="Wrap" />
+            <TextBlock Classes="muted" Text="Lets buttons on the website, such as Use this setup, open this app. Do it once, and again if you move the app." TextWrapping="Wrap" />
             <Button Content="Register f3m:// links" Command="{Binding RegisterLinksCommand}" HorizontalAlignment="Left" />
             <TextBlock Classes="muted" Text="{Binding DataFolder, StringFormat='Data folder: {0}'}" TextWrapping="Wrap" />
+            <TextBlock Classes="muted" Text="Something not working? Copy diagnostics and paste them into your bug report." TextWrapping="Wrap" />
             <Button Content="Copy diagnostics" Command="{Binding CopyDiagnosticsCommand}" HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
