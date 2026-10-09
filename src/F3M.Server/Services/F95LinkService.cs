@@ -2,10 +2,12 @@ using F3M.Server.Data;
 using F3M.Server.Models;
 using F3M.Shared;
 using F3M.Shared.Api;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace F3M.Server.Services;
 
@@ -16,17 +18,13 @@ namespace F3M.Server.Services;
 /// the doc comment on IF95LinkApi for why. That also means, unlike ProfileService/AdminService,
 /// there's nothing here for the controller to catch: every code path returns a fully-formed DTO.
 /// </summary>
-public partial class F95LinkService(
+public class F95LinkService(
     AppDbContext db,
     F95Service f95,
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     ILogger<F95LinkService> logger) : IF95LinkApi
 {
-    // Matches: https://f95zone.to/members/username.12345/
-    [GeneratedRegex(@"^https?://f95zone\.to/members/([a-zA-Z0-9_.\-]+?)\.(\d+)/?$", RegexOptions.IgnoreCase)]
-    private static partial Regex F95ProfileUrlRegex();
-
     private static readonly TimeSpan ExpiryWindow = TimeSpan.FromHours(24);
 
     public async Task<LinkF95StartResponse> Start(LinkF95StartRequest request, CancellationToken ct = default)
@@ -34,39 +32,36 @@ public partial class F95LinkService(
         if (string.IsNullOrWhiteSpace(request.ProfileUrl))
             return new LinkF95StartResponse { Success = false, Error = "Profile URL is required." };
 
-        var match = F95ProfileUrlRegex().Match(request.ProfileUrl.Trim());
-        if (!match.Success)
+        if (!F95Profile.TryParse(request.ProfileUrl, out var f95Username, out var f95UserId))
             return new LinkF95StartResponse
             {
                 Success = false,
-                Error = "Invalid F95zone profile URL. Expected format: https://f95zone.to/members/username.12345/"
+                Error = $"That is not an F95zone profile URL. It should look like {F95Profile.ExampleUrl}"
             };
 
-        var f95Username = match.Groups[1].Value;
-        var f95UserId = match.Groups[2].Value;
+        // A new account is named exactly like the F95 profile. If another F3M account already has that name, an admin
+        // has to sort it out; no code is issued, so the user doesn't post one for nothing.
+        var existingUser = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.F95UserId == f95UserId, ct);
+        if (existingUser is null && await IsUsernameTakenAsync(f95Username, ct))
+            return new LinkF95StartResponse
+            {
+                Success = false,
+                UsernameTaken = true,
+                F95Username = f95Username,
+                Error = $"The name {f95Username} is already used by another F3M account, so your account can't be created automatically."
+            };
 
-        // Cancel any existing pending verification for this F95 user.
-        var existing = await db.F95PendingVerifications
-            .Where(v => v.F95UserId == f95UserId &&
-                        v.Status == F95VerificationStatus.Pending)
-            .ToListAsync(ct);
-
-        foreach (var v in existing)
-            v.Status = F95VerificationStatus.Cancelled;
-
-        if (existing.Count > 0)
-        {
-            await db.SaveChangesAsync(ct);
-            logger.LogInformation("Cancelled {Count} existing pending verification(s) for F95 user {UserId}.", existing.Count, f95UserId);
-        }
-
+        // Other pending verifications for this F95 user are left alone: anyone can start one for any profile, so
+        // cancelling them here would let a stranger interrupt the real owner. Each one is bound to its own token.
         var guid = Guid.NewGuid().ToString("D").ToUpper();
+        var clientToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
         var verification = new F95PendingVerification
         {
             F95UserId = f95UserId,
             F95Username = f95Username,
             VerificationGuid = guid,
+            ClientTokenHash = HashToken(clientToken),
             CreatedAt = DateTime.UtcNow,
             Status = F95VerificationStatus.Pending
         };
@@ -76,28 +71,34 @@ public partial class F95LinkService(
 
         logger.LogInformation("Started F95 verification for {Username} ({UserId}).", f95Username, f95UserId);
 
+        // Tell the user up front which account they will end up in.
         return new LinkF95StartResponse
         {
             Success = true,
             VerificationGuid = guid,
             F95UserId = f95UserId,
-            F95Username = f95Username
+            F95Username = f95Username,
+            ClientToken = clientToken,
+            Username = existingUser?.UserName ?? f95Username,
+            ExistingAccount = existingUser is not null
         };
     }
 
     public async Task<LinkF95PollResponse> Check(string f95UserId, LinkF95PollRequest request, CancellationToken ct = default)
     {
+        // Only the browser that started a verification may finish it: the GUID is public once posted, the token is not.
+        var tokenHash = HashToken(request.ClientToken);
         var verification = await db.F95PendingVerifications
             .Where(v => v.F95UserId == f95UserId &&
+                        v.ClientTokenHash == tokenHash &&
                         v.Status == F95VerificationStatus.Pending)
-            .OrderByDescending(v => v.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
         if (verification is null)
             return new LinkF95PollResponse
             {
                 Status = VerificationState.NotFound,
-                Message = "No pending verification found for this user. Please start again."
+                Message = "This verification is no longer active. Please start again."
             };
 
         if (DateTime.UtcNow - verification.CreatedAt > ExpiryWindow)
@@ -147,8 +148,15 @@ public partial class F95LinkService(
 
         if (user is null)
         {
-            // New user — derive a unique username from the F95 username.
-            var username = await ResolveUniqueUsernameAsync(verification.F95Username, f95UserId, ct);
+            // New user — named exactly like the F95 profile. Start already checked the name, but another account may
+            // have taken it since.
+            var username = verification.F95Username;
+            if (await IsUsernameTakenAsync(username, ct))
+                return new LinkF95PollResponse
+                {
+                    Status = VerificationState.Error,
+                    Message = $"The name {username} is already used by another F3M account. Please contact an admin."
+                };
 
             user = new AppUser
             {
@@ -193,6 +201,14 @@ public partial class F95LinkService(
         }
 
         verification.Status = F95VerificationStatus.Verified;
+
+        // Any other verifications still open for this F95 user are now pointless.
+        var others = await db.F95PendingVerifications
+            .Where(v => v.F95UserId == f95UserId && v.Status == F95VerificationStatus.Pending && v.Id != verification.Id)
+            .ToListAsync(ct);
+        foreach (var other in others)
+            other.Status = F95VerificationStatus.Cancelled;
+
         await db.SaveChangesAsync(ct);
 
         // Issue the auth cookie — this endpoint is itself a login (or registration) path, just
@@ -204,9 +220,14 @@ public partial class F95LinkService(
             Status = VerificationState.Verified,
             Message = isNewUser
                 ? "Account created and linked successfully."
-                : "Logged in via F95zone account."
+                : "Signed in, and your password was updated.",
+            Username = user.UserName,
+            IsNewUser = isNewUser
         };
     }
+
+    private static string HashToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     private async Task ClaimModAuthorshipByNameAsync(AppUser appUser)
@@ -219,18 +240,10 @@ public partial class F95LinkService(
         logger.LogInformation("User '{username}' claimed mod authorship for: {mods}", appUser.UserName, string.Join(", ", modsToClaim.Select(m => m.Id)));
     }
 
-    private async Task<string> ResolveUniqueUsernameAsync(
-        string f95Username, string f95UserId, CancellationToken ct)
+    /// <summary>Case-insensitive, like sign-in: "Name" and "name" are the same account name.</summary>
+    private async Task<bool> IsUsernameTakenAsync(string username, CancellationToken ct)
     {
-        // Try the bare F95 username first; fall back to username_userId if taken.
-        if (!await db.Users.AnyAsync(u => u.UserName == f95Username, ct))
-            return f95Username;
-
-        var fallback = $"{f95Username}_{f95UserId}";
-        if (!await db.Users.AnyAsync(u => u.UserName == fallback, ct))
-            return fallback;
-
-        // Last resort: append a random suffix.
-        return $"{f95Username}_{Guid.NewGuid():N}"[..Math.Min(50, f95Username.Length + 33)];
+        var normalized = userManager.NormalizeName(username);
+        return await db.Users.AnyAsync(u => u.NormalizedUserName == normalized, ct);
     }
 }
