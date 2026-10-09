@@ -2,6 +2,9 @@ using F3M.Desktop.Core;
 
 namespace F3M.Desktop.Services;
 
+/// <summary>Mod counts for the reset dialog. Deployed mods are in the game folder, which a reset does not touch.</summary>
+public sealed record ResetModStats(int Profiles, int ProfileMods, int PinnedMods, int CachedMods, int CachedVersions, int DeployedMods);
+
 /// <summary>One thing a factory reset removes, with its size. <see cref="IsDownload"/> marks downloaded mods.</summary>
 public sealed record ResetItem(string Label, string Location, int Files, long Bytes, bool IsDownload, bool IsRegistration = false);
 
@@ -19,6 +22,52 @@ public sealed class FactoryReset(AppServices app)
         if (File.Exists(Path.Combine(app.Paths.Journal, "current.ndjson")))
             return "A deploy was interrupted and its backups are still needed. Deploy again, then reset.";
         return null;
+    }
+
+    /// <summary>Counts mods in profiles (all games), in the cache, and deployed in the current game folder.</summary>
+    public ResetModStats ModStatistics()
+    {
+        var profiles = new List<ProfileDef>();
+        if (Directory.Exists(app.Paths.Profiles))
+        {
+            foreach (var file in Directory.EnumerateFiles(app.Paths.Profiles, "*.json", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    if (FileOps.ReadJson<ProfileDef>(file) is { } profile) profiles.Add(profile);
+                }
+                catch (Exception ex) when (ex is System.Text.Json.JsonException or IOException)
+                {
+                    // An unreadable profile is still removed; it just is not counted.
+                }
+            }
+        }
+
+        // A cached version is complete when its version.json exists: cache/{group}/{version}/version.json.
+        var cachedVersions = Directory.Exists(app.Paths.Cache)
+            ? Directory.EnumerateFiles(app.Paths.Cache, "version.json", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(app.Paths.Cache, f).Split(Path.DirectorySeparatorChar))
+                .Where(parts => parts.Length == 3 && int.TryParse(parts[0], out _))
+                .ToList()
+            : [];
+
+        int deployed;
+        try
+        {
+            deployed = app.Game.IsConfigured ? app.Deploy.LoadState().Mods.Count : 0;
+        }
+        catch (Exception ex) when (ex is System.Text.Json.JsonException or IOException)
+        {
+            deployed = 0;
+        }
+
+        return new ResetModStats(
+            profiles.Count,
+            profiles.SelectMany(p => p.GroupIds).Distinct().Count(),
+            profiles.Sum(p => p.Pins.Count),
+            cachedVersions.Select(parts => parts[0]).Distinct().Count(),
+            cachedVersions.Count,
+            deployed);
     }
 
     /// <summary>What a reset would remove right now. Folders and files that do not exist are left out.</summary>
