@@ -1,0 +1,256 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="using:F3M.Desktop.ViewModels"
+                    xmlns:svc="using:F3M.Desktop.Services">
+
+  <!-- Library: the active profile's mods, with per-mod actions (plan 4.1, 6.6). -->
+  <DataTemplate DataType="vm:LibraryViewModel">
+    <DockPanel Margin="16">
+      <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
+        <TextBlock Classes="heading" Text="Library" />
+        <TextBlock Classes="muted" Text="{Binding Summary}" />
+      </StackPanel>
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding Rows}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:LibraryRow">
+              <Border Classes="card" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                  <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
+                    <TextBlock Text="{Binding State}" Classes="muted" />
+                    <TextBlock Text="{Binding RequiredBy, StringFormat='Dependency of {0}'}"
+                               Classes="muted" IsVisible="{Binding IsDependency}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Button Content="Config" Command="{Binding ConfigCommand}" IsVisible="{Binding HasConfig}" />
+                    <Button Content="Pin version" Command="{Binding PinCommand}" />
+                    <Button Content="Unpin" Command="{Binding UnpinCommand}" />
+                    <Button Content="Clear generated" Command="{Binding ClearGeneratedCommand}" IsVisible="{Binding IsDeployed}" />
+                    <Button Content="Remove" Command="{Binding RemoveCommand}" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </DockPanel>
+  </DataTemplate>
+
+  <!-- Browse: the catalog grid, filter bar, and a detail panel (plan 3.3). -->
+  <DataTemplate DataType="vm:BrowseViewModel">
+    <Grid ColumnDefinitions="*,340" Margin="16" ColumnSpacing="16">
+      <DockPanel Grid.Column="0">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,170,150,Auto" ColumnSpacing="8" Margin="0,0,0,12">
+          <TextBox Grid.Column="0" Watermark="Search mods" Text="{Binding Search}" />
+          <ComboBox Grid.Column="1" ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}"
+                    HorizontalAlignment="Stretch" />
+          <ComboBox Grid.Column="2" ItemsSource="{Binding Sorts}" SelectedItem="{Binding Sort}"
+                    HorizontalAlignment="Stretch" />
+          <Button Grid.Column="3" Content="Refresh" Command="{Binding RefreshCatalogCommand}" />
+        </Grid>
+        <TextBlock DockPanel.Dock="Bottom" Classes="muted" Text="{Binding Status}" Margin="0,8,0,0" />
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding Cards}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="vm:ModCard">
+                <Border Classes="card" Width="240" Margin="0,0,12,12" Padding="0" ClipToBounds="True">
+                  <StackPanel>
+                    <Border Height="130" Background="{DynamicResource F3M.Brush.Surface2}">
+                      <Image Source="{Binding Preview}" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel Margin="12" Spacing="4">
+                      <TextBlock Text="{Binding Name}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Author, StringFormat='by {0}'}" Classes="muted" />
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,4,0,0">
+                        <Border Grid.Column="0" Classes="badge">
+                          <TextBlock Text="{Binding Category}" />
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="{Binding State}" Classes="muted" HorizontalAlignment="Right" />
+                      </Grid>
+                      <Button Content="Details" Command="{Binding OpenCommand}" HorizontalAlignment="Stretch" Margin="0,6,0,0" />
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+
+      <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Mod details" Classes="heading" />
+          <TextBlock Text="Choose Details on a mod to see it here." Classes="muted" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Detail.Name}" FontWeight="Bold" FontSize="15" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Detail.Author, StringFormat='by {0}'}" Classes="muted" />
+          <TextBlock Text="{Binding Detail.Description}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Detail.Version, StringFormat='Version {0}'}" Classes="muted" />
+          <TextBlock Text="{Binding Detail.Published, StringFormat='Published {0}'}" Classes="muted" />
+          <TextBlock Text="{Binding Detail.Size, StringFormat='Download size {0}'}" Classes="muted" />
+          <TextBlock Text="{Binding Detail.Dependencies, StringFormat='Requires: {0}'}" Classes="muted" TextWrapping="Wrap" />
+          <Border Classes="badge" HorizontalAlignment="Left">
+            <TextBlock Text="{Binding Detail.Category}" />
+          </Border>
+          <TextBlock Text="{Binding Detail.Unsupported}" Foreground="{DynamicResource F3M.Brush.Error}" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+            <Button Classes="primary" Content="Add to profile" Command="{Binding AddSelectedCommand}" />
+            <Button Content="Download" Command="{Binding DownloadSelectedCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </DataTemplate>
+
+  <!-- Profiles: list on the left, the selected profile on the right (plan 6.9, 10.2). -->
+  <DataTemplate DataType="vm:ProfilesViewModel">
+    <Grid ColumnDefinitions="260,*" Margin="16" ColumnSpacing="16">
+      <DockPanel Grid.Column="0">
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+          <TextBlock Classes="heading" Text="Profiles" />
+          <Button Content="New profile" Command="{Binding NewProfileCommand}" HorizontalAlignment="Stretch" />
+        </StackPanel>
+        <ListBox ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Name}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+
+      <ScrollViewer Grid.Column="1">
+        <StackPanel Spacing="10">
+          <Border Classes="card">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Name" Classes="muted" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox Grid.Column="0" Text="{Binding EditName}" />
+                <Button Grid.Column="1" Content="Rename" Command="{Binding RenameCommand}" />
+              </Grid>
+              <TextBlock Text="Mods in this profile" Classes="muted" Margin="0,8,0,0" />
+              <ItemsControl ItemsSource="{Binding Members}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <WrapPanel Margin="0,10,0,0">
+                <Button Content="Duplicate" Command="{Binding DuplicateCommand}" Margin="0,0,8,8" />
+                <Button Content="Capture current" Command="{Binding CaptureCurrentCommand}" Margin="0,0,8,8" />
+                <Button Classes="primary" Content="Switch to this profile" Command="{Binding SwitchCommand}" Margin="0,0,8,8" />
+                <Button Content="Delete" Command="{Binding DeleteCommand}" Margin="0,0,8,8" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Share" Classes="heading" />
+              <TextBlock Text="A web link that lists this profile's mods. Pins are left out." Classes="muted" TextWrapping="Wrap" />
+              <Button Content="Create link" Command="{Binding ShareCommand}" HorizontalAlignment="Left" />
+              <TextBox Text="{Binding ShareLink}" IsReadOnly="True" />
+              <Button Content="Copy link" Command="{Binding CopyLinkCommand}" HorizontalAlignment="Left" />
+            </StackPanel>
+          </Border>
+
+          <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap" />
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </DataTemplate>
+
+  <!-- Downloads: operation list with progress and cancel (plan 4.2). -->
+  <DataTemplate DataType="vm:DownloadsViewModel">
+    <DockPanel Margin="16">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
+        <StackPanel Grid.Column="0" Spacing="2">
+          <TextBlock Classes="heading" Text="Downloads" />
+          <TextBlock Classes="muted" Text="{Binding CacheInfo}" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Refresh size" Command="{Binding RefreshCacheInfoCommand}" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Content="Clear finished" Command="{Binding ClearFinishedCommand}" VerticalAlignment="Center" />
+      </Grid>
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding Items}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="svc:OperationItem">
+              <Border Classes="card" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                  <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Title}" FontWeight="SemiBold" />
+                  <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Status}" Classes="muted" />
+                  <ProgressBar Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Minimum="0" Maximum="100" Value="{Binding Progress}" Height="6" />
+                  <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding Detail}" Classes="muted" />
+                    <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" />
+                  </Grid>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </DockPanel>
+  </DataTemplate>
+
+  <!-- Settings: server, game folder, launch, and maintenance (plan 2.2, 6.11, 9.4). -->
+  <DataTemplate DataType="vm:SettingsViewModel">
+    <ScrollViewer Margin="16">
+      <StackPanel Spacing="12" MaxWidth="720" HorizontalAlignment="Left">
+        <TextBlock Classes="heading" Text="Settings" />
+
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Server address" FontWeight="SemiBold" />
+            <TextBlock Classes="muted" Text="The website address, for example https://f3m.example.com" TextWrapping="Wrap" />
+            <TextBox Text="{Binding ServerUrl}" Watermark="https://" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Game" FontWeight="SemiBold" />
+            <TextBox Text="{Binding GameFolder}" Watermark="Game folder" />
+            <Button Content="Choose game folder" Command="{Binding PickGameFolderCommand}" HorizontalAlignment="Left" />
+            <TextBox Text="{Binding GameExecutable}" Watermark="Executable, relative to the game folder" />
+            <Button Content="Choose executable" Command="{Binding PickExecutableCommand}" HorizontalAlignment="Left" />
+            <TextBox Text="{Binding SteamAppId}" Watermark="Steam app ID (optional, launches through Steam)" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Updates and cache" FontWeight="SemiBold" />
+            <TextBox Text="{Binding UpdateCheckHours}" Watermark="Check for updates every (hours)" />
+            <TextBox Text="{Binding CacheLimitGb}" Watermark="Cache size limit (GB)" />
+            <CheckBox Content="Start F3M Desktop when I sign in" IsChecked="{Binding LaunchAtLogin}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="primary" Content="Save settings" Command="{Binding SaveCommand}" />
+              <Button Content="Clear unused cache" Command="{Binding ClearUnusedCacheCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Links and diagnostics" FontWeight="SemiBold" />
+            <TextBlock Classes="muted" Text="Lets f3m:// links from the website open this app." TextWrapping="Wrap" />
+            <Button Content="Register f3m:// links" Command="{Binding RegisterLinksCommand}" HorizontalAlignment="Left" />
+            <TextBlock Classes="muted" Text="{Binding DataFolder, StringFormat='Data folder: {0}'}" TextWrapping="Wrap" />
+            <Button Content="Copy diagnostics" Command="{Binding CopyDiagnosticsCommand}" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+
+        <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap" />
+      </StackPanel>
+    </ScrollViewer>
+  </DataTemplate>
+
+</ResourceDictionary>

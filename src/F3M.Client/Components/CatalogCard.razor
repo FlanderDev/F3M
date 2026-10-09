@@ -1,0 +1,47 @@
+<div class="mod-card h-100@(Entry.IsAvailable ? string.Empty : " mod-card-unavailable")">
+    <div class="mod-card-image">
+        @if (!string.IsNullOrEmpty(Entry.Group?.PreviewUrl))
+        {
+            <img src="@Entry.Group!.PreviewUrl" alt="@Entry.Group.Name preview" loading="lazy" />
+        }
+        else
+        {
+            <div class="mod-card-no-image"><i class="bi bi-box-seam"></i></div>
+        }
+        <span class="mod-card-category">@(Entry.Group?.Category ?? "Unavailable")</span>
+    </div>
+    <div class="mod-card-body">
+        <h6 class="mod-card-title">@(Entry.Group?.Name ?? $"Mod {Entry.GroupId}")</h6>
+        @if (Entry.IsAvailable)
+        {
+            <p class="mod-card-author">by @Entry.Group!.Author</p>
+            <p class="mod-card-desc">@Entry.Version!.Description</p>
+            <div class="mod-card-meta">
+                <span><i class="bi bi-hdd"></i> @FormatBytes(Entry.TotalBytes)</span>
+                <span><i class="bi bi-files"></i> @Entry.Version!.Files.Count file@(Entry.Version.Files.Count != 1 ? "s" : string.Empty)</span>
+                <span class="mod-card-version">v@(Entry.Group!.LatestVersion)</span>
+            </div>
+        }
+        else
+        {
+            <p class="mod-card-desc">This mod is not in the catalog. The rest of the collection still works.</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CatalogEntry Entry { get; set; } = default!;
+
+    public static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB"];
+        double value = bytes;
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+        return unit == 0 ? $"{bytes} B" : $"{value:0.#} {units[unit]}";
+    }
+}
