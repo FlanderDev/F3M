@@ -54,3 +54,16 @@ public sealed record KeysDocument(List<PublicKeyEntry> Keys);
 public sealed record PublicKeyEntry(string KeyId, string Algorithm, string PublicKeyPem);
 
 public sealed record SignedEnvelope(string KeyId, string Document, string Signature);
+
+// ── Admin maintenance ──
+
+/// <summary>Outcome of a full catalog rebuild, shown on the admin page.</summary>
+/// <param name="FilesBackfilled">Files uploaded before catalog support whose placements were filled in.</param>
+/// <param name="VersionsPublished">Approved versions now in the catalog.</param>
+/// <param name="VersionsRemoved">Documents removed because their version no longer exists or is not approved.</param>
+/// <param name="Errors">Versions left out because their files could not be read.</param>
+public sealed record CatalogRebuildResult(
+    int FilesBackfilled,
+    int VersionsPublished,
+    int VersionsRemoved,
+    IReadOnlyList<string> Errors);
