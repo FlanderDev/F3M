@@ -23,6 +23,25 @@ public partial class ConfirmWindow : Window
         return window.ShowDialog<bool>(owner);
     }
 
+    /// <summary>
+    /// Like <see cref="AskAsync"/>, with a check box under the text. The text is rebuilt when the box changes, so it
+    /// can show what the choice means. Returns null when cancelled, otherwise whether the box was ticked.
+    /// </summary>
+    public static async Task<bool?> AskWithOptionAsync(Window owner, string title, Func<bool, string> body, string okText,
+        string optionText, bool destructive)
+    {
+        var window = new ConfirmWindow { Title = title };
+        window.SetBody(body(false));
+        window.OkButton.Content = okText;
+        if (destructive) window.OkButton.Classes.Add("danger");
+        window.OptionBox.Content = optionText;
+        window.OptionBox.IsVisible = true;
+        window.OptionBox.IsCheckedChanged += (_, _) => window.SetBody(body(window.OptionBox.IsChecked == true));
+
+        var ok = await window.ShowDialog<bool>(owner);
+        return ok ? window.OptionBox.IsChecked == true : null;
+    }
+
     private void SetBody(string body)
     {
         var inlines = new InlineCollection();

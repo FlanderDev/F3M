@@ -139,10 +139,40 @@ public static class ProtocolRegistration
             throw new UserException("Link registration is not supported on this system.");
     }
 
+    private const string WindowsKey = @"Software\Classes\f3m";
+
+    private static string LinuxDesktopFile =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applications", "f3m-desktop.desktop");
+
+    public static bool IsRegistered()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(WindowsKey);
+            return key is not null;
+        }
+
+        return OperatingSystem.IsLinux() && File.Exists(LinuxDesktopFile);
+    }
+
+    /// <summary>Removes what <see cref="Register"/> added. Nothing happens when links are not registered.</summary>
+    public static void Unregister()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(WindowsKey, throwOnMissingSubKey: false);
+        }
+        else if (OperatingSystem.IsLinux() && File.Exists(LinuxDesktopFile))
+        {
+            File.Delete(LinuxDesktopFile);
+            Run("update-desktop-database", Path.GetDirectoryName(LinuxDesktopFile)!);
+        }
+    }
+
     [SupportedOSPlatform("windows")]
     private static void RegisterWindows(string executable)
     {
-        using var root = Registry.CurrentUser.CreateSubKey(@"Software\Classes\f3m");
+        using var root = Registry.CurrentUser.CreateSubKey(WindowsKey);
         root.SetValue(string.Empty, "URL:F3M Protocol");
         root.SetValue("URL Protocol", string.Empty);
         using (var icon = root.CreateSubKey("DefaultIcon")) icon.SetValue(string.Empty, $"\"{executable}\",0");
@@ -152,9 +182,9 @@ public static class ProtocolRegistration
 
     private static void RegisterLinux(string executable)
     {
-        var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applications");
+        var folder = Path.GetDirectoryName(LinuxDesktopFile)!;
         Directory.CreateDirectory(folder);
-        File.WriteAllText(Path.Combine(folder, "f3m-desktop.desktop"),
+        File.WriteAllText(LinuxDesktopFile,
             "[Desktop Entry]\n" +
             "Type=Application\n" +
             "Name=F3M Desktop\n" +
@@ -190,6 +220,22 @@ public static class ProtocolRegistration
 /// <summary>Start at login, off by default. The app starts minimised to the tray (plan 3.5, P6).</summary>
 public static class StartAtLogin
 {
+    private const string WindowsValue = "F3M Desktop";
+
+    private static string LinuxFile =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "autostart", "f3m-desktop.desktop");
+
+    public static bool IsEnabled()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            using var run = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
+            return run?.GetValue(WindowsValue) is not null;
+        }
+
+        return OperatingSystem.IsLinux() && File.Exists(LinuxFile);
+    }
+
     public static void Set(bool enabled, string executable)
     {
         if (OperatingSystem.IsWindows())
@@ -203,14 +249,14 @@ public static class StartAtLogin
     {
         using var run = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
         if (enabled)
-            run.SetValue("F3M Desktop", $"\"{executable}\" --minimized");
+            run.SetValue(WindowsValue, $"\"{executable}\" --minimized");
         else
-            run.DeleteValue("F3M Desktop", throwOnMissingValue: false);
+            run.DeleteValue(WindowsValue, throwOnMissingValue: false);
     }
 
     private static void SetLinux(bool enabled, string executable)
     {
-        var file = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "autostart", "f3m-desktop.desktop");
+        var file = LinuxFile;
         if (!enabled)
         {
             if (File.Exists(file)) File.Delete(file);
