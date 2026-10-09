@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace F3M.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261009100743_InitialCreate")]
+    [Migration("20261009112317_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -105,6 +105,11 @@ namespace F3M.Server.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ClientTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");

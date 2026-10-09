@@ -24,6 +24,9 @@ public static class Configuration
     /// <summary>The public website and server. The desktop app's default server address.</summary>
     public const string PublicSiteUrl = "https://f3m.felix-leander.de";
 
+    /// <summary>Where users reach an admin: FlanderDev's F95zone profile.</summary>
+    public const string AdminContactUrl = "https://f95zone.to/members/flanderdev.2601924/";
+
     /// <summary>Where the desktop app is downloaded: the newest GitHub release, whatever its tag.</summary>
     public const string DesktopDownloadUrl = "https://github.com/FlanderDev/F3M/releases/latest";
 

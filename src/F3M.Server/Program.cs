@@ -99,6 +99,8 @@ app.MapPost("/login", async (
         return Results.Unauthorized();
 
     var result = await signInManager.CheckPasswordSignInAsync(user, login.Password, lockoutOnFailure: true);
+    if (result.IsLockedOut)
+        return Results.StatusCode(StatusCodes.Status429TooManyRequests); // The login page explains the wait.
     if (!result.Succeeded)
         return Results.Unauthorized();
 

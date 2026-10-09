@@ -118,6 +118,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(v => v.F95UserId).IsRequired().HasMaxLength(30);
             e.Property(v => v.F95Username).IsRequired().HasMaxLength(50);
             e.Property(v => v.VerificationGuid).IsRequired().HasMaxLength(40);
+            e.Property(v => v.ClientTokenHash).IsRequired().HasMaxLength(64);
             e.Property(v => v.Status).HasConversion<string>();
             e.HasIndex(v => v.F95UserId);
             e.HasIndex(v => v.Status);

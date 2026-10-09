@@ -67,6 +67,7 @@ namespace F3M.Server.Migrations
                     F95Username = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
                     VerificationGuid = table.Column<string>(type: "TEXT", maxLength: 40, nullable: false),
                     ProfilePostId = table.Column<long>(type: "INTEGER", nullable: false),
+                    ClientTokenHash = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Status = table.Column<string>(type: "TEXT", nullable: false)
                 },
