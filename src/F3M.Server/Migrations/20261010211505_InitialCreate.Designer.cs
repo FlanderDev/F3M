@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace F3M.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261009112317_InitialCreate")]
+    [Migration("20261010211505_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -329,10 +329,27 @@ namespace F3M.Server.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("F95OwnerName")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("F95OwnerUserId")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("OwnerId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("F95OwnerUserId");
 
                     b.ToTable("ModGroups");
                 });

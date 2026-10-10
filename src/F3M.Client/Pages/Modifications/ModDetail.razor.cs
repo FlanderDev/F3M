@@ -16,13 +16,26 @@ public partial class ModDetail
 
     private Mod? selectedVersion;
     private List<Mod> allVersions = [];
+    private ModGroup? group;
     private bool loading = true;
     private bool isOwner;
     private bool isAdmin;
+    private int? currentUserId;
 
     private bool showDeleteConfirm;
+    private bool showRemoveConfirm;
     private bool deleting;
     private string? deleteError;
+
+    private bool claiming;
+    private bool claimSucceeded;
+    private string? claimMessage;
+
+    // Admin: who the mod belongs to.
+    private List<AdminUserDto> users = [];
+    private int assignUserId;
+    private bool assigning;
+    private string? assignMessage;
 
     private int? activeFileId;
     private int? downloadingFileId;
@@ -45,6 +58,8 @@ public partial class ModDetail
             // approval, so an owner/admin viewing their own not-yet-approved mod would
             // otherwise not see it in this list at all.
             allVersions = result.Versions.Count > 0 ? result.Versions : [selectedVersion];
+            group = result.Group;
+            assignUserId = group.OwnerId;
 
             // Check ownership
             if (AuthState is not null)
@@ -52,9 +67,15 @@ public partial class ModDetail
                 var state = await AuthState;
                 var userIdStr = state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (int.TryParse(userIdStr, out var userId))
+                {
+                    currentUserId = userId;
                     isOwner = result.Group.OwnerId == userId;
+                }
                 isAdmin = state.User.IsInRole(AppRoles.Admin);
             }
+
+            if (isAdmin)
+                users = await AdminApi.GetUsersAsync();
         }
         catch (Exception ex)
         {
@@ -116,6 +137,91 @@ public partial class ModDetail
         }
         catch (Exception ex) { deleteError = ex.Message; }
         finally { deleting = false; }
+    }
+
+    private string UnclaimedLabel =>
+        group?.F95OwnerName is { Length: > 0 } name ? $"Unclaimed (goes to {name} on F95 sign-in)" : "Unclaimed";
+
+    private void AskDeleteVersion()
+    {
+        // Deleting the only version removes the mod; that goes through the whole-mod removal, which also works while
+        // other mods depend on it.
+        showDeleteConfirm = allVersions.Count > 1;
+        showRemoveConfirm = allVersions.Count <= 1;
+        deleteError = null;
+    }
+
+    private void AskRemoveMod()
+    {
+        showRemoveConfirm = true;
+        showDeleteConfirm = false;
+        deleteError = null;
+    }
+
+    private async Task RemoveMod()
+    {
+        if (group is null) return;
+        deleting = true; deleteError = null;
+        try
+        {
+            await ModsApi.DeleteGroup(group.Id);
+            Nav.NavigateTo("/");
+        }
+        catch (ApiException ex)
+        {
+            deleteError = ex.StatusCode == HttpStatusCode.Forbidden
+                ? "You don't have permission to remove this mod."
+                : ex.ResponseBody ?? $"Removing failed ({(int)ex.StatusCode}).";
+        }
+        catch (Exception ex) { deleteError = ex.Message; }
+        finally { deleting = false; }
+    }
+
+    private async Task Claim()
+    {
+        if (group is null) return;
+        claiming = true; claimMessage = null;
+        try
+        {
+            var result = await ModsApi.Claim(group.Id);
+            claimSucceeded = result.Success;
+            claimMessage = result.Message;
+            if (result.Success)
+            {
+                // Reload so the owner actions appear.
+                var refreshed = await ModsApi.GetVersions(group.Id);
+                group = refreshed.Group;
+                isOwner = true;
+            }
+        }
+        catch (ApiException ex)
+        {
+            claimSucceeded = false;
+            claimMessage = ex.StatusCode == HttpStatusCode.Unauthorized
+                ? "Please sign in first."
+                : ex.ResponseBody ?? $"Claiming failed ({(int)ex.StatusCode}).";
+        }
+        catch (Exception ex) { claimSucceeded = false; claimMessage = ex.Message; }
+        finally { claiming = false; }
+    }
+
+    private async Task AssignOwner()
+    {
+        if (group is null) return;
+        assigning = true; assignMessage = null;
+        try
+        {
+            var userId = assignUserId == ModGroup.UnclaimedOwnerId ? (int?)null : assignUserId;
+            group = await AdminApi.AssignModOwnerAsync(group.Id, new AssignModOwnerDto { UserId = userId });
+            assignUserId = group.OwnerId;
+            isOwner = group.OwnerId == currentUserId;
+            assignMessage = userId is null
+                ? "The mod is unclaimed again."
+                : $"The mod now belongs to {users.FirstOrDefault(u => u.Id == userId)?.Username ?? "that user"}.";
+        }
+        catch (ApiException ex) { assignMessage = ex.ResponseBody ?? $"Saving failed ({(int)ex.StatusCode})."; }
+        catch (Exception ex) { assignMessage = ex.Message; }
+        finally { assigning = false; }
     }
 
     private async Task DownloadAll()

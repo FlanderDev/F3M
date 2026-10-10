@@ -16,7 +16,8 @@ namespace F3M.Server.Services;
 /// RouteGen's [Body] covers). ModsController is a thin adapter over this for everything else,
 /// same pattern as ProfileService/AdminService.
 /// </summary>
-public partial class ModsService(AppDbContext db, IHttpContextAccessor httpContextAccessor, CatalogService catalog) : IModsApi
+public partial class ModsService(
+    AppDbContext db, IHttpContextAccessor httpContextAccessor, CatalogService catalog, ModOwnershipService ownership) : IModsApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
         httpContextAccessor.HttpContext?.User
@@ -212,6 +213,54 @@ public partial class ModsService(AppDbContext db, IHttpContextAccessor httpConte
         await catalog.TryRemoveVersionAsync(mod.ModGroupId, mod.Id, ct);
 
         foreach (var path in diskFiles)
+        {
+            try { if (File.Exists(path)) File.Delete(path); }
+            catch { /* an orphaned file is harmless, a failed request is not */ }
+        }
+    }
+
+    public async Task<ClaimModResult> Claim(int groupId, CancellationToken ct = default)
+    {
+        var userId = Helper.GetUserId(CurrentPrincipal)
+                     ?? throw new UnauthorizedAccessException("No authenticated user.");
+        var user = await db.Users.FindAsync([userId], ct)
+                   ?? throw new UnauthorizedAccessException("The signed-in account no longer exists.");
+
+        return await ownership.ClaimAsync(groupId, user, ct);
+    }
+
+    public async Task DeleteGroup(int groupId, CancellationToken ct = default)
+    {
+        var group = await db.ModGroups.FindAsync([groupId], ct)
+                    ?? throw new KeyNotFoundException($"No mod group with id {groupId} was found.");
+        EnsureCanModify(group);
+
+        var versions = await db.Mods.Include(m => m.Files).Where(m => m.ModGroupId == groupId).ToListAsync(ct);
+
+        // Other mods may depend on this one. Their dependency on it goes; the rest of them stays.
+        var dependents = await db.Mods.Include(m => m.DependencyGroups)
+            .Where(m => m.ModGroupId != groupId && m.DependencyGroups.Any(g => g.Id == groupId))
+            .ToListAsync(ct);
+        foreach (var dependent in dependents)
+            dependent.DependencyGroups.RemoveAll(g => g.Id == groupId);
+
+        var diskFiles = versions.SelectMany(m => m.Files).Select(f => Path.Combine(Assets.Files, f.FileName)).ToList();
+        var previews = versions.Select(m => m.PreviewImageName).OfType<string>().Where(n => n.Length > 0).Distinct().ToList();
+
+        db.Mods.RemoveRange(versions);
+        db.ModGroups.Remove(group);
+        await db.SaveChangesAsync(ct);
+
+        foreach (var version in versions)
+            await catalog.TryRemoveVersionAsync(groupId, version.Id, ct);
+        // Their published documents still list the removed dependency.
+        foreach (var dependent in dependents)
+            await catalog.TryPublishVersionAsync(dependent.Id, ct);
+
+        // Previews can be shared with other groups only through an inherited name, which stays within a group.
+        var stillUsed = await db.Mods.Where(m => m.PreviewImageName != null && previews.Contains(m.PreviewImageName))
+            .Select(m => m.PreviewImageName!).ToListAsync(ct);
+        foreach (var path in diskFiles.Concat(previews.Except(stillUsed).Select(n => Path.Combine(Assets.Images, n))))
         {
             try { if (File.Exists(path)) File.Delete(path); }
             catch { /* an orphaned file is harmless, a failed request is not */ }

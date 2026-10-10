@@ -21,6 +21,7 @@ public class AdminService(
     UserManager<AppUser> userManager,
     IHttpContextAccessor httpContextAccessor,
     CatalogService catalog,
+    ModOwnershipService ownership,
     ILogger<AdminService> logger) : IAdminApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
@@ -119,5 +120,12 @@ public class AdminService(
     {
         logger.LogInformation("Admin {Caller} started a catalog rebuild", userManager.GetUserId(CurrentPrincipal));
         return await catalog.RebuildAllAsync(ct);
+    }
+
+    public async Task<ModGroup> AssignModOwnerAsync(int groupId, AssignModOwnerDto dto, CancellationToken ct = default)
+    {
+        logger.LogInformation("Admin {Caller} assigns mod group {GroupId} to {UserId}", userManager.GetUserId(CurrentPrincipal), groupId,
+            dto.UserId?.ToString() ?? "unclaimed");
+        return await ownership.AssignAsync(groupId, dto.UserId, ct);
     }
 }
