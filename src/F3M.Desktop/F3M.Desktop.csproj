@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>F3M.Desktop</AssemblyName>
+		<RootNamespace>F3M.Desktop</RootNamespace>
+		<Version>0.1.0</Version>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>latest</LangVersion>
+		<!-- Bindings are compiled against each view's DataType, so a renamed property breaks the build instead of failing silently. -->
+		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Avalonia" Version="11.3.9" />
+		<PackageReference Include="Avalonia.Desktop" Version="11.3.9" />
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.9" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<!-- Keep in step with the vpk version in .github/workflows/desktop-windows-velopack.yml. -->
+		<PackageReference Include="Velopack" Version="1.2.161" />
+		<!-- Avalonia 11.3 pulls in 0.21.2, which has GHSA-xrw6-gwf8-vvr9. 0.21.3 is the patched release of the same line. -->
+		<PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\F3M.Shared\F3M.Shared.csproj" />
+	</ItemGroup>
+
+</Project>

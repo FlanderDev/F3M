@@ -1,5 +1,4 @@
 @using Microsoft.AspNetCore.Components
-@using Markdig
 
 <div class="f3m-md-editor @(IsFullscreen ? "f3m-md-editor--fullscreen" : string.Empty)">
 
@@ -120,15 +119,11 @@
     private readonly string _textareaId = $"md-editor-{Guid.NewGuid():N}";
 
     // ── Markdown pipeline ───────────────────────────────────
-    private static readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
-        .Build();
-
     private string RenderMarkdown()
     {
         if (string.IsNullOrWhiteSpace(Value))
             return "<p class=\"f3m-md-preview-empty\">Nothing to preview yet…</p>";
-        return Markdig.Markdown.ToHtml(Value, _pipeline);
+        return HelperExtensions.SanatizeMarkdownToHtml(Value);
     }
 
     // ── Events ──────────────────────────────────────────────

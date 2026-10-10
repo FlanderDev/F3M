@@ -1,0 +1,78 @@
+@* Declares the files a mod creates at runtime that are not part of the archive (plan 5.8). *@
+
+<div class="f3m-generated-paths">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <label class="form-label fw-semibold small mb-0">Generated files <span class="text-muted fw-normal">(optional)</span></label>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Add" disabled="@(!CanAdd)">
+            <i class="bi bi-plus-lg me-1"></i>Add pattern
+        </button>
+    </div>
+    <p class="small text-muted mb-2">
+        Files the mod creates while the game runs, such as config written on first start. Use
+        <code>*</code> for part of a name, <code>?</code> for one character, and <code>**</code> for any number of folders.
+        Example: <code>BepInEx/config/MyMod_*.cfg</code>.
+    </p>
+
+    @{
+        var checks = GeneratedPathChecks.Evaluate(Entries, ShippedPaths);
+    }
+
+    @if (Entries.Count == 0)
+    {
+        <div class="small text-muted border rounded p-2" style="border-color:var(--f3m-border) !important;">No generated files declared.</div>
+    }
+
+    @for (var i = 0; i < Entries.Count; i++)
+    {
+        var index = i;
+        var entry = Entries[i];
+        var check = checks[i];
+
+        <div class="row g-2 mb-2 align-items-start">
+            <div class="col-md-6">
+                <input type="text"
+                       class="form-control f3m-input font-monospace @(check.Error is not null ? "is-invalid" : string.Empty)"
+                       placeholder="BepInEx/config/MyMod_*.cfg"
+                       value="@entry.Pattern"
+                       @oninput="e => PatternChanged(entry, e)" />
+                @if (check.Error is not null)
+                {
+                    <div class="invalid-feedback d-block">@check.Error</div>
+                }
+                else if (check.Warning is not null)
+                {
+                    <div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle me-1"></i>@check.Warning</div>
+                }
+            </div>
+            <div class="col-md-5">
+                <select class="form-select f3m-select" value="@entry.Kind.ToString()" @onchange="e => KindChanged(entry, e)">
+                    <option value="Generated">Generated</option>
+                    <option value="Cache">Cache</option>
+                    <option value="UserData">User data</option>
+                </select>
+                <div class="small text-muted mt-1">@KindHint(entry.Kind)</div>
+            </div>
+            <div class="col-md-1 text-end">
+                <button type="button" class="btn btn-sm btn-outline-danger" aria-label="Remove pattern" @onclick="() => Remove(index)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (Entries.Count > 0)
+    {
+        <div class="mt-3">
+            <label class="form-label small text-muted mb-1">Test a game path</label>
+            <input type="text"
+                   class="form-control f3m-input font-monospace"
+                   placeholder="BepInEx/config/MyMod_1.cfg"
+                   value="@checkPath"
+                   @oninput="e => checkPath = e.Value?.ToString() ?? string.Empty" />
+            @if (TestResult.Length > 0)
+            {
+                <div class="small mt-1">@TestResult</div>
+            }
+        </div>
+    }
+</div>

@@ -1,13 +1,29 @@
+# Settings come from a .env file next to this file (not committed). See .env.example for every variable.
 services:
   f3m-server:
     build:
       context: .
       target: final
     ports:
-      - 62444:8080
-      - 62445:443
+      # HTTP only. Put a TLS-terminating reverse proxy in front for https://f3m.felix-leander.de.
+      - ${F3M_HTTP_PORT:-62444}:8080
+    environment:
+      # Encrypts the catalog signing key. Without it the server refuses to start.
+      # The development default (F3M) only applies when ASPNETCORE_ENVIRONMENT is Development.
+      Catalog__KeyPassword: ${F3M_CATALOG_KEY_PASSWORD:?Set F3M_CATALOG_KEY_PASSWORD in .env}
+
+      # Trust X-Forwarded-Proto/-For from the reverse proxy, so the app sees https and the client address.
+      # Set to false only when the container is reached directly, without a proxy.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${F3M_BEHIND_PROXY:-true}
+
+      # F95zone bot account used to verify account links. Linking F95 accounts fails until these are set.
+      F95Bot__BaseUrl: ${F3M_F95BOT_BASE_URL:-https://f95zone.to}
+      F95Bot__Username: ${F3M_F95BOT_USERNAME:-}
+      F95Bot__Password: ${F3M_F95BOT_PASSWORD:-}
+      F95Bot__UserId: ${F3M_F95BOT_USER_ID:-}
     volumes:
-      - f3m_Storage:/Storage
+      # The image runs from /app, so the storage root is /app/Storage. Secrets/ inside it holds the signing key.
+      - f3m_Storage:/app/Storage
 
 volumes:
   f3m_Storage:
