@@ -218,6 +218,42 @@
         footer .row a { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
         footer .row a:hover { color: var(--amber); }
         footer img { width: 18px; height: 18px; }
+        /* Screenshot overlay: the image as large as the window allows. Esc, the close button or a click
+           anywhere outside the image closes it; the arrow keys move between screenshots. */
+        html.lightbox-open { overflow: hidden; }
+        dialog.lightbox {
+            width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0;
+            border: none; background: transparent; color: var(--text);
+        }
+        dialog.lightbox::backdrop { background: rgba(6,7,8,.88); backdrop-filter: blur(4px); }
+        .lightbox-stage {
+            height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 14px; padding: 56px 72px 28px;
+        }
+        .lightbox-stage img {
+            max-width: 100%; max-height: calc(100vh - 130px); width: auto; height: auto; object-fit: contain;
+            border: 1px solid var(--border); border-radius: var(--radius);
+            box-shadow: 0 30px 80px rgba(0,0,0,.7); cursor: default;
+            animation: lightbox-in .18s ease;
+        }
+        .lightbox-caption { color: var(--muted); font-size: .95rem; text-align: center; max-width: 760px; }
+        .lightbox-caption span { color: var(--text); margin-left: 8px; font-variant-numeric: tabular-nums; }
+        .lightbox button {
+            position: fixed; display: grid; place-items: center; width: 44px; height: 44px;
+            border: 1px solid var(--border); border-radius: 50%; background: rgba(30,33,36,.9);
+            color: var(--text); font-size: 1.2rem; cursor: pointer; transition: background .15s ease, color .15s ease;
+        }
+        .lightbox button:hover { background: var(--surface-2); color: var(--amber); }
+        .lightbox button:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+        .lightbox-close { top: 14px; right: 14px; }
+        .lightbox-prev { left: 14px; top: 50%; transform: translateY(-50%); }
+        .lightbox-next { right: 14px; top: 50%; transform: translateY(-50%); }
+        @media (max-width: 640px) {
+            .lightbox-stage { padding: 64px 12px 20px; }
+            .lightbox-prev, .lightbox-next { top: auto; bottom: 14px; transform: none; }
+        }
+        @keyframes lightbox-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+
         /* Visible keyboard focus everywhere, in the accent colour. */
         a:focus-visible, summary:focus-visible {
             outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 6px;
@@ -227,6 +263,7 @@
             html { scroll-behavior: auto; }
             *, *::before, *::after { transition: none !important; }
             .btn:hover, .feature .shot:hover { transform: none; }
+            .lightbox-stage img { animation: none; }
         }
     </style>
 </head>
@@ -275,7 +312,7 @@
                 <a href="#download">All download options</a>
             </p>
             <div class="hero-shot">
-                <a href="images/browse.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/browse.png" alt="F3M Desktop: browsing mods, with details of the selected mod on the right" width="1240" height="800" /></a>
+                <a href="images/browse.png" data-lightbox title="Show the screenshot larger"><img src="images/browse.png" alt="F3M Desktop: browsing mods, with details of the selected mod on the right" width="1240" height="800" /></a>
             </div>
         </div>
     </header>
@@ -320,7 +357,7 @@
                         <li>On the website, buttons can open a mod or a whole mod list straight in the app.</li>
                     </ul>
                 </div>
-                <a class="shot" href="images/browse-filter.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/browse-filter.png" alt="Browse page filtered to one category, with the details of the selected mod" loading="lazy" width="1240" height="800" /></a>
+                <a class="shot" href="images/browse-filter.png" data-lightbox title="Show the screenshot larger"><img src="images/browse-filter.png" alt="Browse page filtered to one category, with the details of the selected mod" loading="lazy" width="1240" height="800" /></a>
             </div>
 
             <div class="feature flip">
@@ -333,7 +370,7 @@
                         <li>Like a version? <strong>Pin</strong> it, and updates leave it alone.</li>
                     </ul>
                 </div>
-                <a class="shot" href="images/library.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/library.png" alt="Library page listing installed mods with their versions and actions" loading="lazy" width="1240" height="800" /></a>
+                <a class="shot" href="images/library.png" data-lightbox title="Show the screenshot larger"><img src="images/library.png" alt="Library page listing installed mods with their versions and actions" loading="lazy" width="1240" height="800" /></a>
             </div>
 
             <div class="feature">
@@ -345,7 +382,7 @@
                         <li>Share a profile as a link. Friends open it and press <strong>Use this setup</strong>.</li>
                     </ul>
                 </div>
-                <a class="shot" href="images/profiles.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/profiles.png" alt="Profiles page with several setups and sharing options" loading="lazy" width="1240" height="800" /></a>
+                <a class="shot" href="images/profiles.png" data-lightbox title="Show the screenshot larger"><img src="images/profiles.png" alt="Profiles page with several setups and sharing options" loading="lazy" width="1240" height="800" /></a>
             </div>
 
             <div class="feature flip">
@@ -357,7 +394,7 @@
                         <li><strong>Auto-detect</strong> finds the game for you, in Steam or wherever you put it.</li>
                     </ul>
                 </div>
-                <a class="shot" href="images/settings.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/settings.png" alt="Settings page with the game folder and the Auto-detect button" loading="lazy" width="1240" height="800" /></a>
+                <a class="shot" href="images/settings.png" data-lightbox title="Show the screenshot larger"><img src="images/settings.png" alt="Settings page with the game folder and the Auto-detect button" loading="lazy" width="1240" height="800" /></a>
             </div>
         </div>
     </section>
@@ -577,6 +614,74 @@
         <p>F3M (Flander's Manaka Mod Manager) is a free fan project. It is not affiliated with the developers of Secret Flasher Manaka.</p>
     </div>
 </footer>
+
+<dialog class="lightbox" id="lightbox" aria-label="Screenshot">
+    <div class="lightbox-stage">
+        <img id="lightbox-img" alt="" />
+        <p class="lightbox-caption" id="lightbox-caption"></p>
+    </div>
+    <button class="lightbox-close" type="button" aria-label="Close" title="Close (Esc)"><i class="bi bi-x-lg"></i></button>
+    <button class="lightbox-prev" type="button" aria-label="Previous screenshot" title="Previous (←)"><i class="bi bi-chevron-left"></i></button>
+    <button class="lightbox-next" type="button" aria-label="Next screenshot" title="Next (→)"><i class="bi bi-chevron-right"></i></button>
+</dialog>
+
+<script>
+    // Shows a clicked screenshot in an overlay instead of opening the image. The links stay real links, so the
+    // image still opens on its own without JavaScript. The hero shows the same image as a feature, so screenshots
+    // are listed once each.
+    (() => {
+        const dialog = document.getElementById("lightbox");
+        if (typeof dialog.showModal !== "function") return;
+        const img = document.getElementById("lightbox-img");
+        const caption = document.getElementById("lightbox-caption");
+        const links = [...document.querySelectorAll("a[data-lightbox]")];
+        const shots = [...new Map(links.map(a => [a.getAttribute("href"), a.querySelector("img").alt])).entries()];
+        let index = 0;
+
+        const show = i => {
+            index = (i + shots.length) % shots.length;
+            const [src, alt] = shots[index];
+            img.src = src;
+            img.alt = alt;
+            caption.textContent = alt;
+            const counter = document.createElement("span");
+            counter.textContent = (index + 1) + " / " + shots.length;
+            caption.append(counter);
+        };
+
+        for (const link of links) {
+            link.addEventListener("click", event => {
+                if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;  // new tab still works
+                event.preventDefault();
+                show(shots.findIndex(([src]) => src === link.getAttribute("href")));
+                document.documentElement.classList.add("lightbox-open");
+                dialog.showModal();
+            });
+        }
+
+        // Every way of closing goes through hide(), so the page scrolls again even where a browser doesn't
+        // fire the dialog's close event reliably; that event is only the fallback.
+        const unlock = () => document.documentElement.classList.remove("lightbox-open");
+        const hide = () => { if (dialog.open) dialog.close(); unlock(); };
+        dialog.addEventListener("close", unlock);
+        dialog.addEventListener("cancel", event => { event.preventDefault(); hide(); });
+
+        // Any click that isn't on the image or a button closes it: the dark area, the sides, the caption.
+        dialog.addEventListener("click", event => {
+            if (event.target === img || event.target.closest("button")) return;
+            hide();
+        });
+
+        dialog.querySelector(".lightbox-close").addEventListener("click", hide);
+        dialog.querySelector(".lightbox-prev").addEventListener("click", () => show(index - 1));
+        dialog.querySelector(".lightbox-next").addEventListener("click", () => show(index + 1));
+        dialog.addEventListener("keydown", event => {
+            if (event.key === "ArrowLeft") show(index - 1);
+            else if (event.key === "ArrowRight") show(index + 1);
+            else if (event.key === "Escape") { event.preventDefault(); hide(); }
+        });
+    })();
+</script>
 
 <script>
     // Fills the download links with the files of the newest release: name, size and direct link. Without
