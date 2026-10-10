@@ -19,18 +19,35 @@ public sealed record UploadOwner(int UserId, string Name);
 public sealed record UploadOrigin(string? F95UserId, string? F95UserName, string? SourceUrl);
 
 /// <summary>
-/// One mod file of an upload: its content, its original name, where it goes in the game folder, and for archives
-/// optionally the folder inside the archive to install (see <see cref="ModFile.ArchiveRoot"/>).
+/// One mod file of an upload: its content, its original name, where it goes in the game folder, for archives
+/// optionally the folder inside the archive to install (see <see cref="ModFile.ArchiveRoot"/>), and what kind of mod
+/// file it is (a <see cref="ModTemplates"/> id; none means <see cref="ModTemplates.Custom"/>).
 /// </summary>
-public sealed record UploadFile(IFormFile Content, string? OriginalName, string? InstallPath, string? ArchiveRoot = null);
+public sealed record UploadFile(IFormFile Content, string? OriginalName, string? InstallPath, string? ArchiveRoot = null, string? Template = null)
+{
+    /// <summary>The files of an upload form, from its lists that run parallel to the files (shorter lists leave the rest empty).</summary>
+    public static List<UploadFile> FromForm(
+        IFormFileCollection files,
+        IReadOnlyList<string>? originalNames,
+        IReadOnlyList<string>? installPaths,
+        IReadOnlyList<string>? archiveRoots,
+        IReadOnlyList<string>? templates)
+    {
+        static string? At(IReadOnlyList<string>? list, int i) => list is not null && i < list.Count ? list[i] : null;
+        return [.. files.Select((f, i) => new UploadFile(f, At(originalNames, i), At(installPaths, i), At(archiveRoots, i), At(templates, i)))];
+    }
+}
 
 /// <summary>
 /// The outcome of <see cref="ModUploadService.UploadAsync"/>. <see cref="Error"/> is safe to show the uploader;
-/// <see cref="Forbidden"/> means the target group belongs to someone else.
+/// <see cref="Forbidden"/> means the target group belongs to someone else. <see cref="Unconfirmed"/> lists the
+/// warnings about the files' types when the uploader has not accepted them yet; nothing was stored then.
 /// </summary>
-public sealed record UploadResult(Mod? Mod, string? Error, bool Forbidden, IReadOnlyList<string> Warnings)
+public sealed record UploadResult(Mod? Mod, string? Error, bool Forbidden, IReadOnlyList<string> Warnings, IReadOnlyList<string>? Unconfirmed = null)
 {
     public static UploadResult Fail(string error) => new(null, error, false, []);
+
+    public static UploadResult NeedsConfirmation(IReadOnlyList<string> warnings) => new(null, null, false, [], warnings);
 }
 
 /// <summary>
@@ -38,7 +55,8 @@ public sealed record UploadResult(Mod? Mod, string? Error, bool Forbidden, IRead
 /// by the bulk importer (DebugController), so both go through the same checks and produce the same catalog data.
 ///
 /// Everything that can reject an upload runs before any database row is written: files are staged on disk,
-/// inspected, and checked against each other and against the generated-file patterns.
+/// inspected, and checked against each other and against the generated-file patterns. Files are also checked against
+/// their types (<see cref="ModTemplates"/>); those findings only hold the upload back until the uploader accepts them.
 /// </summary>
 public sealed class ModUploadService(AppDbContext db, CatalogService catalog, ILogger<ModUploadService> logger)
 {
@@ -74,6 +92,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
         var cleanInstallPaths = new List<string>();
         var cleanNames = new List<string>();
         var cleanRoots = new List<string>();
+        var cleanTemplates = new List<string>();
         foreach (var file in files)
         {
             if (!Helper.TryNormalizeInstallPath(file.InstallPath, out var normalizedPath))
@@ -82,9 +101,13 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
             if (!InstallPaths.TryNormalize(file.ArchiveRoot, out var normalizedRoot))
                 return UploadResult.Fail($"The archive folder '{file.ArchiveRoot}' for '{file.Content.FileName}' is not valid.");
 
+            if (!ModTemplates.TryNormalizeId(file.Template, out var template))
+                return UploadResult.Fail($"'{file.Template}' for '{file.Content.FileName}' is not a known mod type.");
+
             cleanInstallPaths.Add(normalizedPath);
             cleanNames.Add(Helper.SafeOriginalName(file.OriginalName, file.Content.FileName));
             cleanRoots.Add(normalizedRoot);
+            cleanTemplates.Add(template);
         }
 
         // Reject a bad preview image now, not after the mod group has already been created.
@@ -145,7 +168,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
                     await f.CopyToAsync(stream, ct);
                 }
 
-                staged.Add(new StagedFile(safeName, diskPath, cleanNames[i], cleanInstallPaths[i], cleanRoots[i], f.Length));
+                staged.Add(new StagedFile(safeName, diskPath, cleanNames[i], cleanInstallPaths[i], cleanRoots[i], cleanTemplates[i], f.Length));
             }
 
             foreach (var file in staged)
@@ -171,6 +194,24 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
 
             foreach (var pattern in generated.Where(g => GeneratedPathRules.HasDeepWildcard(g.Pattern)))
                 warnings.Add($"'{pattern.Pattern}' matches at any depth. Check that it cannot reach files other mods create.");
+
+            // Files that do not look like their type are stored only once the uploader has accepted that.
+            var typeWarnings = new List<string>();
+            for (var i = 0; i < staged.Count; i++)
+            {
+                var fileTargets = inspections[i].Entries.Select(e => e.To).ToList();
+                typeWarnings.AddRange(ModTemplates.Check(staged[i].Template, fileTargets).Select(w => $"{staged[i].OriginalName}: {w}"));
+            }
+
+            typeWarnings.AddRange(await FindMissingRequirementsAsync(staged.Select(f => f.Template), dto, ct));
+            if (typeWarnings.Count > 0 && !dto.AcceptWarnings)
+            {
+                DeleteFiles(stagedPaths);
+                return UploadResult.NeedsConfirmation(typeWarnings);
+            }
+
+            if (typeWarnings.Count > 0)
+                logger.LogInformation("Upload of {Name} accepted with {Count} type warnings: {Warnings}", dto.Name, typeWarnings.Count, typeWarnings);
         }
         catch (InvalidDataException ex)
         {
@@ -181,6 +222,14 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
         {
             DeleteFiles(stagedPaths);
             throw;
+        }
+
+        // Without a category of its own, a mod gets the one of its first typed file.
+        var category = dto.Category;
+        if (string.IsNullOrWhiteSpace(category) || category == ModUploadDto.UnspecifiedCategory)
+        {
+            category = staged.Select(f => ModTemplates.Find(f.Template)).FirstOrDefault(t => t is { Id: not ModTemplates.Custom })?.Category
+                       ?? category;
         }
 
         // ── Write the rows. If anything fails from here on, rows and staged files are removed again. ──
@@ -243,7 +292,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
                 Description = dto.Description,
                 Author = owner.Name,
                 Version = dto.Version,
-                Category = dto.Category,
+                Category = category,
                 PreviewImageName = previewName,
                 UploadedAt = uploadedAt ?? DateTime.UtcNow,
                 IsApproved = true,
@@ -268,6 +317,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
                     OriginalName = file.OriginalName,
                     InstallPath = file.InstallPath,
                     ArchiveRoot = file.ArchiveRoot,
+                    Template = file.Template,
                     FileSizeBytes = file.Size,
                     Sha256 = inspection.Sha256,
                     IsArchive = inspection.IsArchive,
@@ -342,6 +392,34 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
         return new UploadResult(uploadedMod, null, false, warnings);
     }
 
+    /// <summary>
+    /// The mods the files' types need (the Custom Missions framework, the Cosplay Loader, ...) that exist on this site
+    /// but are not among the upload's requirements. A required mod that is not on the site is not mentioned, and
+    /// neither is the requirement when the upload is a new version of that mod itself.
+    /// </summary>
+    private async Task<List<string>> FindMissingRequirementsAsync(IEnumerable<string> templateIds, ModUploadDto dto, CancellationToken ct)
+    {
+        var warnings = new List<string>();
+        var templates = templateIds.Distinct().Select(ModTemplates.Find).OfType<ModTemplate>().Where(t => t.RequiredModName is not null);
+        foreach (var template in templates)
+        {
+            var name = template.RequiredModName!.ToLower();
+            var groups = await db.Mods.AsNoTracking()
+                .Where(m => m.IsLatestVersion && m.IsApproved && m.Name.ToLower() == name)
+                .Select(m => m.ModGroupId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            var isThatMod = dto.ModGroupId is { } self && groups.Contains(self);
+            if (groups.Count == 0 || isThatMod || groups.Any(dto.DependencyGroupIds.Contains))
+                continue;
+
+            warnings.Add($"{template.Name} files need {template.RequiredModName}. Add it as a requirement so that players get it too.");
+        }
+
+        return warnings;
+    }
+
     /// <summary>Warns about patterns that may overlap a pattern of another approved mod. Overlaps never block an upload.</summary>
     private async Task<List<string>> FindOverlapWarningsAsync(IReadOnlyList<GeneratedPathDto> patterns, int? excludeGroupId, CancellationToken ct)
     {
@@ -388,5 +466,5 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
         }
     }
 
-    private sealed record StagedFile(string SafeName, string DiskPath, string OriginalName, string InstallPath, string ArchiveRoot, long Size);
+    private sealed record StagedFile(string SafeName, string DiskPath, string OriginalName, string InstallPath, string ArchiveRoot, string Template, long Size);
 }

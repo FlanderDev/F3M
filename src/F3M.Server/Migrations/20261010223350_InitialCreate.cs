@@ -276,6 +276,7 @@ namespace F3M.Server.Migrations
                     OriginalName = table.Column<string>(type: "TEXT", nullable: false),
                     InstallPath = table.Column<string>(type: "TEXT", maxLength: 260, nullable: false),
                     ArchiveRoot = table.Column<string>(type: "TEXT", maxLength: 260, nullable: false),
+                    Template = table.Column<string>(type: "TEXT", maxLength: 40, nullable: false),
                     Sha256 = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
                     IsArchive = table.Column<bool>(type: "INTEGER", nullable: false),
                     TargetPath = table.Column<string>(type: "TEXT", maxLength: 260, nullable: false),

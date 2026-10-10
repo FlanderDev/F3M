@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace F3M.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261010215155_InitialCreate")]
+    [Migration("20261010223350_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -251,6 +251,11 @@ namespace F3M.Server.Migrations
                     b.Property<string>("TargetPath")
                         .IsRequired()
                         .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Template")
+                        .IsRequired()
+                        .HasMaxLength(40)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

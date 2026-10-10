@@ -171,9 +171,12 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
     //   installPaths[]    — one install path per file (same index)
     //   originalNames[]   — original filenames (same index)
     //   archiveRoots[]    — optional, archives only: the folder inside the archive to install (same index)
+    //   templates[]       — optional, the mod type of each file, a ModTemplates id (same index; none = custom)
+    //   AcceptWarnings    — the uploader accepts the warnings about the files' types
     //
-    // ModUploadService does the checks and the storing. Non-blocking warnings are returned in the X-F3M-Warnings
-    // header (URL-encoded, one per line).
+    // ModUploadService does the checks and the storing. Files that don't match their type are answered with 422 and
+    // an UploadWarningsResult until the upload is sent again with AcceptWarnings. Other non-blocking warnings are
+    // returned in the X-F3M-Warnings header (URL-encoded, one per line).
     [HttpPost("upload")]
     [Authorize]
     [RequestSizeLimit(Configuration.MaxTotalSize)]
@@ -183,6 +186,7 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
         [FromForm] List<string> installPaths,
         [FromForm] List<string> originalNames,
         [FromForm] List<string>? archiveRoots,
+        [FromForm] List<string>? templates,
         IFormFile? previewImage,
         CancellationToken ct)
     {
@@ -191,15 +195,13 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
             return BadRequest("User ID not found.");
 
         var owner = new UploadOwner(userId.Value, User.FindFirstValue(ClaimTypes.Name) ?? "unknown");
-        var uploadFiles = files.Select((f, i) => new UploadFile(
-            f,
-            i < originalNames.Count ? originalNames[i] : null,
-            i < installPaths.Count ? installPaths[i] : null,
-            archiveRoots is not null && i < archiveRoots.Count ? archiveRoots[i] : null)).ToList();
+        var uploadFiles = UploadFile.FromForm(files, originalNames, installPaths, archiveRoots, templates);
 
         var result = await uploader.UploadAsync(dto, uploadFiles, previewImage, owner, ct: ct);
         if (result.Forbidden)
             return Forbid();
+        if (result.Unconfirmed is { } unconfirmed)
+            return UnprocessableEntity(new UploadWarningsResult { Warnings = [.. unconfirmed] });
         if (result.Mod is not { } uploaded)
             return BadRequest(result.Error);
 
