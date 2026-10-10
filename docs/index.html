@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>F3M Mod Manager</title>
     <meta name="description" content="F3M finds, installs and switches mods for Secret Flasher Manaka. Download the free desktop app for Windows and Linux." />
+    <meta name="theme-color" content="#0d0e10" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffc107'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial,sans-serif' font-weight='900' font-size='26' text-anchor='middle' fill='%23000'%3EF3M%3C/text%3E%3C/svg%3E" />
+
+    <!-- Link previews on Discord, F95zone and other sites. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="F3M" />
+    <meta property="og:title" content="F3M: mods for Secret Flasher Manaka, without the hassle" />
+    <meta property="og:description" content="A free mod manager: pick mods, press one button, and play. Downloads for Windows and Linux." />
+    <meta property="og:url" content="https://flanderdev.github.io/F3M/" />
+    <meta property="og:image" content="https://flanderdev.github.io/F3M/images/browse.png" />
+    <meta property="og:image:width" content="1240" />
+    <meta property="og:image:height" content="800" />
+    <meta name="twitter:card" content="summary_large_image" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
@@ -38,7 +52,8 @@
         h1, h2, h3 { font-family: var(--font-h); line-height: 1.2; margin: 0 0 .6em; }
         a { color: var(--amber); text-decoration: none; }
         a:hover { color: #ffe082; }
-        img { max-width: 100%; display: block; }
+        /* height: auto keeps the aspect ratio; the width/height attributes only reserve space while loading. */
+        img { max-width: 100%; height: auto; display: block; }
         code, kbd {
             font-family: ui-monospace, Consolas, monospace;
             font-size: .9em;
@@ -65,7 +80,7 @@
             background: var(--amber); color: #000; border-radius: 8px; padding: 2px 12px;
         }
         .logo:hover { color: #000; opacity: .85; }
-        nav .links { display: flex; gap: 18px; margin-left: auto; font-size: .95rem; }
+        nav .links { display: flex; gap: 18px; margin-left: auto; font-size: .95rem; white-space: nowrap; }
         nav .links a { color: var(--muted); }
         nav .links a:hover { color: var(--amber); }
         @media (max-width: 640px) { nav .links .optional { display: none; } }
@@ -87,6 +102,13 @@
         .btn.primary { background: var(--amber); border-color: var(--amber); color: #000; }
         .btn.primary:hover { background: #ffcd38; color: #000; }
         .btn i { font-size: 1.25rem; }
+        .btn > span { text-align: left; }
+        @media (max-width: 520px) {
+            .hero { padding-top: 48px; }
+            .hero h1 { font-size: 1.75rem; }
+            .hero h1 br { display: none; }
+            .buttons { flex-direction: column; align-items: stretch; }
+        }
         .btn small { display: block; font-family: var(--font-b); font-weight: 400; font-size: .75rem; opacity: .75; }
         .version-note { margin-top: 14px; font-size: .9rem; }
         .hero-shot {
@@ -119,7 +141,13 @@
         .feature:last-child { margin-bottom: 0; }
         .feature.flip { grid-template-columns: 1.4fr 1fr; }
         .feature.flip .text { order: 2; }
-        .feature .shot { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+        .feature .shot, .hero-shot a { display: block; }
+        .feature .shot {
+            border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: zoom-in;
+            transition: border-color .15s ease, transform .15s ease;
+        }
+        .feature .shot:hover { border-color: rgba(255,193,7,.4); transform: translateY(-2px); }
+        .hero-shot a { cursor: zoom-in; }
         .feature h3 { font-size: 1.4rem; }
         .feature ul { padding-left: 1.1em; color: var(--muted); margin: 0; }
         .feature li { margin-bottom: 6px; }
@@ -129,7 +157,8 @@
             .feature.flip .text { order: 0; }
         }
 
-        .guide { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+        .guide { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        @media (max-width: 720px) { .guide { grid-template-columns: 1fr; } }
         .guide .card ol, .guide .card ul { padding-left: 1.2em; margin: 0; color: var(--muted); }
         .guide .card li { margin-bottom: 8px; }
         .guide .card li strong { color: var(--text); }
@@ -150,7 +179,38 @@
         details p, details ul { color: var(--muted); margin: 0 0 10px; }
         details ul { padding-left: 1.2em; }
 
+        /* All downloads */
+        .dl-heading { font-size: 1.2rem; margin-top: 8px; }
+        .dl-sub { font-family: var(--font-b); font-size: .85rem; font-weight: 400; margin-left: 6px; }
+        .dl-explain { max-width: 760px; font-size: .95rem; }
+        .downloads { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+        /* The four server files: Linux and Windows, each with and without .NET, as a 2x2 grid. */
+        .downloads.two { grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 900px) { .downloads { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 620px) { .downloads, .downloads.two { grid-template-columns: 1fr; } }
+        .dl {
+            display: flex; align-items: center; gap: 16px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 16px 18px; color: var(--text);
+            transition: border-color .15s ease, background .15s ease;
+        }
+        .dl:hover { color: var(--text); border-color: rgba(255,193,7,.4); background: var(--surface-2); }
+        .dl > .bi:first-child { font-size: 1.6rem; color: var(--amber); }
+        .dl-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+        .dl-text .muted { font-size: .9rem; }
+        .dl-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 4px; }
+        .dl-file { font-family: ui-monospace, Consolas, monospace; font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; }
+        .dl-size { font-size: .8rem; color: var(--text); white-space: nowrap; }
+        .dl-size:empty { display: none; }
+        .dl-icon { color: var(--muted); font-size: 1.2rem; }
+        .dl:hover .dl-icon { color: var(--amber); }
+        .badge {
+            font-family: var(--font-b); font-size: .7rem; font-weight: 600; color: #000; background: var(--amber);
+            border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+        }
+
         .tech { color: var(--muted); }
+        .tech h2 { color: var(--text); }
         .tech p { max-width: 760px; }
 
         footer { border-top: 1px solid var(--border); padding: 32px 0 48px; color: var(--muted); font-size: .9rem; }
@@ -158,6 +218,16 @@
         footer .row a { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
         footer .row a:hover { color: var(--amber); }
         footer img { width: 18px; height: 18px; }
+        /* Visible keyboard focus everywhere, in the accent colour. */
+        a:focus-visible, summary:focus-visible {
+            outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 6px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after { transition: none !important; }
+            .btn:hover, .feature .shot:hover { transform: none; }
+        }
     </style>
 </head>
 <body>
@@ -166,9 +236,10 @@
     <div class="wrap">
         <a class="logo" href="#top">F3M</a>
         <div class="links">
-            <a href="#how">How it works</a>
+            <a class="optional" href="#how">How it works</a>
             <a class="optional" href="#features">Features</a>
             <a class="optional" href="#guide">Guide</a>
+            <a href="#download">Download</a>
             <a href="#faq">FAQ</a>
             <a href="https://github.com/FlanderDev/F3M"><i class="bi bi-github"></i></a>
         </div>
@@ -180,13 +251,13 @@
     <!-- 1. The short version, for everyone. -->
     <header class="hero">
         <div class="wrap">
-            <h1>Mods for <span>Secret Flasher Manaka</span>,<br />without the hassle.</h1>
+            <h1>Mods for <span>Secret Flasher Manaka</span>, <br />without the hassle.</h1>
             <p class="lead">
                 F3M is a free mod manager. Pick the mods you like, press one button, and play.
                 No copying files by hand, and removing a mod is just as easy.
             </p>
             <div class="buttons">
-                <a class="btn primary" id="dl-windows" href="https://github.com/FlanderDev/F3M/releases/latest">
+                <a class="btn primary" id="dl-windows" href="https://github.com/FlanderDev/F3M/releases/latest/download/F3M.Desktop-win-Setup.exe">
                     <i class="bi bi-windows"></i>
                     <span>Download for Windows<small id="dl-windows-note">Installer</small></span>
                 </a>
@@ -199,11 +270,12 @@
                     <span>Browse mods<small>on the F3M website</small></span>
                 </a>
             </div>
-            <p class="version-note muted" id="version-note">
-                Free and open source. <a href="https://github.com/FlanderDev/F3M/releases">All releases</a>
+            <p class="version-note muted">
+                <span id="version-note">Free and open source.</span>
+                <a href="#download">All download options</a>
             </p>
             <div class="hero-shot">
-                <img src="images/browse.png" alt="F3M Desktop: browsing mods, with details of the selected mod on the right" width="1240" height="800" />
+                <a href="images/browse.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/browse.png" alt="F3M Desktop: browsing mods, with details of the selected mod on the right" width="1240" height="800" /></a>
             </div>
         </div>
     </header>
@@ -237,7 +309,7 @@
     <section id="features">
         <div class="wrap">
             <h2>What F3M does for you</h2>
-            <p class="intro">The screenshots show F3M Desktop with example mods.</p>
+            <p class="intro">The screenshots show F3M Desktop with example mods. Click one to see it full size.</p>
 
             <div class="feature">
                 <div class="text">
@@ -248,7 +320,7 @@
                         <li>On the website, buttons can open a mod or a whole mod list straight in the app.</li>
                     </ul>
                 </div>
-                <div class="shot"><img src="images/browse.png" alt="Browse page with mod cards and a details panel" loading="lazy" width="1240" height="800" /></div>
+                <a class="shot" href="images/browse-filter.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/browse-filter.png" alt="Browse page filtered to one category, with the details of the selected mod" loading="lazy" width="1240" height="800" /></a>
             </div>
 
             <div class="feature flip">
@@ -261,7 +333,7 @@
                         <li>Like a version? <strong>Pin</strong> it, and updates leave it alone.</li>
                     </ul>
                 </div>
-                <div class="shot"><img src="images/library.png" alt="Library page listing installed mods with their versions and actions" loading="lazy" width="1240" height="800" /></div>
+                <a class="shot" href="images/library.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/library.png" alt="Library page listing installed mods with their versions and actions" loading="lazy" width="1240" height="800" /></a>
             </div>
 
             <div class="feature">
@@ -273,7 +345,7 @@
                         <li>Share a profile as a link. Friends open it and press <strong>Use this setup</strong>.</li>
                     </ul>
                 </div>
-                <div class="shot"><img src="images/profiles.png" alt="Profiles page with several setups and sharing options" loading="lazy" width="1240" height="800" /></div>
+                <a class="shot" href="images/profiles.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/profiles.png" alt="Profiles page with several setups and sharing options" loading="lazy" width="1240" height="800" /></a>
             </div>
 
             <div class="feature flip">
@@ -285,7 +357,7 @@
                         <li><strong>Auto-detect</strong> finds the game for you, in Steam or wherever you put it.</li>
                     </ul>
                 </div>
-                <div class="shot"><img src="images/settings.png" alt="Settings page with the game folder and the Auto-detect button" loading="lazy" width="1240" height="800" /></div>
+                <a class="shot" href="images/settings.png" target="_blank" rel="noopener" title="Open the full-size screenshot"><img src="images/settings.png" alt="Settings page with the game folder and the Auto-detect button" loading="lazy" width="1240" height="800" /></a>
             </div>
         </div>
     </section>
@@ -390,7 +462,98 @@
         </div>
     </section>
 
-    <!-- 6. For the technically curious. -->
+    <!-- 6. Every file of the newest release. -->
+    <section id="download">
+        <div class="wrap">
+            <h2>All downloads</h2>
+            <p class="intro">
+                <span id="release-note">Files of the newest release.</span>
+                Older versions are on the <a href="https://github.com/FlanderDev/F3M/releases">releases page</a>.
+            </p>
+
+            <h3 class="dl-heading">F3M Desktop</h3>
+            <div class="downloads">
+                <a class="dl" data-asset="^F3M\.Desktop-win-Setup\.exe$"
+                   href="https://github.com/FlanderDev/F3M/releases/latest/download/F3M.Desktop-win-Setup.exe">
+                    <i class="bi bi-windows"></i>
+                    <span class="dl-text">
+                        <strong>Windows installer <span class="badge">Recommended</span></strong>
+                        <span class="muted">Installs for your user, adds a Start menu shortcut and updates itself.</span>
+                        <span class="dl-meta"><span class="dl-file">F3M.Desktop-win-Setup.exe</span><span class="dl-size"></span></span>
+                    </span>
+                    <i class="bi bi-download dl-icon"></i>
+                </a>
+                <a class="dl" data-asset="^F3M\.Desktop-win-Portable\.zip$"
+                   href="https://github.com/FlanderDev/F3M/releases/latest/download/F3M.Desktop-win-Portable.zip">
+                    <i class="bi bi-file-earmark-zip"></i>
+                    <span class="dl-text">
+                        <strong>Windows portable</strong>
+                        <span class="muted">No installation: unzip anywhere, even on a USB stick, and start <code>F3M.Desktop.exe</code>.</span>
+                        <span class="dl-meta"><span class="dl-file">F3M.Desktop-win-Portable.zip</span><span class="dl-size"></span></span>
+                    </span>
+                    <i class="bi bi-download dl-icon"></i>
+                </a>
+                <a class="dl" data-asset="^F3M\.Desktop-[\d.]+-x86_64\.AppImage$"
+                   href="https://github.com/FlanderDev/F3M/releases/latest">
+                    <i class="bi bi-ubuntu"></i>
+                    <span class="dl-text">
+                        <strong>Linux AppImage</strong>
+                        <span class="muted">One file for most distributions (x86-64). Make it executable and start it; it updates itself.</span>
+                        <span class="dl-meta"><span class="dl-file">F3M.Desktop-…-x86_64.AppImage</span><span class="dl-size"></span></span>
+                    </span>
+                    <i class="bi bi-download dl-icon"></i>
+                </a>
+            </div>
+
+            <h3 class="dl-heading">F3M website server <span class="muted dl-sub">for running your own F3M site</span></h3>
+            <p class="muted dl-explain">
+                You don't need these to use F3M. <em>Self-contained</em> builds include .NET; the others need the
+                ASP.NET Core 10 runtime installed. Docker is the easiest way, see the
+                <a href="https://github.com/FlanderDev/F3M#readme">README</a>.
+            </p>
+            <div class="downloads two">
+                <a class="dl" data-asset="^F3M-linux-x64-selfcontained-.*\.zip$" href="https://github.com/FlanderDev/F3M/releases/latest">
+                    <i class="bi bi-ubuntu"></i>
+                    <span class="dl-text">
+                        <strong>Linux x64, self-contained</strong>
+                        <span class="dl-meta"><span class="dl-file">F3M-linux-x64-selfcontained-….zip</span><span class="dl-size"></span></span>
+                    </span>
+                    <i class="bi bi-download dl-icon"></i>
+                </a>
+                <a class="dl" data-asset="^F3M-linux-(?!x64).*\.zip$" href="https://github.com/FlanderDev/F3M/releases/latest">
+                    <i class="bi bi-ubuntu"></i>
+                    <span class="dl-text">
+                        <strong>Linux, needs .NET</strong>
+                        <span class="dl-meta"><span class="dl-file">F3M-linux-….zip</span><span class="dl-size"></span></span>
+                    </span>
+                    <i class="bi bi-download dl-icon"></i>
+                </a>
+                <a class="dl" data-asset="^F3M-windows-x64-selfcontained-.*\.zip$" href="https://github.com/FlanderDev/F3M/releases/latest">
+                    <i class="bi bi-windows"></i>
+                    <span class="dl-text">
+                        <strong>Windows x64, self-contained</strong>
+                        <span class="dl-meta"><span class="dl-file">F3M-windows-x64-selfcontained-….zip</span><span class="dl-size"></span></span>
+                    </span>
+                    <i class="bi bi-download dl-icon"></i>
+                </a>
+                <a class="dl" data-asset="^F3M-windows-(?!x64).*\.zip$" href="https://github.com/FlanderDev/F3M/releases/latest">
+                    <i class="bi bi-windows"></i>
+                    <span class="dl-text">
+                        <strong>Windows, needs .NET</strong>
+                        <span class="dl-meta"><span class="dl-file">F3M-windows-….zip</span><span class="dl-size"></span></span>
+                    </span>
+                    <i class="bi bi-download dl-icon"></i>
+                </a>
+            </div>
+            <p class="muted dl-explain">
+                The release also holds files the desktop app uses for its own updates
+                (<code>*.nupkg</code>, <code>RELEASES</code>, <code>releases.win.json</code>, <code>assets.win.json</code>).
+                There's no need to download those.
+            </p>
+        </div>
+    </section>
+
+    <!-- 7. For the technically curious. -->
     <section class="tech" id="tech">
         <div class="wrap">
             <h2>Under the hood</h2>
@@ -416,8 +579,9 @@
 </footer>
 
 <script>
-    // Points the download buttons straight at the files of the newest release. Without JavaScript, or when the
-    // release has no desktop files yet, the buttons open the release page instead.
+    // Fills the download links with the files of the newest release: name, size and direct link. Without
+    // JavaScript, or when GitHub can't be reached, the links still work: the installer and portable zip have fixed
+    // names, and the others open the release page.
     (async () => {
         try {
             const response = await fetch("https://api.github.com/repos/FlanderDev/F3M/releases/latest",
@@ -426,36 +590,51 @@
             const release = await response.json();
             const assets = release.assets || [];
             const find = pattern => assets.find(a => pattern.test(a.name));
-            const size = bytes => (bytes / 1048576).toFixed(0) + " MB";
-            let version = null;
+            const size = bytes => bytes >= 1048576 ? (bytes / 1048576).toFixed(0) + " MB" : (bytes / 1024).toFixed(0) + " KB";
 
-            const setup = find(/Setup\.exe$/i);
+            // Every card in "All downloads" names its file with a pattern.
+            for (const link of document.querySelectorAll(".dl[data-asset]")) {
+                const asset = find(new RegExp(link.dataset.asset, "i"));
+                const file = link.querySelector(".dl-file");
+                if (!asset) {
+                    file.textContent = "Not in this release";
+                    continue;
+                }
+                link.href = asset.browser_download_url;
+                file.textContent = asset.name;
+                link.querySelector(".dl-size").textContent = size(asset.size);
+            }
+
+            // The hero buttons.
+            const setup = find(/^F3M\.Desktop-win-Setup\.exe$/i);
             if (setup) {
                 document.getElementById("dl-windows").href = setup.browser_download_url;
                 document.getElementById("dl-windows-note").textContent = "Installer, " + size(setup.size);
             }
-
-            const image = find(/x86_64\.AppImage$/i);
+            const image = find(/^F3M\.Desktop-[\d.]+-x86_64\.AppImage$/i);
             if (image) {
                 document.getElementById("dl-linux").href = image.browser_download_url;
                 document.getElementById("dl-linux-note").textContent = "AppImage, " + size(image.size);
-                version = (image.name.match(/(\d+\.\d+\.\d+)/) || [])[1] || null;
             }
 
-            const nupkg = find(/^F3M\.Desktop-(\d+\.\d+\.\d+)-full\.nupkg$/i);
-            if (!version && nupkg) version = nupkg.name.match(/(\d+\.\d+\.\d+)/)[1];
-
-            if (version) {
-                const note = document.getElementById("version-note");
-                note.textContent = "";
-                note.append("Version " + version + " · free and open source. ");
-                const all = document.createElement("a");
-                all.href = release.html_url;
-                all.textContent = "Release notes and all files";
-                note.append(all);
-            }
+            // The desktop version comes from the file names; the release itself is named by date.
+            const versioned = find(/^F3M\.Desktop-\d+\.\d+\.\d+-/i);
+            const version = versioned ? versioned.name.match(/(\d+\.\d+\.\d+)/)[1] : null;
+            const published = release.published_at
+                ? new Date(release.published_at).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })
+                : null;
+            if (version) document.getElementById("version-note").textContent = "Version " + version + " · free and open source.";
+            const note = document.getElementById("release-note");
+            note.textContent = "";
+            note.append(version ? "F3M Desktop " + version : "The newest release");
+            if (published) note.append(", released " + published);
+            note.append(". ");
+            const notes = document.createElement("a");
+            notes.href = release.html_url;
+            notes.textContent = "Release notes";
+            note.append(notes, ". ");
         } catch {
-            // Offline or rate-limited: the buttons keep pointing at the release page.
+            // Offline or rate-limited: the links keep their defaults.
         }
     })();
 </script>
