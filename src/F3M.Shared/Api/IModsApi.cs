@@ -59,4 +59,20 @@ public interface IModsApi
     [Delete("{id:int}")]
     [GenAuthorize]
     Task Delete(int id, CancellationToken ct = default);
+
+    /// <summary>
+    /// "This is mine": the signed-in user takes over a mod imported from F95zone, if they are its F95 uploader.
+    /// Every outcome is a <see cref="ClaimModResult"/>; only a missing group throws (404).
+    /// </summary>
+    [Post("group/{groupId:int}/claim")]
+    [GenAuthorize]
+    Task<ClaimModResult> Claim(int groupId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes a whole mod with all its versions, for its owner or an admin. Unlike deleting the last version, this
+    /// also works while other mods depend on it: their dependency on it is removed.
+    /// </summary>
+    [Delete("group/{groupId:int}")]
+    [GenAuthorize]
+    Task DeleteGroup(int groupId, CancellationToken ct = default);
 }

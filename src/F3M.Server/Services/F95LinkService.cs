@@ -23,6 +23,7 @@ public class F95LinkService(
     F95Service f95,
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
+    ModOwnershipService ownership,
     ILogger<F95LinkService> logger) : IF95LinkApi
 {
     private static readonly TimeSpan ExpiryWindow = TimeSpan.FromHours(24);
@@ -178,8 +179,6 @@ public class F95LinkService(
             await userManager.AddToRoleAsync(user, AppRoles.User);
 
             logger.LogInformation("Created new F3M account '{Username}' linked to F95 user {F95UserId}.", username, f95UserId);
-
-            await ClaimModAuthorshipByNameAsync(user);
         }
         else
         {
@@ -211,6 +210,10 @@ public class F95LinkService(
 
         await db.SaveChangesAsync(ct);
 
+        // Mods imported from this F95 account become the user's, on every sign-in: some may have been imported after
+        // the account was created.
+        await ownership.ClaimAllAsync(user, ct);
+
         // Issue the auth cookie — this endpoint is itself a login (or registration) path, just
         // proven via F95 ownership instead of a password the client already knows.
         await signInManager.SignInAsync(user, isPersistent: true);
@@ -230,16 +233,6 @@ public class F95LinkService(
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-    private async Task ClaimModAuthorshipByNameAsync(AppUser appUser)
-    {
-        var modsToClaim = db.ModGroups.Where(w => w.Author == appUser.UserName).ToArray();
-        foreach (var mod in modsToClaim)
-            mod.OwnerId = appUser.Id;
-
-        await db.SaveChangesAsync();
-        logger.LogInformation("User '{username}' claimed mod authorship for: {mods}", appUser.UserName, string.Join(", ", modsToClaim.Select(m => m.Id)));
-    }
-
     /// <summary>Case-insensitive, like sign-in: "Name" and "name" are the same account name.</summary>
     private async Task<bool> IsUsernameTakenAsync(string username, CancellationToken ct)
     {

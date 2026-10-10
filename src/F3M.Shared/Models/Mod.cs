@@ -9,9 +9,33 @@ namespace F3M.Shared.Models;
 
 public class ModGroup
 {
+    /// <summary><see cref="OwnerId"/> of a mod imported from F95zone whose uploader has not signed in yet.</summary>
+    public const int UnclaimedOwnerId = -1;
+
     public int Id { get; set; }
     public int OwnerId { get; set; }   // UserId who created this group
     public string Author { get; set; } = string.Empty;
+
+    /// <summary>
+    /// For imported mods: the F95zone user id of whoever posted the files. When that user signs in through F95,
+    /// the mod becomes theirs. Ownership never follows names, which F95 users can change.
+    /// </summary>
+    [MaxLength(30)]
+    public string? F95OwnerUserId { get; set; }
+
+    /// <summary>The F95zone name of <see cref="F95OwnerUserId"/> at import time, for display only.</summary>
+    [MaxLength(50)]
+    public string? F95OwnerName { get; set; }
+
+    /// <summary>Where the mod was originally published, e.g. its F95zone post.</summary>
+    [MaxLength(500)]
+    public string? SourceUrl { get; set; }
+
+    /// <summary>When the F95 uploader took over an imported mod; null while unclaimed or for mods uploaded here.</summary>
+    public DateTime? ClaimedAt { get; set; }
+
+    /// <summary>Imported, and its uploader has not taken it over yet.</summary>
+    public bool IsUnclaimed => OwnerId == UnclaimedOwnerId;
 }
 
 // ── Mod (version record) ──────────────────────────────────────────────────────
@@ -147,6 +171,22 @@ public class ModListResult
     public int Page { get; set; }
     public int PageSize { get; set; }
     public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+}
+
+/// <summary>Outcome of claiming an imported mod. <see cref="Message"/> is shown to the user either way.</summary>
+public class ClaimModResult
+{
+    public ClaimModResult() { }
+    public ClaimModResult(bool success, string message) => (Success, Message) = (success, message);
+
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>Admin: who a mod group should belong to. Null <see cref="UserId"/> makes it unclaimed again.</summary>
+public class AssignModOwnerDto
+{
+    public int? UserId { get; set; }
 }
 
 /// <summary>All versions for a group, returned by the detail endpoint.</summary>

@@ -64,6 +64,8 @@ builder.Services.AddScoped<IProfileApi, ProfileService>();
 builder.Services.AddScoped<IAdminApi, AdminService>();
 builder.Services.AddScoped<IF95LinkApi, F95LinkService>();
 builder.Services.AddScoped<IModsApi, ModsService>();
+builder.Services.AddScoped<ModUploadService>();
+builder.Services.AddScoped<ModOwnershipService>();
 
 builder.Services
         .AddAuthentication(IdentityConstants.ApplicationScheme)
@@ -90,7 +92,8 @@ app.MapGet("/login", () => Results.Redirect(Paths.Login));
 app.MapPost("/login", async (
     LoginDto login,
     UserManager<AppUser> userManager,
-    SignInManager<AppUser> signInManager) =>
+    SignInManager<AppUser> signInManager,
+    ModOwnershipService ownership) =>
 {
     var user = await userManager.FindByNameAsync(login.UsernameOrEmail)
                ?? await userManager.FindByEmailAsync(login.UsernameOrEmail);
@@ -105,6 +108,9 @@ app.MapPost("/login", async (
         return Results.Unauthorized();
 
     await signInManager.SignInAsync(user, isPersistent: true);
+
+    // Mods imported for this user's F95 account since the last sign-in become theirs.
+    await ownership.ClaimAllAsync(user);
     return Results.Ok();
 });
 
