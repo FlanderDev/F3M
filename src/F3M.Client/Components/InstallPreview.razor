@@ -1,0 +1,31 @@
+@* "Where will my files end up?" For archives this lists what is inside them, placed under the chosen install path. *@
+@if (Entries.Count > 0 && _result is { } result)
+{
+    <div class="f3m-preview mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-semibold small">
+                <i class="bi bi-diagram-3 me-1 text-warning"></i>Where the files will end up
+            </span>
+            <span class="small text-secondary">@result.FileCount file@(result.FileCount == 1 ? string.Empty : "s") · @result.TotalBytes.FileSize()</span>
+        </div>
+
+        @foreach (var warning in result.Warnings)
+        {
+            <div class="small text-warning mb-1"><i class="bi bi-exclamation-triangle me-1"></i>@warning</div>
+        }
+
+        @if (result.Root.Children.Count == 0)
+        {
+            <div class="small text-secondary">Nothing to show yet.</div>
+        }
+        else
+        {
+            <div class="f3m-pv-tree">
+                @foreach (var child in result.Root.Children.Values)
+                {
+                    <InstallPreviewNode @key="child.Name" Node="child" Depth="0" />
+                }
+            </div>
+        }
+    </div>
+}

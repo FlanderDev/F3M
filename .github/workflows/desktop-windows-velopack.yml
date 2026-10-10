@@ -1,0 +1,67 @@
+# Builds the F3M Desktop app for Windows and packs it with Velopack.
+# Called by release.yml on every release, and runnable on its own from the Actions tab.
+# Only the desktop app is packaged here. The server is handled in release.yml.
+name: Desktop (Windows, Velopack)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Desktop app version (SemVer), e.g. 0.1.42
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Desktop app version (SemVer), e.g. 0.1.42
+        required: true
+        type: string
+
+jobs:
+  velopack:
+    name: Velopack (win-x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Pinned to the Velopack package version in F3M.Desktop.csproj; vpk refuses to pack an app without VelopackApp.
+      - name: Install Velopack CLI
+        run: dotnet tool install --global vpk --version 1.2.161
+
+      - name: Publish desktop app (self-contained, win-x64)
+        shell: pwsh
+        run: |
+          dotnet publish src/F3M.Desktop/F3M.Desktop.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=false `
+            -p:Version=${{ inputs.version }} `
+            --output publish-desktop
+
+      - name: Pack with Velopack
+        shell: pwsh
+        run: |
+          vpk pack `
+            --packId F3M.Desktop `
+            --packVersion ${{ inputs.version }} `
+            --packDir publish-desktop `
+            --mainExe F3M.Desktop.exe `
+            --packTitle "F3M Desktop" `
+            --icon src/F3M.Desktop/Assets/icon.ico `
+            --runtime win-x64 `
+            --outputDir releases
+
+      - name: Upload Velopack output
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-velopack
+          path: releases/*
+          if-no-files-found: error

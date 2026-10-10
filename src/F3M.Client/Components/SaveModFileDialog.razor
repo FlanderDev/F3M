@@ -8,6 +8,8 @@
       Title          – dialog header text          (default: "Save File")
       DefaultName    – pre-fill the filename input (default: "")
       InitialPath    – navigate to this path on open (default: "")
+      CustomFolders  – optional List<string> of user-created folders (full paths);
+                       kept across opens, pass your own list to persist/share them
       OnSave         – EventCallback<string> fired with the full path
       OnCancel       – EventCallback fired on dismiss
 *@
@@ -61,7 +63,8 @@
                                placeholder="Folder name"
                                @bind="_newFolderName"
                                @bind:event="oninput"
-                               @onkeydown="OnNewFolderKey" />
+                               @onkeydown="OnNewFolderKey"
+                               @onkeydown:stopPropagation="true" />
                         <button class="sfd-toolbtn" @onclick="CommitNewFolder"><i class="bi bi-check-lg"></i></button>
                         <button class="sfd-toolbtn" @onclick="CancelNewFolder"><i class="bi bi-x-lg"></i></button>
                     </div>

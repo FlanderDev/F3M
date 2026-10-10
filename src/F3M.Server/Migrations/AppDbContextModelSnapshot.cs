@@ -15,7 +15,7 @@ namespace F3M.Server.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
             modelBuilder.Entity("F3M.Server.Models.AppUser", b =>
                 {
@@ -102,6 +102,11 @@ namespace F3M.Server.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ClientTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
@@ -220,6 +225,9 @@ namespace F3M.Server.Migrations
                         .HasMaxLength(260)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsArchive")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("ModId")
                         .HasColumnType("INTEGER");
 
@@ -227,11 +235,84 @@ namespace F3M.Server.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetPath")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ModId");
 
                     b.ToTable("ModFiles");
+                });
+
+            modelBuilder.Entity("F3M.Shared.Models.ModFileEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("From")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ModFileId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("To")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModFileId");
+
+                    b.ToTable("ModFileEntries");
+                });
+
+            modelBuilder.Entity("F3M.Shared.Models.ModGeneratedPath", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ModId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Pattern")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModId");
+
+                    b.ToTable("ModGeneratedPaths");
                 });
 
             modelBuilder.Entity("F3M.Shared.Models.ModGroup", b =>
@@ -426,12 +507,12 @@ namespace F3M.Server.Migrations
                     b.Property<int>("ModId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("DependencyId")
+                    b.Property<int>("DependencyGroupId")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("ModId", "DependencyId");
+                    b.HasKey("ModId", "DependencyGroupId");
 
-                    b.HasIndex("DependencyId");
+                    b.HasIndex("DependencyGroupId");
 
                     b.ToTable("ModDependencies", (string)null);
                 });
@@ -440,6 +521,24 @@ namespace F3M.Server.Migrations
                 {
                     b.HasOne("F3M.Shared.Models.Mod", null)
                         .WithMany("Files")
+                        .HasForeignKey("ModId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("F3M.Shared.Models.ModFileEntry", b =>
+                {
+                    b.HasOne("F3M.Shared.Models.ModFile", null)
+                        .WithMany()
+                        .HasForeignKey("ModFileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("F3M.Shared.Models.ModGeneratedPath", b =>
+                {
+                    b.HasOne("F3M.Shared.Models.Mod", null)
+                        .WithMany("GeneratedPaths")
                         .HasForeignKey("ModId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -498,9 +597,9 @@ namespace F3M.Server.Migrations
 
             modelBuilder.Entity("ModDependency", b =>
                 {
-                    b.HasOne("F3M.Shared.Models.Mod", null)
+                    b.HasOne("F3M.Shared.Models.ModGroup", null)
                         .WithMany()
-                        .HasForeignKey("DependencyId")
+                        .HasForeignKey("DependencyGroupId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -514,6 +613,8 @@ namespace F3M.Server.Migrations
             modelBuilder.Entity("F3M.Shared.Models.Mod", b =>
                 {
                     b.Navigation("Files");
+
+                    b.Navigation("GeneratedPaths");
                 });
 #pragma warning restore 612, 618
         }

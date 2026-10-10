@@ -25,8 +25,7 @@
 - [x] Mod dependencies
 - [x] Markdown for mod descriptions
 - [ ] Mod packs
-- [ ] User profiles
-- [ ] A Desktop application working in tandem with this project [Big project]
+- [x] User profiles
 
 # F3M
 **F3M** is a full-stack web application built with **Blazor WebAssembly** on .NET 10. It follows the standard Blazor Hosted architecture, splitting responsibilities across three projects: a browser-side Blazor client, an ASP.NET Core server, and a shared class library for common models and contracts.
@@ -44,13 +43,14 @@
 ## Project Structure
 ```
 F3M/
-├── F3M.Client/       # Blazor WebAssembly frontend
-├── F3M.Server/       # ASP.NET Core backend (hosts the client + API)
-├── F3M.Shared/       # Shared models, DTOs, and contracts
+├── src/
+│   ├── F3M.Client/   # Blazor WebAssembly frontend
+│   ├── F3M.Server/   # ASP.NET Core backend (hosts the client + API)
+│   ├── F3M.Shared/   # Shared models, DTOs, and contracts
+│   ├── F3M.sln       # Visual Studio solution file
+│   └── global.json   # .NET SDK version pin
 ├── Dockerfile        # Multi-stage Docker build (Alpine-based)
 ├── compose.yaml      # Docker Compose configuration
-├── F3M.sln           # Visual Studio solution file
-└── global.json       # .NET SDK version pin (10.0, latestMinor)
 ```
 
 ---
@@ -68,26 +68,29 @@ F3M/
 git clone https://github.com/FlanderDev/F3M.git
 cd F3M
 
-dotnet restore
-dotnet run --project F3M.Server
+dotnet restore src/F3M.sln
+dotnet run --project src/F3M.Server
 ```
 
 The application will be available at `https://localhost:5001` (or the port configured in `launchSettings.json`).
 
 ### Run with Docker Compose
+Copy `.env.example` to `.env` and set at least `F3M_CATALOG_KEY_PASSWORD`. Every setting the container needs is listed there.
+
 ```bash
 docker compose up --build
 ```
 
-The server will be exposed on:
-- `http://localhost:8081` → container port `8080`
-- `https://localhost:443`
+The container serves plain HTTP on port `8080`, published on the host as `http://localhost:62444` (change it with `F3M_HTTP_PORT`).
+For HTTPS, put a TLS-terminating reverse proxy in front; `F3M_BEHIND_PROXY=true` (the default) makes the app trust its `X-Forwarded-*` headers.
+
+The `f3m_Storage` volume holds the database, uploads, the public catalog and the catalog signing key. Back up the key together with its password.
 
 ---
 
 ## Building for Production
 ```bash
-dotnet publish F3M.Server -c Release -o ./publish
+dotnet publish src/F3M.Server -c Release -o ./publish
 ```
 
 Or build and push a Docker image:

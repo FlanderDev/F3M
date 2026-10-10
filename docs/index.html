@@ -568,6 +568,7 @@
             if (image) {
                 document.getElementById("dl-linux").href = image.browser_download_url;
                 document.getElementById("dl-linux-note").textContent = "AppImage, " + size(image.size);
+                version = (image.name.match(/(\d+\.\d+\.\d+)/) || [])[1] || null;
             }
 
             // The desktop version comes from the file names; the release itself is named by date.
@@ -578,7 +579,7 @@
                 : null;
             if (version) document.getElementById("version-note").textContent = "Version " + version + " · free and open source.";
             const note = document.getElementById("release-note");
-            note.textContent = "";
+                note.textContent = "";
             note.append(version ? "F3M Desktop " + version : "The newest release");
             if (published) note.append(", released " + published);
             note.append(". ");

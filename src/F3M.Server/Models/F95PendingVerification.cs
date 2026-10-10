@@ -23,6 +23,12 @@ public class F95PendingVerification
     /// </summary>
     public long ProfilePostId { get; set; }
 
+    /// <summary>
+    /// SHA-256 (hex) of the private token handed only to the browser that started this verification. The GUID is
+    /// posted publicly, so it cannot prove who started the flow; the token does. Check requires it.
+    /// </summary>
+    public string ClientTokenHash { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public F95VerificationStatus Status { get; set; } = F95VerificationStatus.Pending;
 }

@@ -5,9 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace F3M.Server.Controllers;
 
-// Thin controller over the RouteGen-generated TelemetryApiControllerBase — no route attributes,
-// no route strings, anywhere. Routing/binding comes entirely from the generated base (see
-// obj/**/generated/RouteGen.Generators/.../F3M.Shared.Api_ITelemetryApi.g.cs after build).
 public sealed class TelemetryController(AppDbContext db, ILogger<TelemetryController> logger) : TelemetryApiControllerBase
 {
     public override async Task<IActionResult> ReportError(Telemetry.ErrorReport errorReport, CancellationToken ct)

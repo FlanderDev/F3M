@@ -17,7 +17,6 @@ public static class Assets
 
     #region Browser-facing URLs
     public const string ServedPath = $"/{nameof(Assets)}";
-    public static string FileUrl(this string fileName) => $"{ServedPath}/{nameof(Files)}/{fileName}";
     public static string ImageUrl(this string fileName) => $"{ServedPath}/{nameof(Images)}/{fileName}";
     #endregion
 }

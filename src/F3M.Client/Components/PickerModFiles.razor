@@ -51,6 +51,10 @@
                                to avoid one dialog DOM node per file row. *@
                         </button>
                     </div>
+
+                    <div class="f3m-file-entry-target @(IsValidPath(entry) ? string.Empty : "text-danger")">
+                        <i class="bi bi-arrow-return-right me-1"></i>@TargetHint(entry)
+                    </div>
                 </div>
             }
         </div>
@@ -80,4 +84,6 @@
     {
         <p class="text-danger small mt-1">@Error</p>
     }
+
+    <InstallPreview Entries="Entries" />
 </div>
