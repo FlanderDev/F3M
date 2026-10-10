@@ -1,0 +1,39 @@
+@implements IDisposable
+@inject CollectionStore Store
+
+@if (Store.Contains(GroupId))
+{
+    <button type="button" class="btn btn-sm btn-success" title="Remove from your collection"
+            @onclick="RemoveAsync" @onclick:stopPropagation="true" @onclick:preventDefault="true">
+        <i class="bi bi-check2"></i> In collection
+    </button>
+}
+else
+{
+    <button type="button" class="btn btn-sm btn-outline-warning" disabled="@Store.IsFull"
+            title="@AddTitle"
+            @onclick="AddAsync" @onclick:stopPropagation="true" @onclick:preventDefault="true">
+        <i class="bi bi-plus-lg"></i> Add to collection
+    </button>
+}
+
+@code {
+    [Parameter, EditorRequired] public int GroupId { get; set; }
+    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Store.Changed += OnChanged;
+        await Store.LoadAsync();
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private string AddTitle => Store.IsFull ? $"A collection holds at most {CollectionLink.MaxMods} mods" : "Add to your collection";
+
+    private Task AddAsync() => Store.AddAsync(GroupId, Name);
+
+    private Task RemoveAsync() => Store.RemoveAsync(GroupId);
+
+    public void Dispose() => Store.Changed -= OnChanged;
+}

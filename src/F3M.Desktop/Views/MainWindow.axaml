@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:F3M.Desktop.ViewModels"
+        xmlns:core="using:F3M.Desktop.Core"
+        xmlns:v="using:F3M.Desktop.Views"
+        x:Class="F3M.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="F3M Desktop"
+        Width="1180" Height="780"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen">
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+    <!-- Top bar: badge, active profile, Deploy, Play (plan 3.3, 7.1). -->
+    <Border Grid.Row="0" Classes="bar">
+      <Grid ColumnDefinitions="Auto,240,Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="10">
+        <Button Grid.Column="0" Classes="logo" Command="{Binding OpenRepositoryCommand}"
+                ToolTip.Tip="F3M on GitHub: source code, releases and issues. Opens in your browser.">
+          <Button.Template>
+            <ControlTemplate>
+              <ContentPresenter Content="{TemplateBinding Content}" />
+            </ControlTemplate>
+          </Button.Template>
+          <Border Classes="logo">
+            <TextBlock Text="F3M" FontSize="16" />
+          </Border>
+        </Button>
+        <ComboBox Grid.Column="1" ItemsSource="{Binding ProfileChoices}" SelectedItem="{Binding ProfileSelection}"
+                  HorizontalAlignment="Stretch" PlaceholderText="No profile"
+                  ToolTip.Tip="The active profile: the set of mods in your game folder. Choosing another one asks first, then installs that profile's mods instead.">
+          <ComboBox.ItemTemplate>
+            <DataTemplate DataType="core:ProfileDef">
+              <TextBlock Text="{Binding Name}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button Grid.Column="2" Content="Deploy" Command="{Binding DeployNowCommand}" IsEnabled="{Binding CanDeploy}"
+                ToolTip.Tip="Make the game folder match the active profile: install added or updated mods and remove the ones you took out. If anything fails, the game folder is put back as it was." />
+        <Button Grid.Column="3" Classes="primary" Content="Play" Command="{Binding PlayCommand}"
+                ToolTip.Tip="Start the game. Set the game executable or a Steam app ID in Settings first." />
+        <CheckBox Grid.Column="4" Content="Deploy before playing" IsChecked="{Binding DeployBeforePlay}" VerticalAlignment="Center"
+                  ToolTip.Tip="When on, Play deploys pending changes first, so the game always starts with the mods you see in the Library." />
+        <TextBlock Grid.Column="5" Text="{Binding PlayNote}" Classes="muted" VerticalAlignment="Center" HorizontalAlignment="Right" />
+
+        <!-- F3M Desktop's own updates: check, then update and restart. -->
+        <CheckBox Grid.Column="6" Content="Check on startup" IsChecked="{Binding AppUpdate.CheckOnStartup}" VerticalAlignment="Center"
+                  ToolTip.Tip="Look for a newer F3M Desktop every time the app starts. It is only installed when you click the update button." />
+        <Button Grid.Column="7" Content="{Binding AppUpdate.ButtonText}" Command="{Binding AppUpdate.ClickCommand}"
+                Classes.primary="{Binding AppUpdate.HasUpdate}" IsEnabled="{Binding !AppUpdate.IsBusy}"
+                ToolTip.Tip="{Binding AppUpdate.Tip}" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <!-- Segmented navigation and the pending-changes line. -->
+    <Border Grid.Row="1" Classes="bar" Padding="12,6">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="4">
+        <Button Grid.Column="0" Classes="nav" Content="Library" Command="{Binding ShowLibraryCommand}"
+                ToolTip.Tip="The mods in your active profile and what is installed." />
+        <Button Grid.Column="1" Classes="nav" Content="Browse" Command="{Binding ShowBrowseCommand}"
+                ToolTip.Tip="Find mods on the F3M website and add them to your profile." />
+        <Button Grid.Column="2" Classes="nav" Content="Profiles" Command="{Binding ShowProfilesCommand}"
+                ToolTip.Tip="Keep several mod setups and switch between them, or share one as a link." />
+        <Button Grid.Column="3" Classes="nav" Content="Downloads" Command="{Binding ShowDownloadsCommand}"
+                ToolTip.Tip="Running and finished downloads and deploys, and the size of the download cache." />
+        <Button Grid.Column="4" Classes="nav" Content="Settings" Command="{Binding ShowSettingsCommand}"
+                ToolTip.Tip="Game folder, server address, updates, and maintenance." />
+        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
+          <TextBlock Text="{Binding PendingText}" Classes="muted" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding UpdateBanner}" Foreground="{DynamicResource F3M.Brush.Accent}" VerticalAlignment="Center" />
+        </StackPanel>
+        <Button Grid.Column="6" Classes="primary" Content="Download updates" Command="{Binding DownloadUpdatesCommand}"
+                IsVisible="{Binding HasUpdates}"
+                ToolTip.Tip="Downloads the newest versions of mods you already downloaded. The game folder is not touched: press Deploy afterwards to install them. Mods pinned in every profile that uses them are left out." />
+      </Grid>
+    </Border>
+
+    <!-- The page: Library, Browse, Profiles, Downloads or Settings. -->
+    <ContentControl Grid.Row="2" Content="{Binding CurrentPage}" />
+
+    <!-- Status line: operations, game state, and short messages (plan 4.3). -->
+    <Border Grid.Row="3" Classes="bar" BorderThickness="0,1,0,0" Padding="16,6">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding StatusText}" Classes="muted" />
+        <TextBlock Grid.Column="1" v:Links.Markup="{Binding Message}" Foreground="{DynamicResource F3M.Brush.Text}" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

@@ -387,6 +387,106 @@ a {
     margin-bottom: 1.5rem;
 }
 
+.f3m-auth-card-wide {
+    max-width: 480px;
+}
+
+.f3m-auth-sub {
+    color: var(--f3m-muted) !important;
+}
+
+.f3m-auth-url {
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--f3m-text);
+}
+
+    .f3m-auth-url strong {
+        color: var(--f3m-amber);
+    }
+
+.f3m-auth-divider {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin: 1.75rem 0 1rem;
+    color: var(--f3m-muted);
+    font-size: .8rem;
+    font-weight: 600;
+}
+
+    .f3m-auth-divider::before, .f3m-auth-divider::after {
+        content: "";
+        flex: 1;
+        border-top: 1px solid var(--f3m-border);
+    }
+
+/* Step indicator on the sign-up page */
+.f3m-steps {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    list-style: none;
+    padding: 0;
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--f3m-muted);
+}
+
+    .f3m-steps li {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .35rem;
+        text-align: center;
+    }
+
+        .f3m-steps li span {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--f3m-border);
+            background: var(--f3m-surface-2);
+        }
+
+        .f3m-steps li.active {
+            color: var(--f3m-amber);
+        }
+
+            .f3m-steps li.active span {
+                border-color: var(--f3m-amber);
+                background: var(--f3m-amber-dim);
+            }
+
+        .f3m-steps li.done {
+            color: var(--f3m-text);
+        }
+
+            .f3m-steps li.done span {
+                background: var(--f3m-amber);
+                border-color: var(--f3m-amber);
+                color: #000;
+            }
+
+/* "Your username will be ..." */
+.f3m-name-preview {
+    background: var(--f3m-surface-2);
+    border: 1px solid var(--f3m-border);
+    border-left: 3px solid var(--f3m-amber);
+    border-radius: var(--f3m-radius);
+    padding: .6rem .9rem;
+    font-size: .875rem;
+}
+
+.f3m-howto {
+    color: var(--f3m-muted);
+    padding-left: 1.2rem;
+    line-height: 1.8;
+}
+
 /* ── Upload dropzone ────────────────────────────────────── */
 .f3m-dropzone {
     display: flex;
@@ -691,6 +791,62 @@ a {
         color: var(--f3m-text);
     }
 
+/* ── Upload: "where will the files end up" ──────────────── */
+.f3m-file-entry-target {
+    padding: 0 12px 8px 34px;
+    font-size: .72rem;
+    color: var(--f3m-muted);
+}
+
+.f3m-preview {
+    background: var(--f3m-surface-2);
+    border: 1px solid var(--f3m-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.f3m-pv-tree {
+    max-height: 320px;
+    overflow: auto;
+    overscroll-behavior: contain; /* reaching the end of the tree must not scroll the page */
+    font-size: .78rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.f3m-pv-row {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    white-space: nowrap;
+}
+
+.f3m-pv-toggle {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--f3m-text);
+    display: inline-flex;
+    align-items: center;
+}
+
+.f3m-pv-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.f3m-pv-meta {
+    color: var(--f3m-muted);
+    margin-left: auto;
+    padding-left: 1rem;
+    font-size: .7rem;
+}
+
+.f3m-pv-conflict .f3m-pv-name {
+    color: #f87171;
+}
+
 .f3m-dropzone-sm {
     padding: .75rem 1rem !important;
     flex-direction: row !important;
@@ -896,6 +1052,13 @@ a {
    Save File Dialog
    ═══════════════════════════════════════════════════════════ */
 
+/* Lock page scroll while a modal overlay is open (pure CSS, no JS).
+   Give any future overlay the `f3m-scroll-lock` class to opt in. */
+html:has(.sfd-backdrop, .f3m-scroll-lock) {
+    overflow: hidden;
+    scrollbar-gutter: stable; /* keep the layout from shifting when the scrollbar disappears */
+}
+
 .sfd-backdrop {
     position: fixed;
     inset: 0;
@@ -1041,6 +1204,7 @@ a {
     min-height: 220px;
     max-height: 280px;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: .4rem;
     background: var(--f3m-surface-2);
     border-bottom: 1px solid var(--f3m-border);

@@ -1,4 +1,3 @@
-using F3M.Shared;
 using F3M.Shared.Models;
 using FlanderDev.RouteGen.Abstractions;
 
@@ -16,7 +15,7 @@ namespace F3M.Shared.Api;
 /// on the server, the auth cookie on the client), the same way the old hand-written controller did.
 /// </summary>
 [ApiRoute("api/profile", HttpClientName = Configuration.AppName)]
-[Authorize]
+[GenAuthorize]
 public interface IProfileApi
 {
     /// <summary>The currently authenticated user's own profile.</summary>
@@ -31,7 +30,7 @@ public interface IProfileApi
     /// <summary>Public view of another user's account. Throws <see cref="KeyNotFoundException"/>
     /// (mapped to 404 by the controller) if no such user exists.</summary>
     [Get("u/{username}")]
-    [AllowAnonymous]
+    [GenAllowAnonymous]
     Task<PublicProfileDto> GetPublicProfileAsync(string username, CancellationToken ct = default);
 
     /// <summary>Changes the currently authenticated user's password.</summary>

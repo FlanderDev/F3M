@@ -57,4 +57,17 @@ public class AdminController(IAdminApi adminApi) : AdminApiControllerBase
             return NotFound();
         }
     }
+
+    public override async Task<ActionResult<CatalogRebuildResult>> RebuildCatalogAsync(CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await adminApi.RebuildCatalogAsync(ct));
+        }
+        catch (InvalidOperationException ex)
+        {
+            // The signing key is missing or cannot be read. The message says which.
+            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+        }
+    }
 }

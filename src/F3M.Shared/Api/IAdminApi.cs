@@ -1,4 +1,3 @@
-using F3M.Shared;
 using F3M.Shared.Models;
 using FlanderDev.RouteGen.Abstractions;
 
@@ -11,7 +10,7 @@ namespace F3M.Shared.Api;
 /// care what else implements the plain shape.
 /// </summary>
 [ApiRoute("api/admin", HttpClientName = Configuration.AppName)]
-[Authorize(Roles = AppRoles.Admin)]
+[GenAuthorize(Roles = AppRoles.Admin)]
 public interface IAdminApi
 {
     [Get("users")]
@@ -26,4 +25,11 @@ public interface IAdminApi
     /// <summary>Deletes the given user's account. Same exceptions as <see cref="ToggleAdminAsync"/>.</summary>
     [Delete("users/{id:int}")]
     Task DeleteUserAsync(int id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Rebuilds the whole signed catalog: re-signs every approved version, removes documents of versions that are
+    /// gone, fills in file details for older uploads and rewrites the index. Safe to run at any time.
+    /// </summary>
+    [Post("catalog/rebuild")]
+    Task<CatalogRebuildResult> RebuildCatalogAsync(CancellationToken ct = default);
 }
