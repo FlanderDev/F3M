@@ -33,6 +33,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             e.HasKey(g => g.Id);
             e.Property(g => g.Author).IsRequired().HasMaxLength(80);
+            e.Ignore(g => g.IsUnclaimed);
+            // Looked up on every F95 sign-in, to hand imported mods to their uploader.
+            e.HasIndex(g => g.F95OwnerUserId);
         });
 
         modelBuilder.Entity<Mod>(e =>

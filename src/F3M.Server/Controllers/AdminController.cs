@@ -58,6 +58,18 @@ public class AdminController(IAdminApi adminApi) : AdminApiControllerBase
         }
     }
 
+    public override async Task<ActionResult<ModGroup>> AssignModOwnerAsync(int groupId, AssignModOwnerDto dto, CancellationToken ct)
+    {
+        try
+        {
+            return Ok(await adminApi.AssignModOwnerAsync(groupId, dto, ct));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
     public override async Task<ActionResult<CatalogRebuildResult>> RebuildCatalogAsync(CancellationToken ct)
     {
         try

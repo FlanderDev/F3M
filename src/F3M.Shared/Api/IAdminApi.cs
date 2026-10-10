@@ -32,4 +32,11 @@ public interface IAdminApi
     /// </summary>
     [Post("catalog/rebuild")]
     Task<CatalogRebuildResult> RebuildCatalogAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Gives a mod group to another user, or makes it unclaimed again (null user) so it goes to its F95 uploader on
+    /// their next sign-in. Throws <see cref="KeyNotFoundException"/> for an unknown group or user.
+    /// </summary>
+    [Put("mods/{groupId:int}/owner")]
+    Task<ModGroup> AssignModOwnerAsync(int groupId, [Body] AssignModOwnerDto dto, CancellationToken ct = default);
 }

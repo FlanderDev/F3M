@@ -1,37 +1,40 @@
 ﻿#if DEBUG
-using F3M.Server.Data;
-using F3M.Shared.Helpers;
+using F3M.Server.Services;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Net;
 
 namespace F3M.Server.Controllers;
 
+/// <summary>
+/// Debug-build helper for uploading a mod without signing in. Only reachable from the local network.
+/// Uploads go through <see cref="ModUploadService"/>, so they get the same checks, file inspection and catalog entries
+/// as the upload form. Bulk imports with their F95 uploader use the admin-only ImportController instead.
+/// </summary>
 [ApiController]
-public sealed class DebugController(AppDbContext db) : ControllerBase
+public sealed class DebugController(ModUploadService uploader) : ControllerBase
 {
     private static bool IsLocalNetwork(IPAddress? ip)
     {
         if (ip == null) return false;
-
-        byte[] bytes = ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4().GetAddressBytes() : ip.GetAddressBytes();
-
-        // 10.0.0.0/8
-        if (bytes[0] == 10) return true;
-
-        // 172.16.0.0/12
-        if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
-
-        // 192.168.0.0/16
-        if (bytes[0] == 192 && bytes[1] == 168) return true;
-
-        // 127.0.0.0/8 (loopback)
         if (IPAddress.IsLoopback(ip)) return true;
 
-        return false;
+        if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+        if (ip.IsIPv6LinkLocal || ip.IsIPv6UniqueLocal) return true;
+
+        byte[] bytes = ip.GetAddressBytes();
+        if (bytes.Length != 4) return false;
+
+        return bytes[0] == 10                                     // 10.0.0.0/8
+               || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) // 172.16.0.0/12
+               || (bytes[0] == 192 && bytes[1] == 168);            // 192.168.0.0/16
     }
 
+    /// <summary>
+    /// Uploads one mod, or one version of it when <c>ModGroupId</c> is set. Same form fields as the upload form,
+    /// plus <paramref name="author"/> and an optional <paramref name="uploadedAt"/> (defaults to now).
+    /// The mod is unclaimed. Returns the group id; the reason as text when the upload is rejected.
+    /// </summary>
     [HttpPost("/Upload")]
     public async Task<IActionResult> Upload(
         [FromForm] ModUploadDto dto,
@@ -39,120 +42,26 @@ public sealed class DebugController(AppDbContext db) : ControllerBase
         [FromForm] List<string> installPaths,
         [FromForm] List<string> originalNames,
         IFormFile? previewImage,
-        [FromForm] string author)
+        [FromForm] string author,
+        [FromForm] DateTime? uploadedAt,
+        CancellationToken ct)
     {
         if (!IsLocalNetwork(HttpContext.Connection.RemoteIpAddress))
             return Unauthorized("Access denied: Only local network allowed");
 
+        var uploadFiles = files.Select((f, i) => new UploadFile(
+            f,
+            i < originalNames.Count ? originalNames[i] : null,
+            i < installPaths.Count ? installPaths[i] : null)).ToList();
 
-        Mod? mod = null;
-        try
-        {
-            mod = await ModUploadAsync(dto, files, installPaths, originalNames, previewImage, author);
-            //var modsController = new ModsController(db, logger);
-            //await modsController.Upload(dto, files, installPaths, originalNames, previewImage);
+        var when = uploadedAt is { } at ? DateTime.SpecifyKind(at.ToUniversalTime(), DateTimeKind.Utc) : (DateTime?)null;
+        var result = await uploader.UploadAsync(dto, uploadFiles, previewImage, new UploadOwner(ModGroup.UnclaimedOwnerId, author), when, ct: ct);
+        if (result.Forbidden)
+            return Forbid();
+        if (result.Mod is not { } mod)
+            return BadRequest(result.Error);
 
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-            return BadRequest("An error occurred while uploading the mod.");
-        }
-
-        if (mod == null)
-            Console.WriteLine();
-
-        return Ok(mod?.ModGroupId);
-    }
-
-    private async Task<Mod?> ModUploadAsync(
-        ModUploadDto dto,
-        IFormFileCollection files,
-        List<string> installPaths,
-        List<string> originalNames,
-        IFormFile? previewImage,
-        string author)
-    {
-        ModGroup? group = null;
-        if (dto.ModGroupId is { } modGroupId) // This is a new version of an existing mod
-        {
-            var existing = db.Mods.FirstOrDefault(m => m.ModGroupId == modGroupId);
-            if (existing is null)
-                return null; //BadRequest($"Mod with group ID {modGroupId} not found.");
-
-
-            var existingModGroup = db.ModGroups.FirstOrDefault(m => m.Id == modGroupId);
-            if (existingModGroup is not null)
-                group = existingModGroup;
-        }
-
-        if (group is null) // ModGroup doesn't exist yet
-        {
-            group = new ModGroup { Author = dto.Name, OwnerId = -1 };
-            db.ModGroups.Add(group);
-            await db.SaveChangesAsync(); // need Id before creating Mod
-        }
-
-        var mod = new Mod
-        {
-            ModGroupId = group.Id,
-            Name = dto.Name,
-            Description = dto.Description,
-            Author = author,
-            Version = dto.Version,
-            Category = dto.Category,
-            PreviewImageName = "",
-            UploadedAt = DateTime.UtcNow,
-            IsApproved = true,
-            UserId = -1
-        };
-
-        await RecalculateLatestVersion(db, group.Id);
-        db.Mods.Add(mod);
-        await db.SaveChangesAsync(); // need mod.Id for ModFile FKs
-
-        // ── Save each mod file ────────────────────────────────────────────────
-        for (int i = 0; i < files.Count; i++)
-        {
-            var f = files[i];
-            var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
-            var safeName = $"{Guid.NewGuid():N}{ext}";
-            var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
-            var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
-
-            await using var stream = System.IO.File.Create(Path.Combine(Assets.Files, safeName));
-            await f.CopyToAsync(stream);
-
-            db.ModFiles.Add(new ModFile
-            {
-                ModId = mod.Id,
-                FileName = safeName,
-                OriginalName = origName,
-                InstallPath = installPath,
-                FileSizeBytes = f.Length
-            });
-        }
-
-        await db.SaveChangesAsync();
-        return mod; //Ok(mod);
-    }
-
-    private static async Task RecalculateLatestVersion(AppDbContext appDbContext, int? modGroupId, Mod? incoming = null)
-    {
-        var existing = await appDbContext.Mods.Where(m => m.ModGroupId == modGroupId).ToListAsync();
-        if (existing.Count == 0)
-        {
-            incoming?.IsLatestVersion = true;
-            return;
-
-        }
-        var all = incoming is not null
-            ? existing.Append(incoming)
-            : existing;
-
-        var latest = all.OrderByDescending(m => new Version(m.Version)).First();
-        foreach (var m in all)
-            m.IsLatestVersion = m.Id == latest.Id;
+        return Ok(mod.ModGroupId);
     }
 }
 

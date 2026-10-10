@@ -83,7 +83,11 @@ namespace F3M.Server.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     OwnerId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Author = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false)
+                    Author = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
+                    F95OwnerUserId = table.Column<string>(type: "TEXT", maxLength: 30, nullable: true),
+                    F95OwnerName = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    SourceUrl = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
+                    ClaimedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -414,6 +418,11 @@ namespace F3M.Server.Migrations
                 name: "IX_ModGeneratedPaths_ModId",
                 table: "ModGeneratedPaths",
                 column: "ModId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ModGroups_F95OwnerUserId",
+                table: "ModGroups",
+                column: "F95OwnerUserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Mods_Category",

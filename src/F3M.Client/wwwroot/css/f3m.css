@@ -350,6 +350,15 @@ a {
     text-align: center;
 }
 
+/* Mod detail: a mod imported from F95zone that its uploader has not claimed yet. */
+.f3m-import-notice {
+    padding: .85rem 1rem;
+    border: 1px solid rgba(255,193,7,.25);
+    border-left: 3px solid var(--f3m-amber);
+    border-radius: .5rem;
+    background: rgba(255,193,7,.06);
+}
+
 .f3m-stat-mini-val {
     font-size: 1.1rem;
     font-weight: 800;

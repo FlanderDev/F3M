@@ -1,6 +1,7 @@
 @page "/mod/{Id:int}"
 @inject NavigationManager Nav
 @inject IModsApi ModsApi
+@inject IAdminApi AdminApi
 @inject IJSRuntime JS
 
 <PageTitle>F3M - @(selectedVersion?.Name ?? "Name-Unavailable")</PageTitle>
@@ -161,10 +162,37 @@ else
                                     </a>
                                 }
                                 <button class="btn btn-outline-danger fw-semibold"
-                                        @onclick="() => showDeleteConfirm = true">
+                                        @onclick="AskDeleteVersion">
                                     <i class="bi bi-trash me-2"></i>Delete This Version
                                 </button>
+                                @if (allVersions.Count > 1)
+                                {
+                                    <button class="btn btn-outline-danger fw-semibold"
+                                            @onclick="AskRemoveMod">
+                                        <i class="bi bi-x-octagon me-2"></i>Remove Whole Mod
+                                    </button>
+                                }
                             </div>
+
+                            @if (showRemoveConfirm)
+                            {
+                                <div class="mt-2 p-3 rounded-3 border border-danger" style="background:rgba(220,53,69,.08);">
+                                    <p class="small mb-2 fw-semibold text-danger">
+                                        Remove <em>@selectedVersion.Name</em> with all @allVersions.Count versions and their files? This cannot be undone.
+                                        Mods that require it stay, but no longer list it as a requirement.
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-danger btn-sm fw-bold flex-grow-1" @onclick="RemoveMod" disabled="@deleting">
+                                            @if (deleting)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            Remove Mod
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => showRemoveConfirm = false">Cancel</button>
+                                    </div>
+                                </div>
+                            }
 
                             @if (showDeleteConfirm)
                             {
@@ -188,9 +216,33 @@ else
                                             Cancel
                                         </button>
                                     </div>
-                                    @if (deleteError is not null)
+                                </div>
+                            }
+                            @if (deleteError is not null)
+                            {
+                                <p class="text-danger small mt-2 mb-0">@deleteError</p>
+                            }
+
+                            @if (isAdmin && group is not null)
+                            {
+                                <div class="f3m-surface rounded-3 p-3 border mt-3" style="border-color:var(--f3m-border);">
+                                    <h6 class="fw-bold small mb-2"><i class="bi bi-person-gear me-2 text-warning"></i>Owner (admin)</h6>
+                                    <div class="d-flex gap-2">
+                                        <select class="form-select form-select-sm" @bind="assignUserId">
+                                            <option value="@ModGroup.UnclaimedOwnerId">@UnclaimedLabel</option>
+                                            @foreach (var user in users)
+                                            {
+                                                <option value="@user.Id">@user.Username</option>
+                                            }
+                                        </select>
+                                        <button class="btn btn-sm btn-outline-warning flex-shrink-0" @onclick="AssignOwner"
+                                                disabled="@(assigning || assignUserId == group.OwnerId)">
+                                            Save
+                                        </button>
+                                    </div>
+                                    @if (assignMessage is not null)
                                     {
-                                        <p class="text-danger small mt-2 mb-0">@deleteError</p>
+                                        <p class="small mt-2 mb-0">@assignMessage</p>
                                     }
                                 </div>
                             }
@@ -245,6 +297,53 @@ else
                     by <a href="@Paths.PublicProfile(selectedVersion.Author)" class="text-warning fw-semibold">@selectedVersion.Author</a>
                     &nbsp;·&nbsp; @selectedVersion.UploadedAt.ToString("MMM d, yyyy")
                 </p>
+
+                @if (group is { IsUnclaimed: true })
+                {
+                    <div class="f3m-import-notice mb-4">
+                        <div class="fw-semibold small mb-1">
+                            <i class="bi bi-box-arrow-in-down me-1 text-warning"></i>Imported from F95zone &middot; not yet claimed
+                        </div>
+                        <p class="small mb-2">
+                            @if (group.F95OwnerName is { Length: > 0 } uploader)
+                            {
+                                <span>Posted on F95zone by <strong>@uploader</strong>. </span>
+                            }
+                            @if (group.SourceUrl is { Length: > 0 } source)
+                            {
+                                <span><a href="@source" target="_blank" rel="noopener" class="text-warning">See the original post</a>. </span>
+                            }
+                            Is this your mod? Sign in through F95zone and it becomes yours, so you can edit it, upload new versions, or remove it.
+                        </p>
+                        <AuthorizeView>
+                            <Authorized Context="claimAuth">
+                                <button class="btn btn-sm btn-outline-warning fw-semibold" @onclick="Claim" disabled="@claiming">
+                                    @if (claiming)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                    }
+                                    <i class="bi bi-hand-index me-1"></i>This is mine
+                                </button>
+                            </Authorized>
+                            <NotAuthorized>
+                                <a href="@Paths.Login" class="btn btn-sm btn-outline-warning fw-semibold">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>Sign in to claim
+                                </a>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                        @if (claimMessage is not null)
+                        {
+                            <p class="small mt-2 mb-0 @(claimSucceeded ? "text-success" : "text-danger")">@claimMessage</p>
+                        }
+                    </div>
+                }
+                else if (group?.SourceUrl is { Length: > 0 } originalPost)
+                {
+                    <p class="small mb-4">
+                        <i class="bi bi-link-45deg me-1"></i>Originally posted on
+                        <a href="@originalPost" target="_blank" rel="noopener" class="text-warning">F95zone</a>.
+                    </p>
+                }
 
                 <div class="row g-3 mb-4">
                     <div class="col-4">
