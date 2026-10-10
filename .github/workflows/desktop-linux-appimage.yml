@@ -1,0 +1,76 @@
+# Builds the F3M Desktop app for Linux and packs it as an AppImage.
+# Called by release.yml on every release, and runnable on its own from the Actions tab.
+# Only the desktop app is packaged here. The server is handled in release.yml.
+name: Desktop (Linux, AppImage)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Desktop app version (SemVer), e.g. 0.1.42
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Desktop app version (SemVer), e.g. 0.1.42
+        required: true
+        type: string
+
+jobs:
+  appimage:
+    name: AppImage (linux-x64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish desktop app (self-contained, linux-x64)
+        run: |
+          dotnet publish src/F3M.Desktop/F3M.Desktop.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=false \
+            -p:Version=${{ inputs.version }} \
+            --output publish-desktop
+
+      - name: Assemble AppDir
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp -a publish-desktop/. AppDir/usr/bin/
+          cp src/F3M.Desktop/Packaging/linux/F3M.Desktop.desktop AppDir/F3M.Desktop.desktop
+          cp src/F3M.Desktop/Packaging/linux/AppRun AppDir/AppRun
+          cp src/F3M.Desktop/Assets/icon.png AppDir/F3M.Desktop.png
+          chmod +x AppDir/AppRun AppDir/usr/bin/F3M.Desktop
+
+      # Pinned and checksummed. appimagetool would otherwise also fetch the AppImage runtime from a moving
+      # "continuous" release, so the runtime is pinned here too and passed in with --runtime-file.
+      - name: Download appimagetool and runtime
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          curl -fsSL -o runtime-x86_64 \
+            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  appimagetool" | sha256sum -c -
+          echo "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  runtime-x86_64" | sha256sum -c -
+          chmod +x appimagetool
+
+      - name: Build AppImage
+        run: |
+          mkdir -p releases
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run --runtime-file runtime-x86_64 AppDir \
+            releases/F3M.Desktop-${{ inputs.version }}-x86_64.AppImage
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-appimage
+          path: releases/*.AppImage
+          if-no-files-found: error

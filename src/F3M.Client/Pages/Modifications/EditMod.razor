@@ -1,6 +1,6 @@
 @page "/mod/{Id:int}/edit"
 @attribute [Authorize]
-@inject HttpClient Http
+@inject IModsApi ModsApi
 @inject NavigationManager Nav
 
 <PageTitle>F3M - EditMod</PageTitle>
@@ -80,6 +80,14 @@
                     @* <InputTextArea class="form-control f3m-input" rows="4" @bind-Value="dto.Description" /> *@
                     <ManualMarkdown @bind-Value="dto.Description" />
                     <div  style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">Mods which this mod depends on</label>
+                    <MultiSelectDropdown TModel="Mod"
+                                         LoadValuesAsync="LoadMultiSelectDropdownValues"
+                                         @bind-SelectedItems="selectedDependencyItems"
+                                         OnDropdownClosed="e => SetDependencies(e)" />
                 </div>
 
                 @if (saveError is not null)

@@ -1,5 +1,6 @@
 using F3M.Client.Models;
 using F3M.Shared;
+using F3M.Shared.Helpers;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 
@@ -66,6 +67,27 @@ public partial class PickerModFiles
         _addFileKey++;
 
         await OnEntriesChanged.InvokeAsync();
+    }
+
+    // ── Where will it go ──────────────────────────────────────────────────────
+
+    private static bool IsValidPath(FileEntry entry) =>
+        InstallPaths.TryPlan(entry.OriginalName, entry.InstallPath, out _);
+
+    /// <summary>One line under each file: where it ends up in the game folder.</summary>
+    private static string TargetHint(FileEntry entry)
+    {
+        if (!InstallPaths.TryPlan(entry.OriginalName, entry.InstallPath, out var placement))
+            return "Not a valid install path. Use a folder inside the game, like BepInEx/plugins/MyMod (no “..”, drive letters or special characters).";
+
+        var isDefault = string.IsNullOrWhiteSpace(entry.InstallPath);
+        if (placement.IsArchive)
+        {
+            var folder = placement.Target.Length == 0 ? "the game folder" : placement.Target + "/";
+            return $"Will be extracted into {folder}{(isDefault ? " (no path set)" : string.Empty)}";
+        }
+
+        return $"Will be installed as {placement.Target}{(isDefault ? " (no path set: default plugin folder)" : string.Empty)}";
     }
 
     // ── Remove ────────────────────────────────────────────────────────────────

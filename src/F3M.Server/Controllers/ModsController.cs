@@ -1,6 +1,8 @@
 using F3M.Server.Data;
 using F3M.Server.Helpers;
+using F3M.Server.Services;
 using F3M.Shared;
+using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -10,106 +12,136 @@ using System.Security.Claims;
 
 namespace F3M.Server.Controllers;
 
-[ApiController]
-[Route(Endpoints.Mods.Base)]
-public sealed class ModsController(AppDbContext db, ILogger<ModsController> logger) : ControllerBase
+/// <summary>
+/// Thin controller over the RouteGen-generated ModsApiControllerBase — no route attributes for
+/// any of the actions below, all of that comes from the generated base (see
+/// obj/**/generated/RouteGen.Generators/.../Server_IModsApi.g.cs after build), itself derived
+/// from the attributes on IModsApi. ModsService does the actual EF work.
+///
+/// Upload is the one exception: it's hand-written, not part of IModsApi/the generated base, since
+/// it binds via [FromForm]/IFormFileCollection (multipart/form-data) — RouteGen's [Body] is
+/// JSON-only. A controller can freely mix generated-base overrides with its own additional
+/// actions like this; it doesn't have to be all-or-nothing.
+/// </summary>
+public sealed class ModsController(AppDbContext db, IModsApi modsApi, ILogger<ModsController> logger, CatalogService catalog) : ModsApiControllerBase
 {
-    [HttpGet]
-    public async Task<ActionResult<ModListResult>> GetMods(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 18,
-        [FromQuery] string? search = null,
-        [FromQuery] string? category = null,
-        [FromQuery] SortBy sort = SortBy.Newest)
+    public override async Task<ActionResult<ModListResult>> GetMods(
+        int page, int pageSize, string? search, string? category, SortBy sort, CancellationToken ct)
+        => Ok(await modsApi.GetMods(page, pageSize, search, category, sort, ct));
+
+    public override async Task<ActionResult<Mod>> GetMod(int id, CancellationToken ct)
     {
-        // Latest version per group: pick the Mod row with the highest UploadedAt per ModGroupId
-        var latestIds = db.Mods
-            .Where(m => m.IsApproved)
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
-        var query = db.Mods
-            .Where(m => latestIds.Contains(m.Id))
-            .Include(m => m.Files)
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(m => m.Name.Contains(search));
-
-        if (!string.IsNullOrWhiteSpace(category))
-            query = query.Where(m => m.Category == category);
-
-        query = sort switch
+        try
         {
-            SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
-            SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
-            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
-            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
-            SortBy.NameAsc => query.OrderBy(m => m.Name),
-            SortBy.NameDesc => query.OrderByDescending(m => m.Name),
-            _ => query.OrderByDescending(m => m.UploadedAt)
-        };
-
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-        return Ok(new ModListResult { Items = items, TotalCount = items.Count, Page = page, PageSize = pageSize });
+            return Ok(await modsApi.GetMod(id, ct));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<Mod>> GetMod(int id)
+    public override async Task<ActionResult<List<Mod>>> SearchMods(string query, CancellationToken ct)
+        => Ok(await modsApi.SearchMods(query, ct));
+
+    public override async Task<ActionResult<ModVersionsResult>> GetVersions(int groupId, CancellationToken ct)
     {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        return mod is null ? NotFound() : Ok(mod);
+        try
+        {
+            return Ok(await modsApi.GetVersions(groupId, ct));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
     }
 
-    [HttpGet("{query}")]
-    public async Task<ActionResult<Mod>> GetMod(string query)
+    public override async Task<ActionResult<List<string>>> GetCategories(CancellationToken ct) => Ok(await modsApi.GetCategories(ct));
+
+    public override async Task<ActionResult> DownloadFile([FromRoute] int id, [FromRoute] int fileId, CancellationToken ct = default)
     {
-        var mods = await db.Mods.Where(w => w.Name.Contains(query)).ToArrayAsync();
-        return mods is null ? NotFound() : Ok(mods);
+        Stream stream;
+        try
+        {
+            stream = await modsApi.DownloadFile(id, fileId, ct);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+
+        try
+        {
+            // ModsService only returns the raw stream (it has already validated existence and counted
+            // the download), so look the file up again for the one thing it doesn't give us: the
+            // original file name. Cheap, indexed PK lookup.
+            var fileName = await db.ModFiles.Where(f => f.Id == fileId).Select(f => f.OriginalName).FirstOrDefaultAsync(ct)
+                            ?? "download";
+
+            // Hand the open FileStream to the framework instead of copying it into memory first
+            // (that used to cost two full copies of the file per download, up to 1 GB for a 512 MB mod).
+            // FileStreamResult streams it to the client, sets Content-Length from the seekable stream,
+            // answers Range requests, and disposes the stream once the response is done.
+            return File(stream, "application/octet-stream", fileName, enableRangeProcessing: true);
+        }
+        catch
+        {
+            // Ownership only passes to the result once File(...) has returned.
+            await stream.DisposeAsync();
+            throw;
+        }
     }
 
-    [HttpGet($"{Endpoints.Group}/{{groupId:int}}/{Endpoints.Versions}")]
-    public async Task<ActionResult<ModVersionsResult>> GetVersions(int groupId)
+    public override async Task<ActionResult<Mod>> Edit(int id, ModEditDto dto, CancellationToken ct)
     {
-        var group = await db.ModGroups.FindAsync(groupId);
-        if (group is null) return NotFound();
-
-        var versions = await db.Mods
-            .Where(m => m.ModGroupId == groupId && m.IsApproved)
-            .Include(m => m.Files)
-            .OrderByDescending(m => m.UploadedAt)
-            .ToListAsync();
-
-        return Ok(new ModVersionsResult { Group = group, Versions = versions });
+        try
+        {
+            return Ok(await modsApi.Edit(id, dto, ct));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
-    [HttpGet(Endpoints.Categories)]
-    public async Task<ActionResult<List<ValueTuple<string, int>>>> GetCategories()
+    public override async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        // Category of each group = category of its latest version
-        var latestIds = db.Mods
-            .Where(m => m.IsApproved)
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
-        var cats = await db.Mods
-            .Where(m => latestIds.Contains(m.Id))
-            .Select(m => m.Category)
-            .Distinct()
-            .OrderBy(c => c)
-            .ToListAsync();
-
-        return Ok(cats);
+        try
+        {
+            await modsApi.Delete(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     // ── Upload: new mod OR new version ────────────────────────────────────────
     // Form fields:
     //   Name, Description, Version, Category, ModGroupId (optional)
+    //   GeneratedPaths[i].Pattern and GeneratedPaths[i].Kind (optional, plan 5.8)
     //   previewImage (optional IFormFile)
     //   files[]           — multiple mod files
     //   installPaths[]    — one install path per file (same index)
     //   originalNames[]   — original filenames (same index)
-    [HttpPost(Endpoints.Upload)]
+    //
+    // Everything that can reject an upload runs before any database row is written: files are staged on disk,
+    // inspected, and checked against each other and against the generated-file patterns. Non-blocking warnings are
+    // returned in the X-F3M-Warnings header (URL-encoded, one per line).
+    [HttpPost("upload")]
     [Authorize]
     [RequestSizeLimit(Configuration.MaxTotalSize)]
     public async Task<ActionResult<Mod>> Upload(
@@ -117,11 +149,12 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
         [FromForm] IFormFileCollection files,
         [FromForm] List<string> installPaths,
         [FromForm] List<string> originalNames,
-        IFormFile? previewImage)
+        IFormFile? previewImage,
+        CancellationToken ct)
     {
         var username = User.FindFirstValue(ClaimTypes.Name) ?? "unknown";
         var userId = Helper.GetUserId(User);
-        logger.LogInformation($"User ID: {userId}");
+        logger.LogInformation("User ID: {userId}", userId);
 
         if (userId is null)
             return BadRequest("User ID not found.");
@@ -143,196 +176,312 @@ public sealed class ModsController(AppDbContext db, ILogger<ModsController> logg
                 return BadRequest($"File type '{ext}' not allowed. Accepted: {string.Join(", ", Configuration.AllowedFileExtension)}");
         }
 
-        // ── Check if user is in mod group ─────────────────────────────────────
-        ModGroup? group = null;
-        if (dto.ModGroupId is { } modGroupId) // This is a new version of an existing mod
+        // Install paths and names are author input that ends up on other people's machines.
+        var cleanInstallPaths = new List<string>();
+        var cleanNames = new List<string>();
+        for (var i = 0; i < files.Count; i++)
         {
-            var existing = db.Mods.FirstOrDefault(m => m.ModGroupId == modGroupId);
-            if (existing is null)
-                return BadRequest($"Mod with group ID {modGroupId} not found.");
-            if (existing.UserId != userId)
-                return Forbid();
+            var rawPath = i < installPaths.Count ? installPaths[i] : null;
+            if (!Helper.TryNormalizeInstallPath(rawPath, out var normalizedPath))
+                return BadRequest($"The install path '{rawPath}' for '{files[i].FileName}' is not valid. Use a path relative to the game folder, e.g. BepInEx/plugins/MyMod.");
 
-            var existingModGroup = db.ModGroups.FirstOrDefault(m => m.Id == modGroupId);
-            if (existingModGroup is not null)
-                group = existingModGroup;
+            cleanInstallPaths.Add(normalizedPath);
+            cleanNames.Add(Helper.SafeOriginalName(i < originalNames.Count ? originalNames[i] : null, files[i].FileName));
         }
 
-        if (group is null) // ModGroup doesn't exist yet
-        {
-            if (userId == null)
-                return Forbid();
-
-            group = new ModGroup { Author = username, OwnerId = userId.Value };
-            db.ModGroups.Add(group);
-            await db.SaveChangesAsync(); // need Id before creating Mod
-        }
-
-        // ── Save preview image ────────────────────────────────────────────────
-        string? previewName = null;
+        // Reject a bad preview image now, not after the mod group has already been created.
+        var imgExt = string.Empty;
         if (previewImage is { Length: > 0 })
         {
-            var imgExt = Path.GetExtension(previewImage.FileName).ToLowerInvariant();
+            imgExt = Path.GetExtension(previewImage.FileName).ToLowerInvariant();
             if (!Configuration.AllowedThumbnailExtension.Contains(imgExt))
                 return BadRequest($"Image type '{imgExt}' not allowed.");
             if (previewImage.Length > Configuration.MaxImageSize)
                 return BadRequest("Preview image exceeds 8 MB.");
-
-            previewName = $"{Guid.NewGuid():N}{imgExt}";
-            await using var imgStream = System.IO.File.Create(Path.Combine(Assets.Images, previewName));
-            await previewImage.CopyToAsync(imgStream);
-        }
-        else if (dto.ModGroupId.HasValue)
-        {
-            // Inherit preview from the previous latest version if none supplied
-            var prev = await db.Mods
-                .Where(m => m.ModGroupId == dto.ModGroupId.Value)
-                .OrderByDescending(m => m.UploadedAt)
-                .FirstOrDefaultAsync();
-            previewName = prev?.PreviewImageName;
         }
 
-        // ── Create version record ─────────────────────────────────────────────
-        var mod = new Mod
+        // ── Validate generated-file patterns (syntax here; collisions need the file contents) ──
+        if (dto.GeneratedPaths.Count > GeneratedPathRules.MaxPatternsPerVersion)
+            return BadRequest($"A version can declare at most {GeneratedPathRules.MaxPatternsPerVersion} generated-file patterns.");
+
+        var generated = new List<GeneratedPathDto>();
+        foreach (var entry in dto.GeneratedPaths)
         {
-            ModGroupId = group.Id,
-            Name = dto.Name,
-            Description = dto.Description,
-            Author = username,
-            Version = dto.Version,
-            Category = dto.Category,
-            PreviewImageName = previewName,
-            UploadedAt = DateTime.UtcNow,
-            IsApproved = true,
-            UserId = userId
-        };
+            if (!GeneratedPathRules.TryNormalize(entry.Pattern, out var pattern, out var patternError))
+                return BadRequest(patternError);
 
-        await RecalculateLatestVersion(db, group.Id);
-        db.Mods.Add(mod);
-        await db.SaveChangesAsync(); // need mod.Id for ModFile FKs
+            if (generated.Any(g => string.Equals(g.Pattern, pattern, StringComparison.OrdinalIgnoreCase)))
+                return BadRequest($"The pattern '{pattern}' is listed more than once.");
 
-        // ── Save each mod file ────────────────────────────────────────────────
-        for (int i = 0; i < files.Count; i++)
+            generated.Add(new GeneratedPathDto { Pattern = pattern, Kind = entry.Kind });
+        }
+
+        // ── Check the target group. It is created later, once the upload is known to be valid. ──
+        ModGroup? existingGroup = null;
+        if (dto.ModGroupId is { } modGroupId) // This is a new version of an existing mod
         {
-            var f = files[i];
-            var ext = Path.GetExtension(f.FileName).ToLowerInvariant();
-            var safeName = $"{Guid.NewGuid():N}{ext}";
-            var origName = i < originalNames.Count ? originalNames[i] : f.FileName;
-            var installPath = i < installPaths.Count ? (installPaths[i] ?? string.Empty).Trim() : string.Empty;
+            // Ownership belongs to the group (that is what Edit/Delete check too).
+            existingGroup = await db.ModGroups.FindAsync(modGroupId);
+            if (existingGroup is null)
+                return BadRequest($"Mod with group ID {modGroupId} not found.");
+            if (existingGroup.OwnerId != userId)
+                return Forbid();
+        }
 
-            await using var stream = System.IO.File.Create(Path.Combine(Assets.Files, safeName));
-            await f.CopyToAsync(stream);
+        // ── Stage the files on disk, inspect them, and check them against each other ──
+        var stagedPaths = new List<string>(); // every file written, so a failure can remove them
+        var staged = new List<StagedFile>();
+        var inspections = new List<InspectionResult>();
+        var warnings = new List<string>();
+        try
+        {
+            for (var i = 0; i < files.Count; i++)
+            {
+                var f = files[i];
+                var safeName = $"{Guid.NewGuid():N}{Path.GetExtension(f.FileName).ToLowerInvariant()}";
+                var diskPath = Path.Combine(Assets.Files, safeName);
+                stagedPaths.Add(diskPath);
 
-            db.ModFiles.Add(new ModFile
+                await using (var stream = System.IO.File.Create(diskPath))
+                {
+                    await f.CopyToAsync(stream, ct);
+                }
+
+                staged.Add(new StagedFile(safeName, diskPath, cleanNames[i], cleanInstallPaths[i], f.Length));
+            }
+
+            foreach (var file in staged)
+                inspections.Add(ModFileInspector.Inspect(file.DiskPath, file.OriginalName, file.InstallPath));
+
+            // Two files, or two archive entries, must not install over each other.
+            var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in inspections.SelectMany(x => x.Entries))
+            {
+                if (!targets.Add(entry.To))
+                    throw new InvalidDataException($"More than one file would be installed to '{entry.To}'.");
+            }
+
+            // A generated pattern must never cover a file the mod ships itself.
+            foreach (var pattern in generated)
+            {
+                var hit = targets.FirstOrDefault(path => GeneratedPathRules.IsMatch(pattern.Pattern, path));
+                if (hit is not null)
+                    throw new InvalidDataException($"The pattern '{pattern.Pattern}' would match '{hit}', which the mod installs itself. Narrow the pattern.");
+            }
+
+            warnings.AddRange(await FindOverlapWarningsAsync(generated, dto.ModGroupId, ct));
+
+            foreach (var pattern in generated.Where(g => GeneratedPathRules.HasDeepWildcard(g.Pattern)))
+                warnings.Add($"'{pattern.Pattern}' matches at any depth. Check that it cannot reach files other mods create.");
+        }
+        catch (InvalidDataException ex)
+        {
+            DeleteFiles(stagedPaths);
+            return BadRequest(ex.Message);
+        }
+        catch
+        {
+            DeleteFiles(stagedPaths);
+            throw;
+        }
+
+        // ── Write the rows. If anything fails from here on, rows and staged files are removed again. ──
+        var group = existingGroup;
+        var createdGroup = false;
+        string? newPreviewPath = null;
+        Mod? mod = null;
+        try
+        {
+            if (group is null) // ModGroup doesn't exist yet
+            {
+                group = new ModGroup { Author = username, OwnerId = userId.Value };
+                db.ModGroups.Add(group);
+                await db.SaveChangesAsync(ct); // need Id before creating Mod
+                createdGroup = true;
+            }
+
+            // ── Save preview image ──
+            string? previewName = null;
+            if (previewImage is { Length: > 0 })
+            {
+                previewName = $"{Guid.NewGuid():N}{imgExt}";
+                newPreviewPath = Path.Combine(Assets.Images, previewName);
+                await using var imgStream = System.IO.File.Create(newPreviewPath);
+                await previewImage.CopyToAsync(imgStream, ct);
+            }
+            else if (dto.ModGroupId.HasValue)
+            {
+                // Inherit preview from the previous latest version if none supplied
+                var prev = await db.Mods
+                    .Where(m => m.ModGroupId == dto.ModGroupId.Value)
+                    .OrderByDescending(m => m.UploadedAt)
+                    .FirstOrDefaultAsync(ct);
+                previewName = prev?.PreviewImageName;
+            }
+
+            // ── Resolve dependencies ──
+            // A mod can't depend on its own group (including a brand new one it just created above).
+            var dependencyGroups = new List<ModGroup>();
+            if (dto.DependencyGroupIds.Count > 0)
+            {
+                var requestedIds = dto.DependencyGroupIds.Where(depId => depId != group.Id).Distinct().ToList();
+                dependencyGroups = await db.ModGroups.Where(g => requestedIds.Contains(g.Id)).ToListAsync(ct);
+            }
+
+            // ── Create version record ──
+            mod = new Mod
+            {
+                ModGroupId = group.Id,
+                Name = dto.Name,
+                Description = dto.Description,
+                Author = username,
+                Version = dto.Version,
+                Category = dto.Category,
+                PreviewImageName = previewName,
+                UploadedAt = DateTime.UtcNow,
+                IsApproved = true,
+                UserId = userId,
+                DependencyGroups = dependencyGroups
+            };
+
+            await ModsService.RecalculateLatestVersion(db, group.Id, mod);
+            db.Mods.Add(mod);
+            await db.SaveChangesAsync(ct); // need mod.Id for ModFile FKs
+
+            // ── Files, their placements, and the generated-file patterns ──
+            for (var i = 0; i < staged.Count; i++)
+            {
+                var file = staged[i];
+                var inspection = inspections[i];
+
+                var modFile = new ModFile
+                {
+                    ModId = mod.Id,
+                    FileName = file.SafeName,
+                    OriginalName = file.OriginalName,
+                    InstallPath = file.InstallPath,
+                    FileSizeBytes = file.Size,
+                    Sha256 = inspection.Sha256,
+                    IsArchive = inspection.IsArchive,
+                    TargetPath = inspection.TargetPath
+                };
+                db.ModFiles.Add(modFile);
+                await db.SaveChangesAsync(ct); // need modFile.Id for its entries
+
+                db.ModFileEntries.AddRange(inspection.Entries.Select(e => new ModFileEntry
+                {
+                    ModFileId = modFile.Id,
+                    From = e.From,
+                    To = e.To,
+                    Size = e.Size,
+                    Sha256 = e.Sha256,
+                    Kind = e.Kind
+                }));
+            }
+
+            db.ModGeneratedPaths.AddRange(generated.Select(g => new ModGeneratedPath
             {
                 ModId = mod.Id,
-                FileName = safeName,
-                OriginalName = origName,
-                InstallPath = installPath,
-                FileSizeBytes = f.Length
-            });
+                Pattern = g.Pattern,
+                Kind = g.Kind
+            }));
+
+            await db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            // A version without its files (or files without a version) must not stay behind.
+            DeleteFiles(stagedPaths);
+            if (newPreviewPath is not null)
+                DeleteFiles(new[] { newPreviewPath });
+
+            try
+            {
+                db.ChangeTracker.Clear();
+                if (mod is { } created)
+                    await db.Mods.Where(m => m.Id == created.Id).ExecuteDeleteAsync();
+
+                if (createdGroup && group is { } newGroup)
+                {
+                    await db.ModGroups.Where(g => g.Id == newGroup.Id).ExecuteDeleteAsync();
+                }
+                else if (group is { } existing)
+                {
+                    await ModsService.RecalculateLatestVersion(db, existing.Id);
+                    await db.SaveChangesAsync();
+                }
+            }
+            catch (Exception cleanupError)
+            {
+                logger.LogError(cleanupError, "Cleaning up the failed upload of {Name} failed as well.", dto.Name);
+            }
+
+            throw;
         }
 
-        await db.SaveChangesAsync();
-        logger.LogInformation("Mod uploaded: {Name} v{Version} by {Author} ({FileCount} files)", mod.Name, mod.Version, mod.Author, files.Count);
+        var uploaded = mod!;
+        logger.LogInformation("Mod uploaded: {Name} v{Version} by {Author} ({FileCount} files)", uploaded.Name, uploaded.Version, uploaded.Author, files.Count);
+
+        // The catalog is updated after the upload is safely stored. A failure there is logged, never returned to the uploader.
+        await catalog.TryPublishVersionAsync(uploaded.Id, ct);
+
+        if (warnings.Count > 0)
+            Response.Headers["X-F3M-Warnings"] = Uri.EscapeDataString(string.Join('\n', warnings));
 
         // Return with files populated
-        var uploadedMod = await db.Mods.Include(m => m.Files).FirstAsync(m => m.Id == mod.Id);
-        return CreatedAtAction(nameof(GetMod), new { id = mod.Id }, uploadedMod);
+        var uploadedMod = await db.Mods
+            .Include(m => m.Files)
+            .Include(m => m.DependencyGroups)
+            .Include(m => m.GeneratedPaths)
+            .FirstAsync(m => m.Id == uploaded.Id, ct);
+        return CreatedAtAction(nameof(GetMod), new { id = uploaded.Id }, uploadedMod);
     }
 
-    [HttpPost($"{{id:int}}/{Endpoints.Download}/{{fileId:int}}")]
-    public async Task<IActionResult> Download(int id, int fileId)
+    /// <summary>Warns about patterns that may overlap a pattern of another approved mod. Overlaps never block an upload.</summary>
+    private async Task<List<string>> FindOverlapWarningsAsync(IReadOnlyList<GeneratedPathDto> patterns, int? excludeGroupId, CancellationToken ct)
     {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        if (mod is null)
-            return NotFound();
+        var warnings = new List<string>();
+        if (patterns.Count == 0)
+            return warnings;
 
-        var file = mod.Files.FirstOrDefault(f => f.Id == fileId);
-        if (file is null)
-            return NotFound("File not found in this mod version.");
+        var query = from p in db.ModGeneratedPaths.AsNoTracking()
+                    join m in db.Mods.AsNoTracking() on p.ModId equals m.Id
+                    where m.IsApproved
+                    select new { p.Pattern, m.Name, m.ModGroupId };
 
-        mod.DownloadCount++;
-        await db.SaveChangesAsync();
+        // Versions of the same mod may overlap their own earlier versions without a warning.
+        if (excludeGroupId is { } groupId)
+            query = query.Where(x => x.ModGroupId != groupId);
 
-        var path = Path.Combine(Assets.Files, file.FileName);
-        if (!System.IO.File.Exists(path))
-            return NotFound("File not found on server.");
+        var existing = await query.ToListAsync(ct);
 
-        var bytes = await System.IO.File.ReadAllBytesAsync(path);
-        return File(bytes, "application/octet-stream", file.OriginalName);
-    }
-
-
-    [HttpPut("{id:int}")]
-    [Authorize]
-    public async Task<ActionResult<Mod>> Edit(int id, [FromBody] ModEditDto dto)
-    {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        if (mod is null) return NotFound();
-
-        var userId = Helper.GetUserId(User);
-        var isAdmin = User.IsInRole(AppRoles.Admin);
-        var group = await db.ModGroups.FindAsync(mod.ModGroupId);
-        // logger.LogInformation($"ModGroup: {group?.OwnerId} vs {userId}");
-        if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
-
-        mod.Name = dto.Name;
-        mod.Description = dto.Description;
-        mod.Version = dto.Version;
-        mod.Category = dto.Category;
-
-        await RecalculateLatestVersion(db, group?.Id, mod);
-        await db.SaveChangesAsync();
-        return Ok(mod);
-    }
-
-    [HttpDelete("{id:int}")]
-    [Authorize]
-    public async Task<IActionResult> Delete(int id)
-    {
-        var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id);
-        if (mod is null) return NotFound();
-
-        var userId = Helper.GetUserId(User);
-        var isAdmin = User.IsInRole(AppRoles.Admin);
-        var group = await db.ModGroups.FindAsync(mod.ModGroupId);
-        if (!isAdmin && group?.OwnerId != null && group.OwnerId != userId) return Forbid();
-
-        // Delete uploaded files from disk
-        foreach (var f in mod.Files)
+        foreach (var pattern in patterns)
         {
-            var p = Path.Combine(Assets.Files, f.FileName);
-            if (System.IO.File.Exists(p)) System.IO.File.Delete(p);
+            foreach (var other in existing)
+            {
+                if (GeneratedPathRules.MayOverlap(pattern.Pattern, other.Pattern))
+                    warnings.Add($"'{pattern.Pattern}' may overlap '{other.Pattern}' from {other.Name}.");
+            }
         }
 
-        db.Mods.Remove(mod);
-
-        // If this was the last version in the group, remove the group too
-        var remaining = await db.Mods.CountAsync(m => m.ModGroupId == mod.ModGroupId && m.Id != id);
-        if (remaining == 0 && group is not null)
-            db.ModGroups.Remove(group);
-
-        await RecalculateLatestVersion(db, group?.Id, mod);
-        await db.SaveChangesAsync();
-        return NoContent();
+        return warnings;
     }
 
-    private static async Task RecalculateLatestVersion(AppDbContext appDbContext, int? modGroupId, Mod? incoming = null)
+    private static void DeleteFiles(IEnumerable<string> paths)
     {
-        var existing = await appDbContext.Mods.Where(m => m.ModGroupId == modGroupId).ToListAsync();
-        if (existing.Count == 0)
+        foreach (var path in paths)
         {
-            incoming?.IsLatestVersion = true;
-            return;
+            try
+            {
+                if (System.IO.File.Exists(path))
+                    System.IO.File.Delete(path);
+            }
+            catch
+            {
+                // Best effort: an orphaned file is harmless, but it must not mask the original error.
+            }
         }
-
-        var all = incoming is not null
-            ? existing.Append(incoming)
-            : existing;
-
-        var latest = all.OrderByDescending(m => new Version(m.Version)).First();
-        foreach (var m in all)
-            m.IsLatestVersion = m.Id == latest.Id;
     }
+
+    private sealed record StagedFile(string SafeName, string DiskPath, string OriginalName, string InstallPath, long Size);
 }

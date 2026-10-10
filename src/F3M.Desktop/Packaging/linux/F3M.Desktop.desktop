@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=F3M Desktop
+Comment=Install and manage F3M mods
+Exec=F3M.Desktop %u
+Icon=F3M.Desktop
+Terminal=false
+Categories=Game;Utility;
+MimeType=x-scheme-handler/f3m;

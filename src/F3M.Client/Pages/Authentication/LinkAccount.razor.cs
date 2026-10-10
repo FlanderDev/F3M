@@ -1,113 +1,143 @@
 using F3M.Shared;
+using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components.Web;
-using System.Net.Http.Json;
+using Microsoft.JSInterop;
 
 namespace F3M.Client.Pages.Authentication;
 
 public partial class LinkAccount
 {
-    private enum Step { EnterUrl, AwaitingReply }
+    private enum Step { Details, Verify, Done }
 
+    private Step step = Step.Details;
     private LinkF95StartResponse dto = new();
     private string profileUrl = string.Empty;
     private string password = string.Empty;
     private string confirmPassword = string.Empty;
 
     private bool loading;
+    private bool copied;
     private string? error;
+    private string? pendingMessage;
+    private bool usernameTaken;
+    private string? refusedName;
 
+    private string finalUsername = string.Empty;
+    private bool isNewUser;
+
+    private string parsedName = string.Empty;
+
+    private bool UrlParsed => F95Profile.TryParse(profileUrl, out parsedName, out _);
+    private bool ShowUrlInvalid => !string.IsNullOrWhiteSpace(profileUrl) && !UrlParsed;
+    /// <summary>The server refused this name as taken; the live preview must not promise it.</summary>
+    private bool NameRefused => refusedName is not null && UrlParsed && string.Equals(parsedName, refusedName, StringComparison.OrdinalIgnoreCase);
     private bool PasswordMismatch => !string.IsNullOrEmpty(confirmPassword) && password != confirmPassword;
+    private bool CanStart => UrlParsed && password.Length >= 8 && password == confirmPassword;
+
+    private string StepClass(Step s) => s == step ? "active" : s < step ? "done" : string.Empty;
 
     private async Task OnConfirmKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter")
+        if (e.Key == "Enter" && CanStart)
             await HandleStart();
     }
 
     private async Task HandleStart()
     {
         error = null;
-
-        if (string.IsNullOrWhiteSpace(profileUrl))
-        {
-            error = "Please enter your F95zone profile URL.";
+        usernameTaken = false;
+        if (!CanStart)
             return;
-        }
-
-        if (password.Length < 8)
-        {
-            error = "Password must be at least 8 characters.";
-            return;
-        }
-
-        if (password != confirmPassword)
-        {
-            error = "Passwords do not match.";
-            return;
-        }
 
         loading = true;
-        var startResponse = await Http.PostAsJsonAsync(Endpoints.F95Link.Start, new LinkF95StartRequest { ProfileUrl = profileUrl.Trim() });
-        var result = await startResponse.Content.ReadFromJsonAsync<LinkF95StartResponse>()
-                     ?? new LinkF95StartResponse { Success = false, Error = "Unexpected response from server." };
-        loading = false;
-
-        if (!result.Success)
+        try
         {
-            error = result.Error ?? "Failed to start verification.";
-            return;
-        }
+            var result = await F95Link.Start(new LinkF95StartRequest { ProfileUrl = profileUrl.Trim() });
+            if (!result.Success)
+            {
+                error = result.Error ?? "The verification could not be started. Please try again.";
+                usernameTaken = result.UsernameTaken;
+                refusedName = result.UsernameTaken ? result.F95Username : null;
+                return;
+            }
 
-        dto = result;
+            dto = result;
+            copied = false;
+            pendingMessage = null;
+            step = Step.Verify;
+        }
+        catch (Exception)
+        {
+            error = "The server could not be reached. Please try again in a moment.";
+        }
+        finally
+        {
+            loading = false;
+        }
     }
 
     private async Task HandleCheck()
     {
-        error = null;
-        loading = true;
-
-        if (string.IsNullOrWhiteSpace(dto.F95UserId))
+        if (string.IsNullOrWhiteSpace(dto.F95UserId) || string.IsNullOrWhiteSpace(dto.ClientToken))
             return;
 
-        var checkResponse = await Http.PostAsJsonAsync(Endpoints.F95Link.Check(dto.F95UserId), new LinkF95PollRequest { Password = password });
-        var result = await checkResponse.Content.ReadFromJsonAsync<LinkF95PollResponse>()
-                     ?? new LinkF95PollResponse { Status = VerificationState.Error, Message = "Unexpected response from server." };
-        loading = false;
-
-        switch (result.Status)
+        error = null;
+        loading = true;
+        try
         {
-            case VerificationState.Verified:
-                // The server just signed us in via the auth cookie — force a full reload so
-                // CascadingAuthenticationState re-fetches from the server with that cookie,
-                // rather than relying on NotifyAuthenticationStateChanged (which only the
-                // CookieAuthenticationStateProvider's own Login/Register paths trigger).
-                Nav.NavigateTo("/", forceLoad: true);
-                break;
+            var result = await F95Link.Check(dto.F95UserId, new LinkF95PollRequest { Password = password, ClientToken = dto.ClientToken });
+            pendingMessage = null;
 
-            case VerificationState.Pending:
-                error = result.Message
-                    ?? "Code not found yet — make sure you replied to the bot's post.";
-                break;
+            switch (result.Status)
+            {
+                case VerificationState.Verified:
+                    finalUsername = result.Username ?? dto.Username ?? string.Empty;
+                    isNewUser = result.IsNewUser;
+                    password = confirmPassword = string.Empty;
+                    step = Step.Done;
 
-            case VerificationState.Expired:
-                error = "Verification expired. Please start over.";
-                dto = new();
-                break;
+                    // The server signed us in with a cookie during the check; show that everywhere right away.
+                    Acct.RefreshAuthenticationState();
+                    break;
 
-            default:
-                error = result.Message ?? "Something went wrong. Please try again.";
-                break;
+                case VerificationState.Pending:
+                    pendingMessage = "No post with the code yet. Check that you posted it on your own profile and that it contains the whole code, then try again. It can take a minute to show up.";
+                    break;
+
+                case VerificationState.Expired:
+                case VerificationState.NotFound:
+                    ResetToStart();
+                    error = result.Message ?? "This verification is no longer active. Please start again.";
+                    break;
+
+                default:
+                    error = result.Message ?? "Something went wrong. Please try again.";
+                    break;
+            }
         }
+        catch (Exception)
+        {
+            error = "The server could not be reached. Please try again in a moment.";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task CopyCode()
+    {
+        copied = await JS.InvokeAsync<bool>("f3m.copyText", dto.VerificationGuid);
     }
 
     private void ResetToStart()
     {
+        step = Step.Details;
         dto = new();
         error = null;
-        profileUrl = string.Empty;
-        password = string.Empty;
-        confirmPassword = string.Empty;
+        pendingMessage = null;
+        copied = false;
     }
 }

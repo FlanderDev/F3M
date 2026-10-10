@@ -52,7 +52,22 @@ public class Mod : IId, IName
     // Navigation
     public List<ModFile> Files { get; set; } = [];
 
-    /// <summary>Mods that this mod depends on.</summary>
+    /// <summary>Patterns for files this version creates at runtime (plan 5.8).</summary>
+    public List<ModGeneratedPath> GeneratedPaths { get; set; } = [];
+
+    /// <summary>
+    /// ModGroups (logical mods) that this version depends on — persisted. Points at the group,
+    /// not a specific version, so a dependency always follows that mod's current latest version
+    /// rather than staying pinned to whatever was newest at upload time.
+    /// </summary>
+    public List<ModGroup> DependencyGroups { get; set; } = [];
+
+    /// <summary>
+    /// Resolved view of <see cref="DependencyGroups"/> for display — each entry is the current
+    /// latest approved Mod (version) for a dependency group. NOT an EF-mapped relationship (see
+    /// AppDbContext.Ignore); populated by ModsService.ResolveDependenciesAsync at read time.
+    /// Empty unless the caller specifically asked for it to be resolved.
+    /// </summary>
     public List<Mod> Dependencies { get; set; } = [];
 }
 
@@ -70,6 +85,17 @@ public class ModFile
 
     [MaxLength(260)]
     public string InstallPath { get; set; } = string.Empty;   // suggested install path
+
+    /// <summary>SHA-256 of the uploaded file (lower-case hex), computed on upload. Empty for files uploaded before catalog support.</summary>
+    [MaxLength(64)]
+    public string Sha256 { get; set; } = string.Empty;
+
+    /// <summary>True for archives, which are extracted into <see cref="TargetPath"/>; false for plain files.</summary>
+    public bool IsArchive { get; set; }
+
+    /// <summary>Game-relative target: the file's own path for plain files, the folder for archives ('/' separated).</summary>
+    [MaxLength(260)]
+    public string TargetPath { get; set; } = string.Empty;
 
     public long FileSizeBytes { get; set; }
 
@@ -89,7 +115,8 @@ public class ModUploadDto
     [Required, MaxLength(Configuration.ModDescriptionMaxSize)]
     public string Description { get; set; } = string.Empty;
 
-    public List<Mod> Dependencies { get; set; } = [];
+    /// <summary>ModGroup IDs (logical mods) this upload depends on.</summary>
+    public List<int> DependencyGroupIds { get; set; } = [];
 
     [MaxLength(20)]
     public string Version { get; set; } = "1.0.0";
@@ -99,6 +126,9 @@ public class ModUploadDto
 
     /// <summary>If set, this upload is a new version of an existing mod group.</summary>
     public int? ModGroupId { get; set; }
+
+    /// <summary>Files the mod creates at runtime that are not part of the archive (plan 5.8).</summary>
+    public List<GeneratedPathDto> GeneratedPaths { get; set; } = [];
 }
 
 /// <summary>One entry in the multi-file list on the upload form.</summary>

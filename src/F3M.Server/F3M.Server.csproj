@@ -12,9 +12,13 @@
 		<EFVersion>9.*-*</EFVersion>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+		<PackageReference Include="FlanderDev.RouteGen.Generators" Version="0.8.1">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="HtmlAgilityPack" Version="1.13.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 		</PackageReference>
@@ -22,6 +26,7 @@
 
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="$(AspNetCoreVersion)" />
 		<PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
+		<PackageReference Include="SharpCompress" Version="0.50.4" />
 	</ItemGroup>
 
 	<ItemGroup>

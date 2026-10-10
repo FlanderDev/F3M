@@ -2,8 +2,10 @@ using F3M.Server.Data;
 using F3M.Server.Models;
 using F3M.Server.Services;
 using F3M.Shared;
+using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -17,21 +19,29 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
+builder.Services.Configure<CatalogOptions>(builder.Configuration.GetSection(CatalogOptions.SectionName));
+builder.Services.AddScoped<CatalogService>();
+
 #region FileSystemPreparation
 Directory.CreateDirectory(Assets.Files);
 Directory.CreateDirectory(Assets.Images);
+
+var catalogOptions = builder.Configuration.GetSection(CatalogOptions.SectionName).Get<CatalogOptions>() ?? new CatalogOptions();
+Directory.CreateDirectory(catalogOptions.Directory);
 
 var databaseDirectory = Path.Combine(Assets.StorageRoot, "Database");
 Directory.CreateDirectory(databaseDirectory);
 #endregion
 
+// The keys that protect login cookies live in the storage volume, so sign-ins survive container rebuilds.
+// Without this they sit inside the container and every redeploy signs everyone out.
+builder.Services.AddDataProtection()
+    .SetApplicationName(Configuration.AppName)
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Assets.StorageRoot, "Secrets", "DataProtection")));
+
 var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
-// AddIdentityCore (not AddIdentity) — AddIdentity also wires up a default UI/external
-// login providers we don't use. Cookie auth itself is added explicitly below via
-// AddAuthentication/AddIdentityCookies. Password/lockout policy stays close to what
-// the old hand-rolled hasher enforced.
 builder.Services
     .AddIdentityCore<AppUser>(options =>
     {
@@ -42,48 +52,41 @@ builder.Services
     })
     .AddRoles<IdentityRole<int>>()
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders()
-    .AddSignInManager();
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
 
 // F95Service holds the XenForo login session (cookie jar) — must be singleton.
 builder.Services.AddSingleton<F95Service>();
+
+// ProfileService needs the current HttpContext to resolve "the current user".
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IProfileApi, ProfileService>();
+builder.Services.AddScoped<IAdminApi, AdminService>();
+builder.Services.AddScoped<IF95LinkApi, F95LinkService>();
+builder.Services.AddScoped<IModsApi, ModsService>();
 
 builder.Services
         .AddAuthentication(IdentityConstants.ApplicationScheme)
         .AddIdentityCookies();
 
-// This is an API, not a page app — without this, an unauthenticated request to any
-// [Authorize]-protected endpoint gets a 302 redirect to a nonexistent "/Account/Login"
-// page instead of a clean 401 (and 403 for role/policy failures). The client's fetch
-// follows that redirect silently, so instead of a clean 401 it either 404s or — if a
-// SPA fallback route is registered — gets back 200 + the index.html shell, which then
-// fails to parse as the expected JSON. Both cases are swallowed by a generic catch in
-// CookieAuthenticationStateProvider so the app doesn't crash, but every anonymous
-// visit was logging a spurious error and wasting a redirect round-trip.
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.Events.OnRedirectToLogin = context =>
-    {
-        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-        return Task.CompletedTask;
-    };
-    options.Events.OnRedirectToAccessDenied = context =>
-    {
-        context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        return Task.CompletedTask;
-    };
+    options.Events.OnRedirectToLogin = async context => context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+    options.Events.OnRedirectToAccessDenied = async context => context.Response.StatusCode = StatusCodes.Status403Forbidden;
 });
 
 builder.Services.AddAuthorizationBuilder();
+builder.Services.AddValidation();
 
 var app = builder.Build();
 
-// Hand-rolled instead of MapIdentityApi<AppUser>() — that built-in endpoint set only
-// supports logging in by email (FindByEmailAsync internally), but F95-linked accounts
-// are deliberately email-less and log in by username. /manage/info is reimplemented
-// for the same reason: the built-in version only ever returns Email, and the client
-// needs a UserName to show/derive an identity for email-less accounts.
+#region Endpoints
+#region Common Redirects
+app.MapGet("/login", () => Results.Redirect(Paths.Login));
+#endregion
 
+// MapIdentityApi<AppUser>() built-in endpoint set only supports logging in by email,
+// but F95-linked accounts are email-less by design and usess username.
 app.MapPost("/login", async (
     LoginDto login,
     UserManager<AppUser> userManager,
@@ -96,6 +99,8 @@ app.MapPost("/login", async (
         return Results.Unauthorized();
 
     var result = await signInManager.CheckPasswordSignInAsync(user, login.Password, lockoutOnFailure: true);
+    if (result.IsLockedOut)
+        return Results.StatusCode(StatusCodes.Status429TooManyRequests); // The login page explains the wait.
     if (!result.Succeeded)
         return Results.Unauthorized();
 
@@ -133,13 +138,16 @@ app.MapGet("/roles", (ClaimsPrincipal user) =>
         .Select(c => new { c.Type, c.Value, c.ValueType, c.Issuer, c.OriginalIssuer });
     return Results.Ok(roles);
 }).RequireAuthorization();
+#endregion
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    await scope.ServiceProvider.GetRequiredService<CatalogService>().InitializeAsync();
 
-#if DEBUG // Seed a debug admin user for local development/testing
+    // Seed a debug admin user for local development/testing
+#if DEBUG
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
     var name = nameof(F3M);
     var existingDebugUser = await userManager.FindByNameAsync(name);
@@ -175,18 +183,30 @@ else
 app.UseHttpsRedirection();
 
 // IMPORTANT: UseBlazorFrameworkFiles must come before UseStaticFiles and UseRouting.
-// It registers the /_framework/* routes that serve the WASM boot files with the
-// correct application/wasm and text/javascript MIME types. Without this ordering,
-// those requests fall through to MapFallbackToFile and return text/html, which
-// browsers refuse to execute as modules.
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-// Serve user-uploaded mod files and preview thumbnails from the persistent asset directory (outside wwwroot)
+// Serve preview thumbnails from the persistent asset directory (outside wwwroot).
+// Mod files are deliberately NOT served from here: they are only reachable through the download
+// endpoint, which counts the download. (They used to sit under the same public folder, so anyone who
+// had seen a file's generated name in the API could fetch it directly.)
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.PublicContent)), // FileSystem Path
-    RequestPath = Assets.ServedPath // Served Path
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.Combine(Environment.CurrentDirectory, Assets.Images)), // FileSystem Path
+    RequestPath = $"{Assets.ServedPath}/{nameof(Assets.Images)}", // Served Path, same as Assets.ImageUrl()
+    OnPrepareResponse = context => context.Context.Response.Headers.XContentTypeOptions = "nosniff"
+});
+
+// The public catalog: signed JSON read by the desktop app. Read-only, with a short cache so the index stays fresh.
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.GetFullPath(catalogOptions.Directory)),
+    RequestPath = "/catalog",
+    OnPrepareResponse = context =>
+    {
+        context.Context.Response.Headers.CacheControl = "public, max-age=60";
+        context.Context.Response.Headers.XContentTypeOptions = "nosniff";
+    }
 });
 
 app.UseRouting();

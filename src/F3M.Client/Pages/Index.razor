@@ -1,7 +1,9 @@
 @page "/"
 @page "/Browse"
+@using FlanderDev.RouteGen.Abstractions
+@attribute [GeneratedPathName("/Browse", "Browse")]
 
-@inject HttpClient Http
+@inject IModsApi ModsApi
 
 <PageTitle>F3M - Browse</PageTitle>
 
@@ -14,14 +16,15 @@
                 <p class="small mb-0">@(result?.TotalCount ?? 0) mods available</p>
             </div>
             <div class="col-auto">
+                <CollectionBadge />
                 <AuthorizeView>
                     <Authorized>
-                        <a href="@Paths.Mods.Upload" class="btn btn-warning fw-bold px-4">
+                        <a href="@Paths.Upload" class="btn btn-warning fw-bold px-4">
                             <i class="bi bi-cloud-arrow-up me-2"></i>Upload Mod
                         </a>
                     </Authorized>
                     <NotAuthorized>
-                        <a href="@Paths.LinkAccount" class="btn btn-outline-warning fw-bold px-4">
+                        <a href="@Paths.Login" class="btn btn-outline-warning fw-bold px-4">
                             <i class="bi bi-cloud-arrow-up me-2"></i>Upload Mod
                         </a>
                     </NotAuthorized>

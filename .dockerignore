@@ -1,0 +1,17 @@
+# Only the server and what it builds from go into the image context.
+**
+!src/F3M.Server/**
+!src/F3M.Client/**
+!src/F3M.Shared/**
+!src/nuget-packages/**
+!src/NuGet.Config
+!src/global.json
+
+# Host build output would clash with the Linux restore in the image.
+**/bin/
+**/obj/
+
+# Runtime data and local settings: the database, the catalog signing key and developer credentials.
+**/Storage/**
+!**/Storage/.gitignore
+**/appsettings.Development.json

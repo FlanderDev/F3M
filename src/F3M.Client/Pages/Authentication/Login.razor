@@ -1,41 +1,54 @@
-﻿@page "/auth/login"
+@page "/auth/login"
 @inject IAccountManagement Acct
 @inject NavigationManager Navigation
 
-<PageTitle>F3M - Login</PageTitle>
+<PageTitle>F3M - Sign in</PageTitle>
 
 <div class="f3m-auth-page">
     <div class="f3m-auth-card">
         <div class="f3m-auth-logo">
             <span class="f3m-logo-badge" style="width:48px;height:48px;font-size:1.1rem;">F3M</span>
         </div>
-        <h2 class="fw-black text-center mb-1">Welcome back</h2>
-        <AuthorizeView Context="authContext">
 
+        <AuthorizeView Context="authContext">
             <Authorized>
-                <div class="alert alert-success">You're logged in as @authContext.User.Identity?.Name.</div>
+                <h2 class="fw-black text-center mb-1">You're signed in</h2>
+                <p class="text-center small f3m-auth-sub mb-4">
+                    Signed in as <strong class="text-warning">@authContext.User.Identity?.Name</strong>.
+                </p>
+                <div class="d-grid gap-2">
+                    <a href="/" class="btn btn-warning fw-bold"><i class="bi bi-grid me-2"></i>Browse mods</a>
+                    <a href="@Paths.Upload" class="btn btn-outline-secondary"><i class="bi bi-cloud-arrow-up me-2"></i>Upload a mod</a>
+                </div>
             </Authorized>
 
             <NotAuthorized>
-                <p class="text-center small mb-4">Sign in to upload and manage mods</p>
+                <h2 class="fw-black text-center mb-1">Sign in</h2>
+                <p class="text-center small f3m-auth-sub mb-4">Upload mods and manage your uploads.</p>
 
                 @foreach (var error in formResult.ErrorList)
                 {
-                    <div class="alert alert-danger">@error</div>
+                    <div class="alert alert-danger py-2 small">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>@error
+                    </div>
                 }
 
                 <EditForm Model="dto" OnValidSubmit="HandleLogin">
                     <DataAnnotationsValidator />
                     <div class="mb-3">
-                        <label class="form-label fw-semibold small">Username or Email</label>
-                        <InputText class="form-control f3m-input" placeholder="Enter username or email"
-                                   @bind-Value="dto.UsernameOrEmail" />
+                        <label class="form-label fw-semibold small" for="login-username">Username</label>
+                        <InputText id="login-username" class="form-control f3m-input" placeholder="Your F3M username"
+                                   autocomplete="username" @bind-Value="dto.UsernameOrEmail" />
                         <ValidationMessage For="@(() => dto.UsernameOrEmail)" class="text-danger small mt-1 d-block" />
+                        <div class="form-text f3m-auth-sub">
+                            It's the name in your F95zone profile URL:
+                            <span class="f3m-auth-url">f95zone.to/members/<strong>name</strong>.12345/</span>
+                        </div>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label fw-semibold small">Password</label>
-                        <InputText class="form-control f3m-input" type="password" placeholder="Enter password"
-                                   @bind-Value="dto.Password" />
+                        <label class="form-label fw-semibold small" for="login-password">Password</label>
+                        <InputText id="login-password" class="form-control f3m-input" type="password" placeholder="Your password"
+                                   autocomplete="current-password" @bind-Value="dto.Password" />
                         <ValidationMessage For="@(() => dto.Password)" class="text-danger small mt-1 d-block" />
                     </div>
                     <button type="submit" class="btn btn-warning fw-bold w-100" disabled="@loading">
@@ -43,17 +56,26 @@
                         {
                             <span class="spinner-border spinner-border-sm me-2"></span>
                         }
-                        Sign In
+                        Sign in
                     </button>
                 </EditForm>
 
-                <p class="text-center small mt-4 mb-0">
-                    Don't have an account? <a href="@Paths.LinkAccount" class="text-warning fw-semibold">Link F95zone Account</a>
+                <p class="small text-center mt-3 mb-0 f3m-auth-sub">
+                    Forgot your password or username?
+                    <a href="@Paths.LinkAccount" class="text-warning">Verify your F95zone profile again</a>
+                    to sign in and set a new password.
                 </p>
-            </NotAuthorized>
 
+                <div class="f3m-auth-divider"><span>New to F3M?</span></div>
+
+                <p class="small text-center f3m-auth-sub mb-3">
+                    Accounts are tied to F95zone profiles. You prove the profile is yours by posting a short code on it.
+                    It takes about two minutes.
+                </p>
+                <a href="@Paths.LinkAccount" class="btn btn-outline-warning fw-semibold w-100">
+                    <i class="bi bi-person-plus me-2"></i>Create an account with F95zone
+                </a>
+            </NotAuthorized>
         </AuthorizeView>
     </div>
 </div>
-
-

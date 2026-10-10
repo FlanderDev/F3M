@@ -21,13 +21,11 @@ public interface IAccountManagement
     /// <returns>The asynchronous task.</returns>
     public Task LogoutAsync();
 
-    /// <summary>
-    /// Registration service.
-    /// </summary>
-    /// <param name="email">User's email.</param>
-    /// <param name="password">User's password.</param>
-    /// <returns>The result of the request serialized to <see cref="FormResult"/>.</returns>
-    public Task<FormResult> RegisterAsync(string email, string password);
-
     public Task<bool> CheckAuthenticatedAsync();
+
+    /// <summary>
+    /// Re-reads the sign-in state from the server and updates every view that shows it. Use after a sign-in that
+    /// happened outside <see cref="LoginAsync"/>, such as F95zone verification.
+    /// </summary>
+    public void RefreshAuthenticationState();
 }

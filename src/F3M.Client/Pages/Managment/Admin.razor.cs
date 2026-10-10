@@ -1,6 +1,7 @@
-using F3M.Shared.Helpers;
+using F3M.Shared.Api;
 using F3M.Shared.Models;
-using System.Net.Http.Json;
+using FlanderDev.RouteGen.Abstractions;
+using System.Text.Json;
 
 namespace F3M.Client.Pages.Managment;
 
@@ -13,6 +14,9 @@ public partial class Admin
     private string search = string.Empty;
     private int? busyId;
     private AdminUserDto? deleteTarget;
+    private bool rebuilding;
+    private CatalogRebuildResult? rebuildResult;
+    private string? rebuildError;
 
     private IEnumerable<AdminUserDto> Filtered => string.IsNullOrWhiteSpace(search)
         ? users
@@ -24,11 +28,11 @@ public partial class Admin
     {
         try
         {
-            users = await Http.GetFromJsonAsync<List<AdminUserDto>>(Endpoints.Admin.GetUsers) ?? [];
+            users = await Api.GetUsersAsync();
         }
         catch (Exception ex)
         {
-            loadError = ex.Message;
+            loadError = DescribeError(ex);
         }
         finally { loading = false; }
     }
@@ -38,22 +42,11 @@ public partial class Admin
         busyId = user.Id; actionError = null;
         try
         {
-            var resp = await Http.PostAsync(Endpoints.Admin.ToggleAdmin(user.Id), null);
-            if (resp.IsSuccessStatusCode)
-            {
-                var updated = await resp.Content.ReadFromJsonAsync<AdminUserDto>();
-                if (updated is not null)
-                {
-                    var idx = users.FindIndex(u => u.Id == user.Id);
-                    if (idx >= 0) users[idx] = updated;
-                }
-            }
-            else
-            {
-                actionError = $"Failed: {await resp.Content.ReadAsStringAsync()}";
-            }
+            var updated = await Api.ToggleAdminAsync(user.Id);
+            var idx = users.FindIndex(u => u.Id == user.Id);
+            if (idx >= 0) users[idx] = updated;
         }
-        catch (Exception ex) { actionError = ex.Message; }
+        catch (Exception ex) { actionError = DescribeError(ex); }
         finally { busyId = null; }
     }
 
@@ -69,18 +62,42 @@ public partial class Admin
         busyId = deleteTarget.Id; actionError = null;
         try
         {
-            var resp = await Http.DeleteAsync(Endpoints.Admin.DeleteUser(deleteTarget.Id));
-            if (resp.IsSuccessStatusCode)
-            {
-                users.RemoveAll(u => u.Id == deleteTarget.Id);
-                deleteTarget = null;
-            }
-            else
-            {
-                actionError = await resp.Content.ReadAsStringAsync();
-            }
+            await Api.DeleteUserAsync(deleteTarget.Id);
+            users.RemoveAll(u => u.Id == deleteTarget.Id);
+            deleteTarget = null;
         }
-        catch (Exception ex) { actionError = ex.Message; }
+        catch (Exception ex) { actionError = DescribeError(ex); }
         finally { busyId = null; }
+    }
+
+    private async Task RebuildCatalog()
+    {
+        rebuilding = true; rebuildError = null; rebuildResult = null;
+        try
+        {
+            rebuildResult = await Api.RebuildCatalogAsync();
+        }
+        catch (Exception ex) { rebuildError = DescribeError(ex); }
+        finally { rebuilding = false; }
+    }
+
+    /// <summary>
+    /// ApiException.Message is a generic "API call failed with status 400" string — the actual
+    /// server-provided detail (e.g. "You cannot delete your own account.") is in ResponseBody,
+    /// JSON-serialized as a plain string by BadRequest(ex.Message) on the server.
+    /// </summary>
+    private static string DescribeError(Exception ex)
+    {
+        if (ex is not ApiException { ResponseBody: { Length: > 0 } body })
+            return ex.Message;
+
+        try
+        {
+            return JsonSerializer.Deserialize<string>(body) ?? body;
+        }
+        catch (JsonException)
+        {
+            return body;
+        }
     }
 }
