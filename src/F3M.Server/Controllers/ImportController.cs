@@ -34,6 +34,7 @@ public sealed class ImportController(AppDbContext db, ModUploadService uploader,
         [FromForm] IFormFileCollection files,
         [FromForm] List<string> installPaths,
         [FromForm] List<string> originalNames,
+        [FromForm] List<string>? archiveRoots,
         IFormFile? previewImage,
         [FromForm] string author,
         [FromForm] DateTime? uploadedAt,
@@ -67,7 +68,8 @@ public sealed class ImportController(AppDbContext db, ModUploadService uploader,
         var uploadFiles = files.Select((f, i) => new UploadFile(
             f,
             i < originalNames.Count ? originalNames[i] : null,
-            i < installPaths.Count ? installPaths[i] : null)).ToList();
+            i < installPaths.Count ? installPaths[i] : null,
+            archiveRoots is not null && i < archiveRoots.Count ? archiveRoots[i] : null)).ToList();
 
         var when = uploadedAt is { } at ? DateTime.SpecifyKind(at.ToUniversalTime(), DateTimeKind.Utc) : (DateTime?)null;
         var origin = new UploadOrigin(NullIfEmpty(f95OwnerUserId), NullIfEmpty(f95OwnerName), NullIfEmpty(sourceUrl));

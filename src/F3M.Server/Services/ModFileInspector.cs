@@ -29,13 +29,19 @@ public static class ModFileInspector
     /// <summary>Caps the total uncompressed size of one archive, to stop zip bombs.</summary>
     public const long MaxExtractedBytes = 2L * 1024 * 1024 * 1024;
 
-    public static InspectionResult Inspect(string diskPath, string originalName, string? installPath)
+    /// <param name="archiveRoot">Archives only: install just this folder of the archive, without the folder itself.</param>
+    public static InspectionResult Inspect(string diskPath, string originalName, string? installPath, string? archiveRoot = null)
     {
         if (!InstallPaths.TryPlan(originalName, installPath, out var placement))
         {
             throw new InvalidDataException(
                 $"The install path for '{originalName}' is not valid. Use a path relative to the game folder, e.g. BepInEx/plugins/MyMod.");
         }
+
+        if (!InstallPaths.TrySplit(archiveRoot, out var rootParts, out _))
+            throw new InvalidDataException($"The archive folder '{archiveRoot}' for '{originalName}' is not a valid path.");
+        if (rootParts.Count > 0 && !placement.IsArchive)
+            throw new InvalidDataException($"'{originalName}' is not an archive, so it has no folder to choose.");
 
         var (sha256, size) = HashFile(diskPath);
 
@@ -45,7 +51,14 @@ public static class ModFileInspector
             return new InspectionResult(sha256, size, false, placement.Target, [entry]);
         }
 
-        var entries = ReadArchive(diskPath, placement.Target);
+        var entries = ReadArchive(diskPath, placement.Target, rootParts);
+        if (entries.Count == 0)
+        {
+            throw new InvalidDataException(rootParts.Count == 0
+                ? "The archive contains no files."
+                : $"The archive has no files inside '{string.Join('/', rootParts)}'.");
+        }
+
         return new InspectionResult(sha256, size, true, placement.Target, entries);
     }
 
@@ -75,7 +88,11 @@ public static class ModFileInspector
         return (Convert.ToHexString(hash).ToLowerInvariant(), stream.Length);
     }
 
-    private static List<InspectedEntry> ReadArchive(string path, string targetFolder)
+    /// <summary>
+    /// Every installed entry: From is its path in the archive (what the desktop app reads after extracting), To its
+    /// place in the game folder. With a root, entries outside it are skipped and the root is left out of To.
+    /// </summary>
+    private static List<InspectedEntry> ReadArchive(string path, string targetFolder, IReadOnlyList<string> rootParts)
     {
         using var stream = File.OpenRead(path);
 
@@ -110,7 +127,12 @@ public static class ModFileInspector
                 if (from.Length > MaxFromLength)
                     throw new InvalidDataException($"The archive contains a path that is too long: '{from[..80]}…'.");
 
-                if (!InstallPaths.TryExpand(targetFolder, from, out var to) || to.Length > InstallPaths.MaxLength)
+                var installed = parts;
+                if (rootParts.Count > 0 && !InstallPaths.TryStripRoot(rootParts, parts, out installed))
+                    continue;
+
+                var relative = string.Join('/', installed);
+                if (!InstallPaths.TryExpand(targetFolder, relative, out var to) || to.Length > InstallPaths.MaxLength)
                     throw new InvalidDataException($"The archive contains a file with an invalid or too long install path: '{from}'.");
 
                 if (!seenTargets.Add(to))
@@ -123,9 +145,6 @@ public static class ModFileInspector
 
                 entries.Add(new InspectedEntry(from, to, size, sha256, ClassifyKind(to)));
             }
-
-            if (entries.Count == 0)
-                throw new InvalidDataException("The archive contains no files.");
 
             return entries;
         }

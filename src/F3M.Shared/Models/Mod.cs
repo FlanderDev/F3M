@@ -110,6 +110,14 @@ public class ModFile
     [MaxLength(260)]
     public string InstallPath { get; set; } = string.Empty;   // suggested install path
 
+    /// <summary>
+    /// Archives only: the folder inside the archive whose contents are installed ('/' separated, "" = all of it).
+    /// Files outside it are not installed, and the folder's own name does not appear in the game folder. For archives
+    /// packed with an extra top folder, or that carry more than the mod itself.
+    /// </summary>
+    [MaxLength(260)]
+    public string ArchiveRoot { get; set; } = string.Empty;
+
     /// <summary>SHA-256 of the uploaded file (lower-case hex), computed on upload. Empty for files uploaded before catalog support.</summary>
     [MaxLength(64)]
     public string Sha256 { get; set; } = string.Empty;

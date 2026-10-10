@@ -18,8 +18,11 @@ public sealed record UploadOwner(int UserId, string Name);
 /// </summary>
 public sealed record UploadOrigin(string? F95UserId, string? F95UserName, string? SourceUrl);
 
-/// <summary>One mod file of an upload: its content, its original name, and where it goes in the game folder.</summary>
-public sealed record UploadFile(IFormFile Content, string? OriginalName, string? InstallPath);
+/// <summary>
+/// One mod file of an upload: its content, its original name, where it goes in the game folder, and for archives
+/// optionally the folder inside the archive to install (see <see cref="ModFile.ArchiveRoot"/>).
+/// </summary>
+public sealed record UploadFile(IFormFile Content, string? OriginalName, string? InstallPath, string? ArchiveRoot = null);
 
 /// <summary>
 /// The outcome of <see cref="ModUploadService.UploadAsync"/>. <see cref="Error"/> is safe to show the uploader;
@@ -70,13 +73,18 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
         // Install paths and names are author input that ends up on other people's machines.
         var cleanInstallPaths = new List<string>();
         var cleanNames = new List<string>();
+        var cleanRoots = new List<string>();
         foreach (var file in files)
         {
             if (!Helper.TryNormalizeInstallPath(file.InstallPath, out var normalizedPath))
                 return UploadResult.Fail($"The install path '{file.InstallPath}' for '{file.Content.FileName}' is not valid. Use a path relative to the game folder, e.g. BepInEx/plugins/MyMod.");
 
+            if (!InstallPaths.TryNormalize(file.ArchiveRoot, out var normalizedRoot))
+                return UploadResult.Fail($"The archive folder '{file.ArchiveRoot}' for '{file.Content.FileName}' is not valid.");
+
             cleanInstallPaths.Add(normalizedPath);
             cleanNames.Add(Helper.SafeOriginalName(file.OriginalName, file.Content.FileName));
+            cleanRoots.Add(normalizedRoot);
         }
 
         // Reject a bad preview image now, not after the mod group has already been created.
@@ -137,11 +145,11 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
                     await f.CopyToAsync(stream, ct);
                 }
 
-                staged.Add(new StagedFile(safeName, diskPath, cleanNames[i], cleanInstallPaths[i], f.Length));
+                staged.Add(new StagedFile(safeName, diskPath, cleanNames[i], cleanInstallPaths[i], cleanRoots[i], f.Length));
             }
 
             foreach (var file in staged)
-                inspections.Add(ModFileInspector.Inspect(file.DiskPath, file.OriginalName, file.InstallPath));
+                inspections.Add(ModFileInspector.Inspect(file.DiskPath, file.OriginalName, file.InstallPath, file.ArchiveRoot));
 
             // Two files, or two archive entries, must not install over each other.
             var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -259,6 +267,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
                     FileName = file.SafeName,
                     OriginalName = file.OriginalName,
                     InstallPath = file.InstallPath,
+                    ArchiveRoot = file.ArchiveRoot,
                     FileSizeBytes = file.Size,
                     Sha256 = inspection.Sha256,
                     IsArchive = inspection.IsArchive,
@@ -379,5 +388,5 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
         }
     }
 
-    private sealed record StagedFile(string SafeName, string DiskPath, string OriginalName, string InstallPath, long Size);
+    private sealed record StagedFile(string SafeName, string DiskPath, string OriginalName, string InstallPath, string ArchiveRoot, long Size);
 }
