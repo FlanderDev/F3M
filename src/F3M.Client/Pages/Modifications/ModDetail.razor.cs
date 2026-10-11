@@ -45,8 +45,23 @@ public partial class ModDetail
 
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    // The id the page shows. Following a link to another mod (a requirement) keeps this component and only changes
+    // Id, so the page loads whenever Id differs from it, not just once.
+    private int? loadedId;
+
+    protected override async Task OnParametersSetAsync()
     {
+        if (loadedId == Id)
+            return;
+        loadedId = Id;
+
+        loading = true;
+        isOwner = false;
+        showDeleteConfirm = showRemoveConfirm = false;
+        deleteError = claimMessage = assignMessage = null;
+        activeFileId = null;
+        dlSuccess = dlError = false;
+
         try
         {
             // Load the requested version
@@ -74,7 +89,7 @@ public partial class ModDetail
                 isAdmin = state.User.IsInRole(AppRoles.Admin);
             }
 
-            if (isAdmin)
+            if (isAdmin && users.Count == 0)
                 users = await AdminApi.GetUsersAsync();
         }
         catch (Exception ex)

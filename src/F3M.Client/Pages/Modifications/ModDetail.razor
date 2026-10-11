@@ -26,14 +26,14 @@ else if (selectedVersion is null)
 }
 else
 {
-    <div class="container py-4 mx-5">
+    <div class="container-fluid px-4 py-4">
         <a href="/" class="small d-inline-flex align-items-center gap-1 mb-4">
             <i class="bi bi-arrow-left"></i> Back to Browse
         </a>
 
         <div class="row g-4">
             <!-- Left col: image + download panel -->
-            <div class="col-lg-5">
+            <div class="col-lg-4">
                 @if (!string.IsNullOrEmpty(selectedVersion.PreviewImageName))
                 {
                     <div class="mod-detail-image mb-3">
@@ -257,8 +257,8 @@ else
                 </AuthorizeView>
             </div>
 
-            <!-- Right col: info -->
-            <div class="col-lg-7">
+            <!-- Middle col: info -->
+            <div class="col-lg-5">
                 <div class="d-flex gap-2 mb-2 flex-wrap align-items-center">
                     <span class="mod-card-category" style="position:static;font-size:.72rem;">@selectedVersion.Category</span>
 
@@ -304,6 +304,37 @@ else
                     &nbsp;·&nbsp; @selectedVersion.UploadedAt.ToString("MMM d, yyyy")
                 </p>
 
+                <h6 class="fw-bold mb-2">Description</h6>
+                <div>@((MarkupString)HelperExtensions.SanatizeMarkdownToHtml(selectedVersion.Description))</div>
+
+                <!-- All versions timeline (compact, only shown if > 1) -->
+                @if (allVersions.Count > 1)
+                {
+                    <h6 class="fw-bold mb-2 mt-4">Version History</h6>
+                    <div class="f3m-version-history">
+                        @foreach (var ver in allVersions)
+                        {
+                            var v   = ver;
+                            bool latest = v.Id == allVersions[0].Id;
+                            bool selected = v.Id == selectedVersion.Id;
+                            <div class="f3m-version-row @(selected ? "selected" : string.Empty)"
+                                 @onclick="() => SelectVersion(v)">
+                                <div class="f3m-version-dot @(latest ? "latest" : string.Empty)"></div>
+                                <div class="flex-grow-1">
+                                    <span class="fw-semibold small">v: @v.Version</span>
+                                    @if (latest) { <span class="ms-2 badge" style="background:rgba(255,193,7,.15);color:var(--f3m-amber);font-size:.6rem;">Latest</span> }
+                                </div>
+                                <span  style="font-size:.72rem;">
+                                    @v.UploadedAt.ToString("MMM d, yyyy")
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Right col: where the mod comes from, numbers, requirements -->
+            <div class="col-lg-3">
                 @if (group is { IsUnclaimed: true })
                 {
                     <div class="f3m-import-notice mb-4">
@@ -351,7 +382,7 @@ else
                     </p>
                 }
 
-                <div class="row g-3 mb-4">
+                <div class="row g-2 mb-4">
                     <div class="col-4">
                         <div class="f3m-stat-mini">
                             <div class="f3m-stat-mini-val text-warning">@selectedVersion.DownloadCount.ToString("N0")</div>
@@ -372,43 +403,15 @@ else
                     </div>
                 </div>
 
-                <h6 class="fw-bold mb-2">Description</h6>
-                <div>@((MarkupString)HelperExtensions.SanatizeMarkdownToHtml(selectedVersion.Description))</div>
-
                 @if (selectedVersion.Dependencies.Count > 0)
                 {
-                    <h6 class="fw-bold mb-2 mt-4">Requires</h6>
+                    <h6 class="fw-bold mb-2">Requires</h6>
                     <div class="d-flex flex-wrap gap-2">
                         @foreach (var dep in selectedVersion.Dependencies)
                         {
                             <a href="@Paths.ModDetail(dep.Id)" class="badge bg-secondary text-decoration-none">
                                 @dep.Name <span class="opacity-75">v@(dep.Version)</span>
                             </a>
-                        }
-                    </div>
-                }
-
-                <!-- All versions timeline (compact, only shown if > 1) -->
-                @if (allVersions.Count > 1)
-                {
-                    <h6 class="fw-bold mb-2 mt-4">Version History</h6>
-                    <div class="f3m-version-history">
-                        @foreach (var ver in allVersions)
-                        {
-                            var v   = ver;
-                            bool latest = v.Id == allVersions[0].Id;
-                            bool selected = v.Id == selectedVersion.Id;
-                            <div class="f3m-version-row @(selected ? "selected" : string.Empty)"
-                                 @onclick="() => SelectVersion(v)">
-                                <div class="f3m-version-dot @(latest ? "latest" : string.Empty)"></div>
-                                <div class="flex-grow-1">
-                                    <span class="fw-semibold small">v: @v.Version</span>
-                                    @if (latest) { <span class="ms-2 badge" style="background:rgba(255,193,7,.15);color:var(--f3m-amber);font-size:.6rem;">Latest</span> }
-                                </div>
-                                <span  style="font-size:.72rem;">
-                                    @v.UploadedAt.ToString("MMM d, yyyy")
-                                </span>
-                            </div>
                         }
                     </div>
                 }
