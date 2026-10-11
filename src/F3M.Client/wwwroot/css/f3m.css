@@ -283,6 +283,9 @@ a {
 
 .skeleton-body {
     padding: 12px 14px 14px;
+    /* As tall as a real card's body (title, author, two description lines, meta, collection button), so the
+       placeholders don't jump and the browse page can measure how many cards fit on the screen. */
+    min-height: 10.1rem;
 }
 
 .skeleton-line {

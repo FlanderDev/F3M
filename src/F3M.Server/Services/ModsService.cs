@@ -50,15 +50,17 @@ public partial class ModsService(
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(m => m.Category == category);
 
+        // The id breaks ties (many mods share a download count), so pages never overlap or skip a mod when the
+        // browse page appends them one after another.
         query = sort switch
         {
-            SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
-            SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
-            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
-            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
-            SortBy.NameAsc => query.OrderBy(m => m.Name),
-            SortBy.NameDesc => query.OrderByDescending(m => m.Name),
-            _ => query.OrderByDescending(m => m.UploadedAt)
+            SortBy.Newest => query.OrderByDescending(m => m.UploadedAt).ThenByDescending(m => m.Id),
+            SortBy.Oldest => query.OrderBy(m => m.UploadedAt).ThenBy(m => m.Id),
+            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount).ThenByDescending(m => m.Id),
+            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount).ThenBy(m => m.Id),
+            SortBy.NameAsc => query.OrderBy(m => m.Name).ThenBy(m => m.Id),
+            SortBy.NameDesc => query.OrderByDescending(m => m.Name).ThenByDescending(m => m.Id),
+            _ => query.OrderByDescending(m => m.UploadedAt).ThenByDescending(m => m.Id)
         };
 
         var totalCount = await query.CountAsync(ct);
