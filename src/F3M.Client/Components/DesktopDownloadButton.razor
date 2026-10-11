@@ -1,0 +1,77 @@
+@* Starts a download in the F3M desktop app through an f3m:// link. The app asks the user to confirm first.
+   When it doesn't react (not installed, or the browser blocked the link), the button offers the app instead. *@
+@inject IJSRuntime JS
+
+@if (Compact)
+{
+    <button type="button" class="btn btn-sm btn-outline-warning f3m-desktop-btn" title="@Title" aria-label="@Title"
+            disabled="@opening" @onclick="OpenAsync" @onclick:stopPropagation="true" @onclick:preventDefault="true">
+        @if (opening)
+        {
+            <span class="spinner-border spinner-border-sm"></span>
+        }
+        else
+        {
+            <i class="bi bi-box-arrow-in-down"></i>
+        }
+    </button>
+}
+else
+{
+    <button type="button" class="btn btn-warning fw-bold w-100 text-nowrap" title="@Title"
+            disabled="@opening" @onclick="OpenAsync">
+        @if (opening)
+        {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+        else
+        {
+            <i class="bi bi-box-arrow-in-down me-2"></i>
+        }
+        @Label
+    </button>
+}
+
+@if (desktopMissing)
+{
+    <div class="f3m-desktop-missing" @onclick:stopPropagation="true">
+        The desktop app didn't respond.
+        <a href="@Configuration.DesktopDownloadUrl" target="_blank" rel="noopener">Get F3M Desktop</a>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public int GroupId { get; set; }
+
+    /// <summary>A specific version; null downloads the latest.</summary>
+    [Parameter] public int? VersionId { get; set; }
+
+    /// <summary>An icon-only button, for mod cards.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    /// <summary>The text of the full-size button.</summary>
+    [Parameter] public string Label { get; set; } = "Download in F3M Desktop";
+
+    private bool opening;
+    private bool desktopMissing;
+
+    private string Title => VersionId is null ? "Download in the F3M desktop app" : "Download this version in the F3M desktop app";
+
+    private async Task OpenAsync()
+    {
+        opening = true;
+        desktopMissing = false;
+        try
+        {
+            desktopMissing = !await JS.InvokeAsync<bool>("f3m.openInDesktop", DesktopLink.Download(GroupId, VersionId));
+        }
+        catch (JSException)
+        {
+            desktopMissing = true;
+        }
+        finally
+        {
+            opening = false;
+        }
+    }
+}

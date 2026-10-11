@@ -25,6 +25,7 @@
 - [x] Mod dependencies
 - [x] Markdown for mod descriptions
 - [ ] Mod packs
+- [ ] Collections: the collection pages (`/collection`, the builder) and `AddToCollectionButton` exist but are unused for now; no page offers adding a mod to a collection.
 - [x] User profiles
 
 # F3M

@@ -227,4 +227,17 @@ public class ModVersionsResult
 {
     public ModGroup Group { get; set; } = new();
     public List<Mod> Versions { get; set; } = [];
+
+    /// <summary>The account the mod belongs to; null while an imported mod is unclaimed.</summary>
+    public ModOwnerDto? Owner { get; set; }
+}
+
+/// <summary>Who owns a mod, for the links to their F3M and F95zone profiles. Only public names and ids.</summary>
+public class ModOwnerDto
+{
+    public string Username { get; set; } = string.Empty;
+
+    /// <summary>Null when the account was never linked to F95zone.</summary>
+    public string? F95UserId { get; set; }
+    public string? F95Username { get; set; }
 }

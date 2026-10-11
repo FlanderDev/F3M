@@ -108,7 +108,16 @@ public partial class ModsService(
             .ToListAsync(ct);
 
         await ResolveDependenciesAsync(versions, ct);
-        return new ModVersionsResult { Group = group, Versions = versions };
+
+        // The owner's public names, for the profile links on the mod page. An unclaimed import has no owner yet.
+        var owner = group.IsUnclaimed
+            ? null
+            : await db.Users.AsNoTracking()
+                .Where(u => u.Id == group.OwnerId)
+                .Select(u => new ModOwnerDto { Username = u.UserName ?? string.Empty, F95UserId = u.F95UserId, F95Username = u.F95Username })
+                .FirstOrDefaultAsync(ct);
+
+        return new ModVersionsResult { Group = group, Versions = versions, Owner = owner };
     }
 
     public async Task<List<string>> GetCategories(CancellationToken ct = default)

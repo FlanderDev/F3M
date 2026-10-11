@@ -249,6 +249,7 @@ a {
 
 .mod-card-meta {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     font-size: .7rem;
@@ -265,6 +266,59 @@ a {
 .mod-card-version {
     margin-left: auto;
 }
+
+/* ── Download in the desktop app ────────────────────────── */
+.f3m-desktop-btn {
+    padding: 1px 7px;
+    font-size: .75rem;
+    line-height: 1.4;
+}
+
+.f3m-desktop-missing {
+    font-size: .7rem;
+    color: var(--f3m-muted);
+    margin-top: 6px;
+}
+
+    .mod-card-meta .f3m-desktop-missing {
+        flex-basis: 100%;
+        margin-top: 0;
+    }
+
+    .f3m-desktop-missing a {
+        color: var(--f3m-amber);
+    }
+
+/* ── Mod page: the uploader's profiles ──────────────────── */
+.f3m-profile-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.f3m-profile-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 10px;
+    border: 1px solid var(--f3m-border);
+    border-radius: 999px;
+    font-size: .75rem;
+    color: var(--f3m-text);
+    text-decoration: none;
+    background: var(--f3m-surface);
+}
+
+    .f3m-profile-link:hover {
+        border-color: var(--f3m-amber);
+        color: var(--f3m-amber);
+    }
+
+    .f3m-profile-link .f3m-profile-site {
+        font-weight: 700;
+        color: var(--f3m-amber);
+    }
 
 /* ── Skeleton loaders ───────────────────────────────────── */
 .mod-card-skeleton {
@@ -283,9 +337,9 @@ a {
 
 .skeleton-body {
     padding: 12px 14px 14px;
-    /* As tall as a real card's body (title, author, two description lines, meta, collection button), so the
-       placeholders don't jump and the browse page can measure how many cards fit on the screen. */
-    min-height: 10.1rem;
+    /* As tall as a real card's body (title, author, two description lines, meta), so the placeholders don't jump
+       and the browse page can measure how many cards fit on the screen. */
+    min-height: 7.95rem;
 }
 
 .skeleton-line {

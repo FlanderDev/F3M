@@ -20,11 +20,8 @@
         <p class="mod-card-desc">@Mod.Description</p>
         <div class="mod-card-meta">
             <span><i class="bi bi-download"></i> @Mod.DownloadCount.ToString("N0")</span>
-            <span><i class="bi bi-files"></i> @Mod.Files.Count file@(Mod.Files.Count != 1 ? "s" : string.Empty)</span>
             <span class="mod-card-version">v@(Mod.Version)</span>
-        </div>
-        <div class="mt-2">
-            <AddToCollectionButton GroupId="@Mod.ModGroupId" Name="@Mod.Name" />
+            <DesktopDownloadButton GroupId="@Mod.ModGroupId" Compact="true" />
         </div>
     </div>
 </div>

@@ -101,40 +101,51 @@ else
                         </div>
                     }
 
-                    @if (selectedVersion.Files.Count > 1)
-                    {
-                        <button class="btn btn-warning fw-bold w-100 btn-sm"
-                                @onclick="DownloadAll"
-                                disabled="@downloadingAll">
-                            @if (downloadingAll)
+                    @* The desktop app is the main way to get a mod (it installs it); the browser download is the fallback. *@
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <DesktopDownloadButton GroupId="@selectedVersion.ModGroupId"
+                                                   VersionId="@(selectedVersion.Id == allVersions[0].Id ? null : selectedVersion.Id)"
+                                                   Label="F3M Desktop" />
+                        </div>
+                        <div class="col-6">
+                            @if (selectedVersion.Files.Count > 1)
                             {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                <span>Downloading all…</span>
+                                <button class="btn btn-outline-warning fw-semibold w-100 text-nowrap"
+                                        title="Download all @selectedVersion.Files.Count files in the browser"
+                                        @onclick="DownloadAll"
+                                        disabled="@downloadingAll">
+                                    @if (downloadingAll)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-cloud-download me-2"></i>
+                                    }
+                                    Direct download
+                                </button>
                             }
-                            else
+                            else if (selectedVersion.Files.Count == 1)
                             {
-                                <i class="bi bi-cloud-download-fill me-2"></i>
-                                <span>Download All (@selectedVersion.Files.Count files)</span>
+                                var singleFile = selectedVersion.Files[0];
+                                <button class="btn btn-outline-warning fw-semibold w-100 text-nowrap"
+                                        title="Download @singleFile.OriginalName in the browser"
+                                        @onclick="() => DownloadFile(selectedVersion.Id, singleFile)"
+                                        disabled="@(downloadingFileId == singleFile.Id)">
+                                    @if (downloadingFileId == singleFile.Id)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-cloud-download me-2"></i>
+                                    }
+                                    Direct download
+                                </button>
                             }
-                        </button>
-                    }
-                    else if (selectedVersion.Files.Count == 1)
-                    {
-                        var singleFile = selectedVersion.Files[0];
-                        <button class="btn btn-warning fw-bold w-100"
-                                @onclick="() => DownloadFile(selectedVersion.Id, singleFile)"
-                                disabled="@(downloadingFileId == singleFile.Id)">
-                            @if (downloadingFileId == singleFile.Id)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            else
-                            {
-                                <i class="bi bi-cloud-download-fill me-2"></i>
-                            }
-                            Download
-                        </button>
-                    }
+                        </div>
+                    </div>
 
                     @if (dlSuccess)
                     {
@@ -299,10 +310,32 @@ else
                 </div>
 
                 <h1 class="fw-black fs-2 mb-1">@selectedVersion.Name</h1>
-                <p class="small mb-4">
-                    by <a href="@Paths.PublicProfile(selectedVersion.Author)" class="text-warning fw-semibold">@selectedVersion.Author</a>
+                <p class="small mb-2">
+                    by <span class="fw-semibold">@selectedVersion.Author</span>
                     &nbsp;·&nbsp; @selectedVersion.UploadedAt.ToString("MMM d, yyyy")
                 </p>
+                @* The author line is a credit (it can name several people); these go to the uploader's accounts. *@
+                @if (owner is not null || F95Link is not null)
+                {
+                    <div class="f3m-profile-links mb-4">
+                        @if (owner is not null)
+                        {
+                            <a href="@Paths.PublicProfile(owner.Username)" class="f3m-profile-link" title="@owner.Username's profile on F3M">
+                                <i class="bi bi-person-circle"></i><span class="f3m-profile-site">F3M</span> @owner.Username
+                            </a>
+                        }
+                        @if (F95Link is { } f95)
+                        {
+                            <a href="@f95.Url" target="_blank" rel="noopener" class="f3m-profile-link" title="@f95.Name's profile on F95zone">
+                                <i class="bi bi-box-arrow-up-right"></i><span class="f3m-profile-site">F95zone</span> @f95.Name
+                            </a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-4"></div>
+                }
 
                 <h6 class="fw-bold mb-2">Description</h6>
                 <div>@((MarkupString)HelperExtensions.SanatizeMarkdownToHtml(selectedVersion.Description))</div>
