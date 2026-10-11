@@ -800,6 +800,27 @@ a {
         color: var(--f3m-text);
     }
 
+/* ── Upload: the type of each file ─────────────────────── */
+.f3m-type-select {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--f3m-text);
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+    .f3m-type-select option {
+        background: var(--f3m-surface-2);
+        color: var(--f3m-text);
+    }
+
+.f3m-type-hint {
+    font-size: .7rem;
+    color: var(--f3m-muted);
+}
+
 /* ── Upload: "where will the files end up" ──────────────── */
 .f3m-file-entry-target {
     padding: 0 12px 8px 34px;

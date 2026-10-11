@@ -6,11 +6,11 @@ namespace F3M.Client.Business;
 
 /// <summary>
 /// Builds the tree of what the game folder will contain once the selected files are placed
-/// according to their install paths (rules in <see cref="InstallPaths"/>).
+/// according to their install paths and archive folders (rules in <see cref="InstallPaths"/>).
 /// </summary>
 public static class InstallPreviewBuilder
 {
-    public static PreviewResult Build(IReadOnlyList<FileEntry> entries, Func<FileEntry, ArchiveListing?> listingOf)
+    public static PreviewResult Build(IReadOnlyList<FileEntry> entries)
     {
         var root = new PreviewNode { Name = "Game folder" };
         var warnings = new List<string>();
@@ -68,7 +68,7 @@ public static class InstallPreviewBuilder
                 continue;
             }
 
-            var listing = listingOf(entry);
+            var listing = entry.Listing;
             if (listing is null)
                 continue;
 
@@ -84,10 +84,26 @@ public static class InstallPreviewBuilder
                 continue;
             }
 
+            // Only the archive folder's contents are installed, without the folder itself.
+            if (!InstallPaths.TrySplit(entry.ArchiveRoot, out var rootParts, out _))
+            {
+                Warn($"“{entry.OriginalName}”: the archive folder isn't valid.");
+                continue;
+            }
+
             var unsafeEntries = 0;
             foreach (var item in listing.Entries)
             {
-                if (InstallPaths.TryExpand(placement.Target, item.RelativePath, out var relative))
+                if (!InstallPaths.TrySplit(item.RelativePath, out var parts, out _) || parts.Count == 0)
+                {
+                    unsafeEntries++;
+                    continue;
+                }
+
+                if (rootParts.Count > 0 && !InstallPaths.TryStripRoot(rootParts, parts, out parts))
+                    continue;
+
+                if (InstallPaths.TryExpand(placement.Target, string.Join('/', parts), out var relative))
                     Add(relative, item.Size, entry.OriginalName);
                 else
                     unsafeEntries++;

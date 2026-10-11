@@ -36,6 +36,51 @@ public sealed record UploadFile(IFormFile Content, string? OriginalName, string?
         static string? At(IReadOnlyList<string>? list, int i) => list is not null && i < list.Count ? list[i] : null;
         return [.. files.Select((f, i) => new UploadFile(f, At(originalNames, i), At(installPaths, i), At(archiveRoots, i), At(templates, i)))];
     }
+
+    /// <summary>The <see cref="Template"/> that asks the server to recognise the file (imports only).</summary>
+    public const string AutoTemplate = "auto";
+
+    /// <summary>
+    /// For <see cref="AutoTemplate"/>: the file with what its contents show. Without an install path, the install path
+    /// and the archive folder (inside the given one, if any) come from <see cref="ModTemplates.Suggest"/>; the type is
+    /// then the one its installed paths fit (<see cref="ModTemplates.Classify"/>). Other files are returned as they are.
+    /// </summary>
+    public UploadFile Recognise(string? modName)
+    {
+        if (!string.Equals(Template, AutoTemplate, StringComparison.OrdinalIgnoreCase))
+            return this;
+
+        var name = Helper.SafeOriginalName(OriginalName, Content.FileName);
+        List<string>? entries = null;
+        if (InstallPaths.IsArchive(name))
+        {
+            using var stream = Content.OpenReadStream();
+            entries = ModFileInspector.ListEntries(stream);
+            if (entries is null) // unreadable: the upload reports it
+                return this with { Template = ModTemplates.Custom };
+        }
+
+        var installPath = InstallPath ?? string.Empty;
+        var root = ArchiveRoot ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(installPath))
+        {
+            if (!InstallPaths.TrySplit(root, out var rootParts, out _))
+                return this with { Template = ModTemplates.Custom };
+
+            var inside = entries?
+                .Select(e => InstallPaths.TrySplit(e, out var parts, out _) && InstallPaths.TryStripRoot(rootParts, parts, out var relative)
+                    ? string.Join('/', relative)
+                    : rootParts.Count == 0 ? e : null)
+                .OfType<string>()
+                .ToList();
+            var suggestion = ModTemplates.Suggest(name, inside, modName);
+            installPath = suggestion.InstallPath;
+            root = string.Join('/', new[] { string.Join('/', rootParts), suggestion.ArchiveRoot }.Where(p => p.Length > 0));
+        }
+
+        var targets = ModTemplates.TargetsOf(name, entries, installPath, root) ?? [];
+        return this with { InstallPath = installPath, ArchiveRoot = root, Template = ModTemplates.Classify(targets) };
+    }
 }
 
 /// <summary>

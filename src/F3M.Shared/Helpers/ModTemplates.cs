@@ -5,13 +5,15 @@ namespace F3M.Shared.Helpers;
 /// <param name="Category">The category an upload of this type gets unless the author picks another.</param>
 /// <param name="Folders">Game-relative folders this type installs into; files elsewhere get a warning. Empty: anywhere.</param>
 /// <param name="RequiredModName">The mod players need for this type to work, by its name on the site; null for none.</param>
+/// <param name="DefaultInstallPath">The install path the upload form offers when the author picks this type.</param>
 public sealed record ModTemplate(
     string Id,
     string Name,
     string Category,
     string Description,
     IReadOnlyList<string> Folders,
-    string? RequiredModName);
+    string? RequiredModName,
+    string DefaultInstallPath);
 
 /// <summary>What <see cref="ModTemplates.Suggest"/> derives from a file: its type, install path and archive folder.</summary>
 public sealed record TemplateSuggestion(string TemplateId, string InstallPath, string ArchiveRoot);
@@ -54,25 +56,25 @@ public static class ModTemplates
     [
         new(BepInExPlugin, "BepInEx plugin", "BepInEx-Plugin",
             ".dll plugins in BepInEx/plugins, with their settings in BepInEx/config.",
-            PluginFolders, null),
+            PluginFolders, null, PluginsFolder),
         new(MissionsV1, "Custom Missions v1", "Custom-Missions 1",
             "Missions as .json files in the CustomMissions folder. Needs the Custom Missions v1 framework.",
-            [MissionsV1Folder, .. PluginFolders], "Custom Missions v1"),
+            [MissionsV1Folder, .. PluginFolders], "Custom Missions v1", MissionsV1Folder),
         new(MissionsV2, "Custom Missions v2", "Custom-Missions 2",
             "Missions as folders in CustomMissions2, each with its .code files and optionally a meta.json. " +
             "Needs the Custom Missions v2 framework.",
-            [MissionsV2Folder, .. PluginFolders], "Custom Missions v2"),
+            [MissionsV2Folder, .. PluginFolders], "Custom Missions v2", MissionsV2Folder),
         new(Cosplay, "Cosplay", "Cosplay-Loader",
             "Outfits for the Cosplay Loader: a folder per outfit in BepInEx/plugins/ModCosplays (.glb model and " +
             ".json description) and its textures in BepInEx/plugins/ModMaterials (.png and .json).",
-            [CosplaysFolder, MaterialsFolder], "Cosplay Loader Mod"),
+            [CosplaysFolder, MaterialsFolder], "Cosplay Loader Mod", PluginsFolder),
         new(TexturePack, "Texture pack", "Texture Edits",
             ".png textures in BepInEx/plugins/ModImages, named after the game texture they replace. Sets to switch " +
             "between with F12 go in ModImages/Select/<set name>. Needs Texture Replacer.",
-            [ImagesFolder], "Texture Replacer"),
+            [ImagesFolder], "Texture Replacer", ImagesFolder),
         new(Custom, "Custom", "Others",
             "Anything else. You choose the install path; no type rules are checked.",
-            [], null),
+            [], null, string.Empty),
     ];
 
     private static readonly HashSet<string> BepInExOwnFiles = new(StringComparer.OrdinalIgnoreCase)
@@ -224,20 +226,40 @@ public static class ModTemplates
         if (payload.Count == 0)
             payload = entries;
 
-        var (root, installPath) = FindLayout(payload, string.IsNullOrWhiteSpace(modName) ? Path.GetFileNameWithoutExtension(name) : modName);
+        var (root, installPath) = FindLayout(payload, entries, string.IsNullOrWhiteSpace(modName) ? Path.GetFileNameWithoutExtension(name) : modName);
+        var targets = TargetsOf(name, entries.Select(e => string.Join('/', e)).ToList(), installPath, root) ?? [];
+        return new TemplateSuggestion(Classify(targets), installPath, root);
+    }
 
-        var rootParts = root.Length == 0 ? [] : root.Split('/');
+    /// <summary>
+    /// The game-relative paths a file installs, the way the server stores them: a plain file's target, or each archive
+    /// entry inside <paramref name="archiveRoot"/> below the extract folder. Entries with a path that is not allowed
+    /// are left out. Null when the install path or the archive folder is not valid.
+    /// </summary>
+    /// <param name="archiveEntries">The file paths inside an archive; ignored for plain files.</param>
+    public static List<string>? TargetsOf(string fileName, IReadOnlyCollection<string>? archiveEntries, string? installPath, string? archiveRoot)
+    {
+        if (!InstallPaths.TryPlan(fileName, installPath, out var placement) || !InstallPaths.TrySplit(archiveRoot, out var rootParts, out _))
+            return null;
+
+        if (!placement.IsArchive)
+            return rootParts.Count == 0 ? [placement.Target] : null;
+
         var targets = new List<string>();
-        foreach (var entry in entries)
+        foreach (var entry in archiveEntries ?? [])
         {
-            var relative = entry;
-            if (rootParts.Length > 0 && !InstallPaths.TryStripRoot(rootParts, entry, out relative))
+            if (!InstallPaths.TrySplit(entry, out var parts, out _) || parts.Count == 0)
                 continue;
-            if (InstallPaths.TryExpand(installPath, string.Join('/', relative), out var target))
+
+            var relative = parts;
+            if (rootParts.Count > 0 && !InstallPaths.TryStripRoot(rootParts, parts, out relative))
+                continue;
+
+            if (InstallPaths.TryExpand(placement.Target, string.Join('/', relative), out var target))
                 targets.Add(target);
         }
 
-        return new TemplateSuggestion(Classify(targets), installPath, root);
+        return targets;
     }
 
     /// <summary>A folder name for a mission named after the mod: what a path segment may hold, never empty.</summary>
@@ -254,7 +276,8 @@ public static class ModTemplates
     // ── Layout ────────────────────────────────────────────────────────────────
 
     /// <summary>The archive folder to install and where it goes, for the files that make up the mod.</summary>
-    private static (string Root, string InstallPath) FindLayout(List<List<string>> payload, string? modName)
+    /// <param name="payload">The files that make up the mod: <paramref name="entries"/> without readmes and licences.</param>
+    private static (string Root, string InstallPath) FindLayout(List<List<string>> payload, List<List<string>> entries, string? modName)
     {
         // A file the BepInEx loader puts next to the game exe means the archive is the game folder.
         if (payload.Any(e => e.Count == 1 && BepInExOwnFiles.Contains(e[0])))
@@ -286,7 +309,18 @@ public static class ModTemplates
             // Folders around the project folders are dropped, as long as all projects sit in the same one.
             var wrapper = code.First(e => e.Count == depth).Take(depth - 2).ToList();
             var shared = code.All(e => e.Count >= depth && e.Take(depth - 2).SequenceEqual(wrapper, StringComparer.OrdinalIgnoreCase));
-            return (shared ? string.Join('/', wrapper) : string.Empty, MissionsV2Folder);
+            if (!shared)
+                return (string.Empty, MissionsV2Folder);
+
+            // One mission with other files around it (a readme next to the folder): just the mission folder is installed.
+            var project = code.First(e => e.Count == depth)[depth - 2];
+            bool InProject(List<string> e) => e.Count >= depth
+                                             && e.Take(depth - 2).SequenceEqual(wrapper, StringComparer.OrdinalIgnoreCase)
+                                             && string.Equals(e[depth - 2], project, StringComparison.OrdinalIgnoreCase);
+            if (code.All(InProject) && !entries.All(InProject))
+                return (string.Join('/', wrapper.Append(project)), $"{MissionsV2Folder}/{project}");
+
+            return (string.Join('/', wrapper), MissionsV2Folder);
         }
 
         if (payload.Any(e => IsDll(e[^1])))

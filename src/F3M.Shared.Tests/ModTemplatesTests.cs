@@ -72,6 +72,15 @@ public class ModTemplatesTests
     }
 
     [Fact]
+    public void Suggest_OneMissionFolderWithAReadmeBesideIt_InstallsOnlyTheFolder()
+    {
+        var s = ModTemplates.Suggest("Price.zip",
+            ["The Price of Losing Control V0.11/readme.txt", "The Price of Losing Control V0.11/The Price of Losing Control/common.code"], "The Price of Losing Control");
+        Assert.Equal(new TemplateSuggestion(ModTemplates.MissionsV2, "CustomMissions2/The Price of Losing Control",
+            "The Price of Losing Control V0.11/The Price of Losing Control"), s);
+    }
+
+    [Fact]
     public void Suggest_JsonMissions_GoIntoCustomMissions()
     {
         var s = ModTemplates.Suggest("brat.zip", ["Brat_1.json", "Brat_2.json", "readme.txt"], "Brat Missions");
@@ -120,6 +129,32 @@ public class ModTemplatesTests
     {
         var s = ModTemplates.Suggest("data.zip", ["something.bin"], "Data");
         Assert.Equal(new TemplateSuggestion(ModTemplates.Custom, "", ""), s);
+    }
+
+    // ── TargetsOf ─────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void TargetsOf_PlainFile_IsItsTarget() =>
+        Assert.Equal(["BepInEx/plugins/A.dll"], ModTemplates.TargetsOf("A.dll", null, "", ""));
+
+    [Fact]
+    public void TargetsOf_ArchiveWithFolder_KeepsOnlyThatFolderWithoutIt() =>
+        Assert.Equal(["CustomMissions2/dropClothes/main.code"],
+            ModTemplates.TargetsOf("d.zip", ["dropClothes version 1.1/dropClothes/main.code", "readme.txt"], "CustomMissions2", "dropClothes version 1.1"));
+
+    [Fact]
+    public void TargetsOf_InvalidInput_IsNull()
+    {
+        Assert.Null(ModTemplates.TargetsOf("d.zip", ["a.code"], "../outside", ""));
+        Assert.Null(ModTemplates.TargetsOf("d.zip", ["a.code"], "", "bad|folder"));
+        Assert.Null(ModTemplates.TargetsOf("A.dll", null, "", "folder"));
+    }
+
+    [Fact]
+    public void DefaultInstallPaths_AreTheTypesFolders()
+    {
+        Assert.All(ModTemplates.All.Where(t => t.Id != ModTemplates.Custom), t => Assert.False(string.IsNullOrEmpty(t.DefaultInstallPath)));
+        Assert.Equal("", ModTemplates.Find(ModTemplates.Custom)!.DefaultInstallPath);
     }
 
     // ── Classify ──────────────────────────────────────────────────────────────

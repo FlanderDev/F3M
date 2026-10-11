@@ -27,6 +27,8 @@ public sealed class ImportController(AppDbContext db, ModUploadService uploader,
     /// <paramref name="f95OwnerUserId"/> and <paramref name="f95OwnerName"/> (who posted it on F95zone) and
     /// <paramref name="sourceUrl"/> (where). Returns the group id, or the reason as text when the upload is rejected;
     /// 422 with the warnings when the files don't match their types and <c>AcceptWarnings</c> is not set.
+    /// A file whose type is <see cref="UploadFile.AutoTemplate"/> gets its type, and without an install path also its
+    /// install path and archive folder, from its contents (<see cref="UploadFile.Recognise"/>).
     /// </summary>
     [HttpPost("upload")]
     [RequestSizeLimit(Configuration.MaxTotalSize)]
@@ -67,7 +69,9 @@ public sealed class ImportController(AppDbContext db, ModUploadService uploader,
             ownerId = existingUser ?? ModGroup.UnclaimedOwnerId;
         }
 
-        var uploadFiles = UploadFile.FromForm(files, originalNames, installPaths, archiveRoots, templates);
+        var uploadFiles = UploadFile.FromForm(files, originalNames, installPaths, archiveRoots, templates)
+            .Select(f => f.Recognise(dto.Name))
+            .ToList();
 
         var when = uploadedAt is { } at ? DateTime.SpecifyKind(at.ToUniversalTime(), DateTimeKind.Utc) : (DateTime?)null;
         var origin = new UploadOrigin(NullIfEmpty(f95OwnerUserId), NullIfEmpty(f95OwnerName), NullIfEmpty(sourceUrl));

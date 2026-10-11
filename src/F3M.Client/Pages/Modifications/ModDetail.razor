@@ -68,7 +68,13 @@ else
                                         <i class="bi bi-file-zip-fill text-warning flex-shrink-0"></i>
                                         <div class="overflow-hidden">
                                             <div class="small fw-semibold text-truncate">@f.OriginalName</div>
-                                            <div  style="font-size:.68rem;">@f.FileSizeDisplay</div>
+                                            <div  style="font-size:.68rem;">
+                                                @f.FileSizeDisplay
+                                                @if (ModTemplates.Find(f.Template) is { Id: not ModTemplates.Custom } template)
+                                                {
+                                                    <span title="@template.Description"> · @template.Name</span>
+                                                }
+                                            </div>
                                             @if (!string.IsNullOrWhiteSpace(f.InstallPath))
                                             {
                                                 <div class="f3m-install-path">

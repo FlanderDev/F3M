@@ -62,6 +62,34 @@ public static class ModFileInspector
         return new InspectionResult(sha256, size, true, placement.Target, entries);
     }
 
+    /// <summary>
+    /// The file paths inside an archive ('/' separated, as the catalog names them), without reading the files
+    /// themselves. Null when the archive cannot be read; <see cref="Inspect"/> reports why.
+    /// </summary>
+    public static List<string>? ListEntries(Stream stream)
+    {
+        try
+        {
+            using var archive = ArchiveFactory.OpenArchive(stream);
+            var paths = new List<string>();
+            foreach (var entry in archive.Entries)
+            {
+                if (entry.IsDirectory || string.IsNullOrEmpty(entry.Key))
+                    continue;
+                if (paths.Count >= MaxEntries)
+                    break;
+                if (InstallPaths.TrySplit(entry.Key, out var parts, out _) && parts.Count > 0)
+                    paths.Add(string.Join('/', parts));
+            }
+
+            return paths;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     public static PlacementKind ClassifyKind(string target)
     {
         var extension = Path.GetExtension(target);
