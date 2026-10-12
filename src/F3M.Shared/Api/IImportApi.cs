@@ -23,6 +23,13 @@ public interface IImportApi
     [Post("run")]
     Task<ImportJobDto> StartImportAsync([Body] ImportStartDto dto, CancellationToken ct = default);
 
+    /// <summary>
+    /// Downloads and imports only the frameworks of the plan: the mods that mod types need
+    /// (<see cref="Helpers.ModTemplate.RequiredModName"/>), with what they depend on. One step, for a new site.
+    /// </summary>
+    [Post("frameworks")]
+    Task<ImportJobDto> StartFrameworksAsync(CancellationToken ct = default);
+
     /// <summary>Stops the running step after the file or mod it is working on.</summary>
     [Post("cancel")]
     Task CancelAsync(CancellationToken ct = default);

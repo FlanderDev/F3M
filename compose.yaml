@@ -4,6 +4,8 @@ services:
     build:
       context: .
       target: final
+    # Starts again after a crash or a reboot of the host, until stopped with "docker compose down" or "stop".
+    restart: unless-stopped
     ports:
       # HTTP only. Put a TLS-terminating reverse proxy in front for https://f3m.felix-leander.de.
       - ${F3M_HTTP_PORT:-62444}:8080
@@ -16,7 +18,14 @@ services:
       # Set to false only when the container is reached directly, without a proxy.
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${F3M_BEHIND_PROXY:-true}
 
-      # F95zone bot account used to verify account links. Linking F95 accounts fails until these are set.
+      # The admin account: created when missing, made admin at every start. Its password is only set on creation,
+      # unless F3M_ADMIN_PASSWORD_OVERWRITE is true. Problems are logged and shown on the setup page (/admin/setup).
+      Admin__UserName: ${F3M_ADMIN_USERNAME:-}
+      Admin__Password: ${F3M_ADMIN_PASSWORD:-}
+      Admin__OverwritePassword: ${F3M_ADMIN_PASSWORD_OVERWRITE:-false}
+
+      # F95zone bot account used to verify account links. Linking F95 accounts is off until these are set, or until
+      # an admin saves an account on the setup page (which then replaces these).
       F95Bot__BaseUrl: ${F3M_F95BOT_BASE_URL:-https://f95zone.to}
       F95Bot__Username: ${F3M_F95BOT_USERNAME:-}
       F95Bot__Password: ${F3M_F95BOT_PASSWORD:-}

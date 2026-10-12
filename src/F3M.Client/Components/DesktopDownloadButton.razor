@@ -1,6 +1,7 @@
 @* Starts a download in the F3M desktop app through an f3m:// link. The app asks the user to confirm first.
    When it doesn't react (not installed, or the browser blocked the link), the button offers the app instead. *@
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 @if (Compact)
 {
@@ -63,7 +64,7 @@ else
         desktopMissing = false;
         try
         {
-            desktopMissing = !await JS.InvokeAsync<bool>("f3m.openInDesktop", DesktopLink.Download(GroupId, VersionId));
+            desktopMissing = !await JS.InvokeAsync<bool>("f3m.openInDesktop", DesktopLink.Download(GroupId, VersionId, Nav.BaseUri));
         }
         catch (JSException)
         {

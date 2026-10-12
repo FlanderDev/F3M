@@ -1,21 +1,19 @@
 ![Website Preview](https://repository-images.githubusercontent.com/1176540310/0ff85081-472b-4d34-bc6c-293e93d9d75b)
 
-# F3M: Flander's Manaka Mod Manager
+# F3M
 
-F3M is a mod hub for **Secret Flasher Manaka**. It has two parts:
+F3M is a mod hub for a BepInEx-modded Unity game. It has two parts:
 
-- **The website**, where authors upload mods and players browse and download them. It is live at **[f3m.felix-leander.de](https://f3m.felix-leander.de)**.
+- **The website**, where authors upload mods and players browse and download them.
 - **F3M Desktop**, a mod manager for Windows and Linux. It installs mods, with their dependencies, into the game folder and removes them again cleanly.
 
 > **Status: public alpha.** Expect rough edges, and mods, data or links that may still change.
 
 | | |
 |---|---|
-| Website | https://f3m.felix-leander.de |
 | Desktop app and guide | https://flanderdev.github.io/F3M/ |
 | Downloads | [Latest release](https://github.com/FlanderDev/F3M/releases/latest) |
 | Bugs and ideas | [GitHub issues](https://github.com/FlanderDev/F3M/issues) |
-| Community | [Discord](https://discord.com/invite/eSWfUezM8K) · [FlanderDev on F95zone](https://f95zone.to/members/flanderdev.2601924/) |
 
 ## Table of Contents
 
@@ -31,6 +29,8 @@ F3M is a mod hub for **Secret Flasher Manaka**. It has two parts:
   - [Database migrations](#database-migrations)
   - [Filling a local server with real mods](#filling-a-local-server-with-real-mods)
 - [Hosting your own server](#hosting-your-own-server)
+  - [Setup script](#setup-script)
+  - [Backups and updates](#backups-and-updates)
   - [Docker Compose](#docker-compose)
   - [Without Docker](#without-docker)
 - [Releases](#releases)
@@ -45,15 +45,16 @@ F3M is a mod hub for **Secret Flasher Manaka**. It has two parts:
 ### Website
 
 - [x] Browse mods with search, category filter, sorting and infinite scroll
-- [x] Mod pages with a Markdown description, versions, requirements, statistics, and links to the author's F3M and F95zone profiles
+- [x] Mod pages with a Markdown description, versions, requirements, statistics, and links to the author's F3M and community forum profiles
 - [x] Download in the browser, or open the mod straight in F3M Desktop (`f3m://` link)
-- [x] Accounts with sign-up and login, plus linking an F95zone account (verified through a post on the F95zone profile)
+- [x] Accounts with sign-up and login, plus linking a community forum account (verified through a post on the forum profile)
 - [x] Upload with versioning and dependencies. Files may be `.dll`, `.zip`, `.rar` or `.7z`.
 - [x] **Optional files:** named groups for parts a mod works without (examples, tutorials, readmes). The form suggests them and they can be marked in the install preview; F3M Desktop installs them only when a player turns a group on.
 - [x] **Mod types** for each file: BepInEx plugin, Custom Missions v1/v2, Cosplay Loader outfit, texture pack, or custom. The type fills in the install path and category, a preview shows where every file will land, and checks warn about common packaging mistakes.
-- [x] Mods imported from F95zone stay with their original authors, who claim them by signing in with their F95zone account
+- [x] Mods imported from the community forum stay with their original authors, who claim them by signing in with their forum account
 - [x] Admin page: users and roles, rebuilding the signed catalog, assigning mod owners
-- [x] F95zone import (admin): downloads about 200 community mods and imports them step by step, with progress, problems and a review of held-back mods
+- [x] Site setup (admin): a checklist of what a new site still needs, the forum bot account for account linking, and a one-click import of the frameworks
+- [x] Community import (admin): downloads about 200 community mods and imports them step by step, with progress, problems and a review of held-back mods
 - [x] User profiles
 - [ ] Mod packs
 - [ ] Collections: the collection pages (`/collection`, the builder) and `AddToCollectionButton` exist but are unused for now; no page offers adding a mod to a collection.
@@ -66,12 +67,12 @@ F3M is a mod hub for **Secret Flasher Manaka**. It has two parts:
 - [x] Profiles: several mod setups for the same game folder
 - [x] An editor for BepInEx `.cfg` settings that keeps the comments
 - [x] Works offline after the first catalog download. It only trusts a **signed** catalog.
-- [x] `f3m://` links from the website, always confirmed in the app first
+- [x] `f3m://` links from the website: registered at every start, and the first link from a site asks whether to trust it (revocable in Settings)
 - [x] Updates itself (Windows installer and Linux AppImage)
 
 ## For players
 
-1. **Prepare the game.** Install BepInEx, or use the pre-patched game linked in the [game thread](https://f95zone.to/threads/secret-flasher-manaka-v1-1-3-sheablesoft.256682/).
+1. **Prepare the game.** Install BepInEx into the game folder.
 2. **Get F3M Desktop** from the [latest release](https://github.com/FlanderDev/F3M/releases/latest):
    - Windows installer: `F3M.Desktop-win-Setup.exe`
    - Windows portable: `F3M.Desktop-win-Portable.zip`
@@ -83,7 +84,7 @@ The [project site](https://flanderdev.github.io/F3M/) has a step-by-step guide a
 
 ## For mod authors
 
-1. Sign in at https://f3m.felix-leander.de. Linking your F95zone account is recommended.
+1. Sign in on the website. Linking your community forum account is recommended.
 2. Open **Upload**, then add your files and pick a **type** for each one.
    - F3M suggests the type, install path and archive folder from the archive's contents.
    - The preview shows where every file will go.
@@ -91,7 +92,7 @@ The [project site](https://flanderdev.github.io/F3M/) has a step-by-step guide a
    - The Custom Missions framework, the Cosplay Loader or Texture Replacer is added automatically for the matching type.
 4. Review any warnings, confirm them if they're intended, and publish. New versions are uploaded from the mod's page.
 
-Did someone import your mod from F95zone? Sign in with, or link, the F95zone account that posted it. The mod becomes yours automatically.
+Did someone import your mod from the community forum? Sign in with, or link, the forum account that posted it. The mod becomes yours automatically.
 
 ## Project structure
 
@@ -105,11 +106,15 @@ F3M/
 │   ├── F3M.Desktop/        # Avalonia desktop mod manager (Windows/Linux)
 │   ├── F3M.sln
 │   └── global.json         # .NET SDK pin
-├── import/                 # F95zone import: docs, the community mod list, the old Python scripts (see import/README.md)
+├── import/                 # Community import: docs, the community mod list, the old Python scripts (see import/README.md)
 ├── docs/                   # Project site (GitHub Pages)
 ├── .github/workflows/      # Release builds: server, Windows installer (Velopack), Linux AppImage
 ├── Dockerfile              # Multi-stage Alpine build of the server
 ├── compose.yaml            # Docker Compose setup
+├── setup.sh                # Interactive server setup: writes .env, builds and starts the container
+├── backup.sh               # Backs up the server's data and .env, or restores a backup
+├── update.sh               # Pulls the newest code, rebuilds and restarts the server
+├── scripts/                # Helpers shared by the three scripts
 └── .env.example            # Every setting the container needs
 ```
 
@@ -145,8 +150,8 @@ The server starts at `https://localhost:62444` and `http://localhost:62445` (see
 In the **Development** environment:
 - The database, uploads, catalog and signing key are created on first start under `src/F3M.Server/Storage/` (git-ignored).
 - The catalog signing key uses a development password, so no configuration is needed.
-- Debug builds create a debug admin with user name and password `F3M`.
-- **F95zone linking** needs an F95zone bot account in `F95Bot__*`. Set it in `appsettings.Development.json` or user secrets, and never commit it. Without one, linking fails; everything else works.
+- `launchSettings.json` sets a local admin with user name and password `F3M` (`Admin__UserName`, `Admin__Password`).
+- **Forum account linking** needs a forum bot account. Enter it on the setup page (`/admin/setup`), or set `F95Bot__*` in `appsettings.Development.json` or user secrets, and never commit it. Without one, linking is off; everything else works.
 
 ### Run the desktop app
 
@@ -176,24 +181,36 @@ dotnet dnx -y dotnet-ef@10.0.12 -- migrations add InitialCreate
 
 ### Filling a local server with real mods
 
-Sign in as the debug admin and open **Admin Panel → F95zone import** (`/admin/import`). It works from the import plan shipped with the server (`src/F3M.Server/Import/import-plan.json`), one step at a time:
+Sign in as the local admin and open the import page in the **Admin Panel** (`/admin/import`). It works from the import plan shipped with the server (`src/F3M.Server/Import/import-plan.json`), one step at a time:
 
-1. **Download the files:** about 200 community mods from F95zone (about 110 MB), only what is missing.
-2. **Import the mods:** dependencies first, as unclaimed mods that go to their F95zone uploaders when they sign in.
+1. **Download the files:** about 200 community mods (about 110 MB), only what is missing.
+2. **Import the mods:** dependencies first, as unclaimed mods that go to their original uploaders when they sign in.
 3. **Review the held-back mods:** tick the ones whose warnings are fine, then import them.
 
 See [import/README.md](import/README.md) for every field of the plan, how imported mods are owned, and the old Python scripts that do the same from the command line.
 
 ## Hosting your own server
 
+### Setup script
+
+On a Linux host with Docker, `./setup.sh` does the steps below interactively: it asks for the settings (and can generate the catalog key password), writes `.env`, builds and starts the container, and waits until the server is healthy. Run it again to change settings; the values in `.env` are offered as defaults.
+
+```bash
+./setup.sh
+```
+
 ### Docker Compose
 
-1. Copy `.env.example` to `.env` and set at least `F3M_CATALOG_KEY_PASSWORD`. Every setting is described there.
+1. Copy `.env.example` to `.env` and set at least `F3M_CATALOG_KEY_PASSWORD`, `F3M_ADMIN_USERNAME` and `F3M_ADMIN_PASSWORD`. Every setting is described there.
 2. Run:
 
 ```bash
 docker compose up --build -d
 ```
+
+3. Sign in as that admin and open **Admin Panel → Site setup** (`/admin/setup`). Its checklist shows what is left: the forum bot account that account linking needs, and the frameworks to import.
+
+**The admin account** is created at the first start, or an existing account of that name becomes admin. It is made admin again at every start and can't be demoted on the site. Its password is only set when the account is created; `F3M_ADMIN_PASSWORD_OVERWRITE=true` resets it at every start, for when it was lost.
 
 **Network:**
 - The container serves plain HTTP on port `8080`, published on the host as `http://localhost:62444` (change it with `F3M_HTTP_PORT`).
@@ -203,13 +220,29 @@ docker compose up --build -d
 
 > **Back up the signing key (`Storage/Secrets/`) together with its password.** Installed desktop apps trust the first key they see. If the key is lost, they can no longer verify the catalog.
 
+**Health:** `/healthz` answers `Healthy` (200) while the database opens, the storage takes writes and the signing key opens with its password, and `Unhealthy` (503) otherwise; the reason is in the log. The image's Docker `HEALTHCHECK` uses it, so `docker ps` shows the server as healthy or unhealthy.
+
+### Backups and updates
+
+`./backup.sh` writes one `.tar.gz` into `backups/` with the storage volume (database, uploads, catalog, signing key) and `.env` (the key's password). The server stops for the few seconds the copy takes, so the database is consistent. Keep the archive private: it holds the passwords.
+
+```bash
+./backup.sh                      # make a backup
+./backup.sh --keep 14            # ... and keep only the 14 newest
+./backup.sh --restore backups/f3m-backup-20261012-040000.tar.gz
+```
+
+The import's downloads are left out unless `--with-downloads` is given; they can be downloaded again. Making a backup asks nothing, so it can run from cron (`0 4 * * * /path/to/F3M/backup.sh --keep 14`). `./backup.sh --help` lists every option.
+
+`./update.sh` fetches the branch's newest commits, offers a backup, rebuilds and restarts the container, and waits until it is healthy. If the new version doesn't start, it prints how to go back to the previous one. `--yes` asks nothing, makes the backup, and only rebuilds when there is something new.
+
 ### Without Docker
 
 ```bash
 dotnet publish src/F3M.Server -c Release -o ./publish
 ```
 
-Run `publish/F3M.Server.dll` with the ASP.NET Core 10 runtime. Set `Catalog__KeyPassword` and, optionally, `F95Bot__*` as environment variables.
+Run `publish/F3M.Server.dll` with the ASP.NET Core 10 runtime. Set `Catalog__KeyPassword`, `Admin__UserName` and `Admin__Password` (optionally `Admin__OverwritePassword` and `F95Bot__*`) as environment variables.
 
 Ready-made server builds are also attached to every release. They come framework-dependent or self-contained, for Linux and Windows.
 
@@ -226,7 +259,7 @@ Day-to-day work happens on `develop` and feature branches.
 
 | Document | What's in it |
 |---|---|
-| [import/README.md](import/README.md) | Importing community mods from F95zone: the admin page, the import plan and its fields (optional groups included), ownership of imported mods |
+| [import/README.md](import/README.md) | Importing community mods: the admin page, the import plan and its fields (optional groups included), ownership of imported mods |
 | [Project site](https://flanderdev.github.io/F3M/) | Player guide, FAQ and downloads |
 
 ## Contributing

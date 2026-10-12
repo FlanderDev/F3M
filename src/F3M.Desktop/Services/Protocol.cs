@@ -7,8 +7,16 @@ using Microsoft.Win32;
 
 namespace F3M.Desktop.Services;
 
-/// <summary>A request from a browser link. The app confirms every one before it acts (plan 9.6).</summary>
-public abstract record ProtocolRequest;
+/// <summary>
+/// A request from a browser link. Links name the site they come from (<see cref="Server"/>); the app asks the first
+/// time it sees a site whether to trust it, and links without a site are confirmed one by one (plan 9.6).
+/// </summary>
+public abstract record ProtocolRequest
+{
+    /// <summary>The site the link names, as an origin (https://host[:port]); null for links from older sites.</summary>
+    /// <remarks>Claimed by the link, not proven: any page can name any site. It says where to look the mod up.</remarks>
+    public string? Server { get; init; }
+}
 
 /// <summary>Open the mod's detail in Browse. <c>mod</c> is a group ID.</summary>
 public sealed record OpenModRequest(int GroupId) : ProtocolRequest;
@@ -48,9 +56,9 @@ public static class ProtocolLinks
 
         var allowed = action switch
         {
-            "open" => new[] { "mod" },
-            "download" => new[] { "mod", "version" },
-            "import-profile" => new[] { "mods", "name" },
+            "open" => new[] { "mod", DesktopLink.ServerParameter },
+            "download" => new[] { "mod", "version", DesktopLink.ServerParameter },
+            "import-profile" => new[] { "mods", "name", DesktopLink.ServerParameter },
             _ => null,
         };
         if (allowed is null)
@@ -83,6 +91,28 @@ public static class ProtocolLinks
             }
         }
 
+        string? server = null;
+        if (parameters.TryGetValue(DesktopLink.ServerParameter, out var rawServer))
+        {
+            if (!DesktopLink.TryNormalizeServer(Uri.UnescapeDataString(rawServer), out var origin))
+            {
+                error = "The link names a site that is not a valid web address.";
+                return false;
+            }
+            server = origin;
+        }
+
+        if (!TryBuild(action, parameters, out request, out error) || request is null)
+            return false;
+
+        request = request with { Server = server };
+        return true;
+    }
+
+    private static bool TryBuild(string action, Dictionary<string, string> parameters, out ProtocolRequest? request, out string? error)
+    {
+        request = null;
+        error = null;
         switch (action)
         {
             case "open":
@@ -139,6 +169,47 @@ public static class ProtocolRegistration
             throw new UserException("Link registration is not supported on this system.");
     }
 
+    /// <summary>
+    /// Called at every start: registers f3m:// links for this executable unless they already open it, so links keep
+    /// working after an install, a move or a factory reset. Returns false when registration failed (it is logged).
+    /// </summary>
+    public static bool EnsureRegistered(string executable)
+    {
+        if (string.IsNullOrEmpty(executable)) return false;
+
+        try
+        {
+            if (IsRegisteredFor(executable)) return true;
+            Register(executable);
+            AppLog.Info($"Registered f3m:// links for {executable}.");
+            return true;
+        }
+        catch (Exception ex) when (ex is UserException or IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            AppLog.Error("f3m:// links could not be registered at startup", ex);
+            return false;
+        }
+    }
+
+    /// <summary>True when f3m:// links already start exactly this executable.</summary>
+    public static bool IsRegisteredFor(string executable)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            using var command = Registry.CurrentUser.OpenSubKey(WindowsKey + @"\shell\open\command");
+            return command?.GetValue(string.Empty) as string == WindowsCommand(executable);
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            return File.Exists(LinuxDesktopFile)
+                   && File.ReadAllText(LinuxDesktopFile) == LinuxEntry(executable)
+                   && Query("xdg-mime", "query", "default", "x-scheme-handler/f3m") == "f3m-desktop.desktop";
+        }
+
+        return false;
+    }
+
     private const string WindowsKey = @"Software\Classes\f3m";
 
     private static string LinuxDesktopFile =>
@@ -177,26 +248,49 @@ public static class ProtocolRegistration
         root.SetValue("URL Protocol", string.Empty);
         using (var icon = root.CreateSubKey("DefaultIcon")) icon.SetValue(string.Empty, $"\"{executable}\",0");
         using var command = root.CreateSubKey(@"shell\open\command");
-        command.SetValue(string.Empty, $"\"{executable}\" \"%1\"");
+        command.SetValue(string.Empty, WindowsCommand(executable));
     }
+
+    private static string WindowsCommand(string executable) => $"\"{executable}\" \"%1\"";
+
+    private static string LinuxEntry(string executable) =>
+        "[Desktop Entry]\n" +
+        "Type=Application\n" +
+        "Name=F3M Desktop\n" +
+        $"Exec=\"{executable}\" %u\n" +
+        "Terminal=false\n" +
+        "NoDisplay=true\n" +
+        "Categories=Game;\n" +
+        "MimeType=x-scheme-handler/f3m;\n";
 
     private static void RegisterLinux(string executable)
     {
         var folder = Path.GetDirectoryName(LinuxDesktopFile)!;
         Directory.CreateDirectory(folder);
-        File.WriteAllText(LinuxDesktopFile,
-            "[Desktop Entry]\n" +
-            "Type=Application\n" +
-            "Name=F3M Desktop\n" +
-            $"Exec=\"{executable}\" %u\n" +
-            "Terminal=false\n" +
-            "NoDisplay=true\n" +
-            "Categories=Game;\n" +
-            "MimeType=x-scheme-handler/f3m;\n");
+        File.WriteAllText(LinuxDesktopFile, LinuxEntry(executable));
 
         if (!Run("xdg-mime", "default", "f3m-desktop.desktop", "x-scheme-handler/f3m"))
             throw new UserException("xdg-mime is not installed, so the link could not be registered.");
         Run("update-desktop-database", folder);
+    }
+
+    /// <summary>The trimmed output of a command; null when it can't run or fails.</summary>
+    private static string? Query(string fileName, params string[] arguments)
+    {
+        try
+        {
+            var info = new ProcessStartInfo(fileName) { UseShellExecute = false, RedirectStandardOutput = true };
+            foreach (var argument in arguments) info.ArgumentList.Add(argument);
+            using var process = Process.Start(info);
+            if (process is null) return null;
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(5000);
+            return process.ExitCode == 0 ? output.Trim() : null;
+        }
+        catch (Win32Exception)
+        {
+            return null;
+        }
     }
 
     private static bool Run(string fileName, params string[] arguments)

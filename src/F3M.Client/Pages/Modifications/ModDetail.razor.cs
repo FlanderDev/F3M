@@ -122,6 +122,12 @@ public partial class ModDetail
         }
     }
 
+    /// <summary>Tooltip of the cross next to the author: the mod belongs to nobody on F3M yet.</summary>
+    private string UnregisteredHint =>
+        group?.F95OwnerName is { Length: > 0 } uploader
+            ? $"Not registered on F3M yet. {uploader} gets this mod by signing in with their F95zone account."
+            : "Not registered on F3M yet.";
+
     private void SelectVersion(Mod ver)
     {
         selectedVersion = ver;

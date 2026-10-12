@@ -367,6 +367,10 @@ FodyWeavers.xsd
 
 # Local Docker settings, including the catalog key password
 .env
+.env.bak
+
+# Server backups made by backup.sh: they contain .env and the signing key
+/backups/
 
 # Catalog signing key (plan 5.6): never commit
 **/Storage/Secrets/

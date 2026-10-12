@@ -64,7 +64,7 @@ public partial class Collection : ComponentBase, IDisposable
     private async Task UseSetupAsync()
     {
         if (_link is null) return;
-        _desktopMissing = !await JS.InvokeAsync<bool>("f3m.openInDesktop", _link.ToProtocolUri());
+        _desktopMissing = !await JS.InvokeAsync<bool>("f3m.openInDesktop", _link.ToProtocolUri(Nav.BaseUri));
     }
 
     private async Task CopyLinkAsync()

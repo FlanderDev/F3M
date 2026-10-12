@@ -8,8 +8,9 @@
             {
                 @foreach (var item in SelectedItems)
                 {
-                    <span class="msd-chip">
+                    <span class="msd-chip" title="@item.Model.Name (ID @item.Model.Id)">
                         @item.Model.Name
+                        <span class="msd-id">#@item.Model.Id</span>
                         <button class="msd-chip__remove"
                                 @onclick:stopPropagation="true"
                                 @onclick="() => RemoveItem(item)">
@@ -68,6 +69,7 @@
                                 }
                             </span>
                             <span class="msd-list__label">@item.Model.Name</span>
+                            <span class="msd-id msd-list__id">#@item.Model.Id</span>
                         </li>
                     }
                 </ul>
@@ -172,6 +174,29 @@
         .msd-chip__remove:hover {
             opacity: 1;
         }
+
+    /* ── ID next to the name, to tell mods with the same name apart ── */
+    .msd-id {
+        font-size: .72rem;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        opacity: .7;
+    }
+
+    .msd-list__label {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .msd-list__id {
+        flex-shrink: 0;
+        color: var(--msd-muted);
+        opacity: 1;
+    }
+
+    .msd-list__item:hover .msd-list__id {
+        color: inherit;
+    }
 
     .msd-placeholder {
         color: var(--msd-muted);

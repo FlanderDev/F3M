@@ -98,7 +98,7 @@
     private async Task UseSetupAsync()
     {
         if (Store.ToLink() is not { } link) return;
-        _desktopMissing = !await JS.InvokeAsync<bool>("f3m.openInDesktop", link.ToProtocolUri());
+        _desktopMissing = !await JS.InvokeAsync<bool>("f3m.openInDesktop", link.ToProtocolUri(Nav.BaseUri));
     }
 
     private async Task CopyLinkAsync(CollectionLink link)

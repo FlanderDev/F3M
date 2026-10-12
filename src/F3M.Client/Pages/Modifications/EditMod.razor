@@ -3,9 +3,9 @@
 @inject IModsApi ModsApi
 @inject NavigationManager Nav
 
-<PageTitle>F3M - EditMod</PageTitle>
+<PageTitle>F3M - Edit Mod</PageTitle>
 
-<div class="py-4 mx-4">
+<div class="container py-5">
 
     @if (loading)
     {
@@ -53,16 +53,19 @@
             <EditForm Model="dto" OnValidSubmit="HandleSave">
                 <DataAnnotationsValidator />
 
+                <!-- Mod name -->
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Mod Name <span class="text-danger">*</span></label>
-                    <InputText class="form-control f3m-input" @bind-Value="dto.Name" />
+                    <InputText class="form-control f3m-input" placeholder="e.g. HD Texture Overhaul" @bind-Value="dto.Name" />
                     <ValidationMessage For="@(() => dto.Name)" class="text-danger small mt-1 d-block" />
                 </div>
 
+                <!-- Version + category -->
                 <div class="row g-3 mb-3">
                     <div class="col-4">
-                        <label class="form-label fw-semibold small">Version</label>
+                        <label class="form-label fw-semibold small">Version <span class="text-danger">*</span></label>
                         <InputText class="form-control f3m-input" placeholder="1.0.0" @bind-Value="dto.Version" />
+                        <ValidationMessage For="@(() => dto.Version)" class="text-danger small mt-1 d-block" />
                     </div>
                     <div class="col-8">
                         <label class="form-label fw-semibold small">Category</label>
@@ -75,21 +78,97 @@
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label fw-semibold small">Description</label>
-                    @* <InputTextArea class="form-control f3m-input" rows="4" @bind-Value="dto.Description" /> *@
+                <!-- Description -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Description <span class="text-danger">*</span></label>
                     <ManualMarkdown @bind-Value="dto.Description" />
-                    <div  style="font-size:.72rem;">@(dto.Description?.Length ?? 0)/1000</div>
+                    <ValidationMessage For="@(() => dto.Description)" class="text-danger small mt-1 d-block" />
                 </div>
 
-                <div class="mb-4">
+                <!-- Preview image -->
+                <div class="mb-3">
+                    <PickerImage HintText="optional"
+                                 @bind-ImageBytes="imageBytes"
+                                 @bind-ImageFileName="imageFileName"
+                                 @bind-PreviewDataUrl="previewDataUrl" />
+                </div>
+
+                <!-- Mod files: fixed per version -->
+                @if (mod.Files.Count > 0)
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small mb-1">
+                            Mod Files <span class="fw-normal">— to change files, <a href="@Paths.UploadForGroup(mod.ModGroupId)" class="text-warning">upload a new version</a></span>
+                        </label>
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var file in mod.Files)
+                            {
+                                <div class="f3m-file-entry">
+                                    <div class="f3m-file-entry-top">
+                                        <i class="bi bi-file-zip-fill text-warning fs-5 flex-shrink-0"></i>
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <div class="fw-semibold small text-truncate">@file.OriginalName</div>
+                                            <div style="font-size:.7rem;">@file.FileSizeDisplay</div>
+                                        </div>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(file.InstallPath))
+                                    {
+                                        <div class="f3m-file-entry-path">
+                                            <i class="bi bi-folder2 flex-shrink-0" style="font-size:.8rem;"></i>
+                                            <span class="f3m-path-input" style="cursor:default;">@file.InstallPath</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- Optional files: examples, tutorials, readmes -->
+                @if (ShippedPaths.Count > 0)
+                {
+                    <div class="mb-3">
+                        <OptionalGroupsEditor Groups="optionalGroups"
+                                              ShippedPaths="ShippedPaths"
+                                              Check="OptionalCheck"
+                                              Dismissed="dismissedSuggestions"
+                                              HasPreview="false"
+                                              OnChanged="StateHasChanged" />
+                    </div>
+                }
+
+                <!-- Mod Dependencies -->
+                <div class="mb-3">
                     <label class="form-label fw-semibold small">Mods which this mod depends on</label>
                     <MultiSelectDropdown TModel="Mod"
                                          LoadValuesAsync="LoadMultiSelectDropdownValues"
-                                         @bind-SelectedItems="selectedDependencyItems"
-                                         OnDropdownClosed="e => SetDependencies(e)" />
+                                         SelectedItems="selectedDependencyItems"
+                                         SelectedItemsChanged="SetDependencies" />
                 </div>
 
+                @if (RequirementWarnings is { Count: > 0 } requirementWarnings)
+                {
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <div class="fw-semibold mb-1">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Please check before saving
+                        </div>
+                        <ul class="mb-0 ps-3">
+                            @foreach (var warning in requirementWarnings)
+                            {
+                                <li>@warning</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (OptionalCheck.Error is { } optionalError)
+                {
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Fix the optional files before saving: @optionalError
+                    </div>
+                }
+
+                <!-- Save error -->
                 @if (saveError is not null)
                 {
                     <div class="alert alert-danger py-2 small mb-3">
@@ -97,8 +176,9 @@
                     </div>
                 }
 
+                <!-- Save -->
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-warning fw-bold flex-grow-1" disabled="@saving">
+                    <button type="submit" class="btn btn-warning fw-bold flex-grow-1" disabled="@(saving || OptionalCheck.Error is not null)">
                         @if (saving)
                         {
                             <span class="spinner-border spinner-border-sm me-2"></span>
@@ -113,38 +193,6 @@
                 </div>
             </EditForm>
         </div>
-
-        <!-- File list (read-only display; new files are added via Upload New Version) -->
-        @if (mod.Files.Count > 0)
-        {
-            <div class="f3m-surface rounded-3 p-4 border mt-3" style="border-color:var(--f3m-border);">
-                <h6 class="fw-bold mb-3">
-                    <i class="bi bi-files me-2 text-warning"></i>Files in this version
-                    <span class="fw-normal small ms-1">(to change files, upload a new version)</span>
-                </h6>
-                <div class="d-flex flex-column gap-2">
-                    @foreach (var file in mod.Files)
-                    {
-                        <div class="f3m-file-entry">
-                            <div class="f3m-file-entry-top">
-                                <i class="bi bi-file-zip-fill text-warning fs-5 flex-shrink-0"></i>
-                                <div class="flex-grow-1 overflow-hidden">
-                                    <div class="fw-semibold small text-truncate">@file.OriginalName</div>
-                                    <div  style="font-size:.7rem;">@file.FileSizeDisplay</div>
-                                </div>
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(file.InstallPath))
-                            {
-                                <div class="f3m-file-entry-path">
-                                    <i class="bi bi-folder2 flex-shrink-0" style="font-size:.8rem;"></i>
-                                    <span class="f3m-path-input" style="cursor:default;">@file.InstallPath</span>
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
-            </div>
-        }
     }
 </div>
 
