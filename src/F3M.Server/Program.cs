@@ -2,6 +2,7 @@ using F3M.Server.Data;
 using F3M.Server.Models;
 using F3M.Server.Services;
 using F3M.Server.Services.Import;
+using F3M.Server.Services.Setup;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -56,8 +57,15 @@ builder.Services
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-// F95Service holds the XenForo login session (cookie jar) — must be singleton.
+// F95Service holds the XenForo login session (cookie jar) — must be singleton. Its bot account comes from
+// F95BotSettings: saved on the setup page, or else the F95Bot settings.
+builder.Services.AddSingleton<F95BotSettings>();
 builder.Services.AddSingleton<F95Service>();
+
+// The admin account from the settings (Admin__UserName / F3M_ADMIN_USERNAME), made sure of at every start.
+builder.Services.Configure<AdminAccountOptions>(builder.Configuration.GetSection(AdminAccountOptions.SectionName));
+builder.Services.AddSingleton<AdminAccount>();
+builder.Services.AddScoped<ISetupApi, SetupService>();
 
 // ProfileService needs the current HttpContext to resolve "the current user".
 builder.Services.AddHttpContextAccessor();
@@ -89,6 +97,9 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddAuthorizationBuilder();
+
+// /healthz: database, storage and signing key. Used by Docker's HEALTHCHECK and the server scripts.
+builder.Services.AddHealthChecks().AddCheck<SiteHealthCheck>("site");
 builder.Services.AddValidation();
 
 var app = builder.Build();
@@ -163,28 +174,9 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
     await scope.ServiceProvider.GetRequiredService<CatalogService>().InitializeAsync();
 
-    // Seed a debug admin user for local development/testing
-#if DEBUG
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-    var name = nameof(F3M);
-    var existingDebugUser = await userManager.FindByNameAsync(name);
-    if (existingDebugUser is null)
-    {
-        var newDebugUser = new AppUser
-        {
-            UserName = name,
-            Email = $"{name}-admin@example.com",
-            RegisteredAt = DateTime.UtcNow,
-        };
-        newDebugUser.PasswordHash = userManager.PasswordHasher.HashPassword(newDebugUser, name);
-
-        var createResult = await userManager.CreateAsync(newDebugUser);
-        if (createResult.Succeeded)
-            await userManager.AddToRoleAsync(newDebugUser, AppRoles.Admin);
-        else
-            throw new Exception($"Failed to create debug admin user: {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
-    }
-#endif
+    // The admin account from the settings. Local development sets F3M / F3M in launchSettings.json.
+    await scope.ServiceProvider.GetRequiredService<AdminAccount>()
+        .EnsureAsync(scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>());
 }
 
 if (app.Environment.IsDevelopment())
@@ -243,6 +235,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHealthChecks("/healthz");
 app.MapRazorPages();
 app.MapControllers();
 app.MapFallbackToFile("index.html", clientFiles);

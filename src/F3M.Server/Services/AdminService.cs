@@ -1,6 +1,7 @@
 using F3M.Server.Data;
 using F3M.Server.Helpers;
 using F3M.Server.Models;
+using F3M.Server.Services.Setup;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Models;
@@ -22,6 +23,7 @@ public class AdminService(
     IHttpContextAccessor httpContextAccessor,
     CatalogService catalog,
     ModOwnershipService ownership,
+    AdminAccount adminAccount,
     ILogger<AdminService> logger) : IAdminApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
@@ -75,6 +77,9 @@ public class AdminService(
                    ?? throw new KeyNotFoundException($"No user with id {id} was found.");
 
         var isAdmin = await userManager.IsInRoleAsync(user, AppRoles.Admin);
+        if (isAdmin && adminAccount.Is(user.UserName))
+            throw new InvalidOperationException(SettingsAdmin(user));
+
         var roleResult = isAdmin
             ? await userManager.RemoveFromRoleAsync(user, AppRoles.Admin)
             : await userManager.AddToRoleAsync(user, AppRoles.Admin);
@@ -109,12 +114,18 @@ public class AdminService(
         var user = await userManager.FindByIdAsync(id.ToString())
                    ?? throw new KeyNotFoundException($"No user with id {id} was found.");
 
+        if (adminAccount.Is(user.UserName))
+            throw new InvalidOperationException(SettingsAdmin(user));
+
         var deleteResult = await userManager.DeleteAsync(user);
         if (!deleteResult.Succeeded)
             throw new InvalidOperationException(string.Join(" ", deleteResult.Errors.Select(e => e.Description)));
 
         logger.LogInformation("Admin {Caller} deleted user {Username}", callerId, user.UserName);
     }
+
+    private static string SettingsAdmin(AppUser user) =>
+        $"{user.UserName} is the admin account from the server settings (F3M_ADMIN_USERNAME). Change it there first.";
 
     public async Task<CatalogRebuildResult> RebuildCatalogAsync(CancellationToken ct = default)
     {

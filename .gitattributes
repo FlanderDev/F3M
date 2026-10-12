@@ -3,6 +3,9 @@
 ###############################################################################
 * text=auto
 
+# Shell scripts run on Linux: always LF, also in a Windows checkout.
+*.sh text eol=lf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

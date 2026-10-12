@@ -6,6 +6,9 @@ public enum ImportJobKind
     None,
     Download,
     Import,
+
+    /// <summary>Download and import of the frameworks only (setup page).</summary>
+    Frameworks,
 }
 
 /// <summary>Where one mod of the import plan stands.</summary>

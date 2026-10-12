@@ -20,6 +20,9 @@ public sealed class ImportAdminController(IImportApi api) : ImportApiControllerB
     public override Task<ActionResult<ImportJobDto>> StartImportAsync(ImportStartDto dto, CancellationToken ct)
         => Run(() => api.StartImportAsync(dto, ct));
 
+    public override Task<ActionResult<ImportJobDto>> StartFrameworksAsync(CancellationToken ct)
+        => Run(() => api.StartFrameworksAsync(ct));
+
     public override async Task<IActionResult> CancelAsync(CancellationToken ct)
     {
         await api.CancelAsync(ct);

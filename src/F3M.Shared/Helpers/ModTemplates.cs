@@ -107,6 +107,12 @@ public static class ModTemplates
     public static ModTemplate? Find(string? id) =>
         All.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>The frameworks: every <see cref="ModTemplate.RequiredModName"/>, once each, with the types that need it.</summary>
+    public static IReadOnlyList<(string Name, IReadOnlyList<ModTemplate> NeededBy)> Frameworks() =>
+        [.. All.Where(t => t.RequiredModName is not null)
+            .GroupBy(t => t.RequiredModName!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => (g.Key, (IReadOnlyList<ModTemplate>)[.. g]))];
+
     /// <summary>A known template id in its stored spelling. Empty or missing means <see cref="Custom"/>.</summary>
     public static bool TryNormalizeId(string? id, out string normalized)
     {

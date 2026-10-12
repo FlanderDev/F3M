@@ -1,3 +1,5 @@
+using F3M.Server.Services.Setup;
+using F3M.Shared.Models;
 using HtmlAgilityPack;
 using System.Net;
 using System.Text.Json;
@@ -6,55 +8,86 @@ namespace F3M.Server.Services;
 
 /// <summary>
 /// Handles all direct HTTP communication with F95zone (XenForo 2).
-/// Registered as singleton so the login cookie jar is reused across requests.
+/// Registered as singleton so the login cookie jar is reused across requests. The bot account comes from
+/// <see cref="F95BotSettings"/>; when it changes there, the next request signs in again with the new one.
 /// </summary>
-public sealed class F95Service : IDisposable
+public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logger) : IDisposable
 {
-    private sealed class F95BotConfig
-    {
-        public required string BaseUrl { get; init; }
-        public required string Username { get; init; }
-        public required string Password { get; init; }
+    private readonly ILogger<F95Service> _logger = logger;
 
-        /// <summary>Numeric user ID of the bot account (visible in its profile URL).</summary>
-        public required string UserId { get; init; }
-    }
-
-
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<F95Service> _logger;
-    private readonly F95BotConfig _config;
+    // Replaced when the bot account changes. Null until the first request.
+    private HttpClient _httpClient = null!;
+    private F95BotConfig _config = null!;
+    private int _configVersion = -1;
 
     private string? _xfToken;
     private readonly SemaphoreSlim _loginLock = new(1, 1);
     private bool _isLoggedIn;
 
-    public F95Service(IConfiguration configuration, ILogger<F95Service> logger)
+    /// <summary>Signs in again with the bot account in use, for the setup page's "Test login".</summary>
+    public async Task<BotTestResultDto> TestLoginAsync(CancellationToken ct = default)
     {
-        _logger = logger;
-        _config = configuration.GetSection("F95Bot").Get<F95BotConfig>()
-            ?? throw new InvalidOperationException("F95Bot configuration section is missing.");
+        await _loginLock.WaitAsync(ct);
+        try
+        {
+            _configVersion = -1; // a fresh session, so the test really signs in
+            _isLoggedIn = false;
+            UseCurrentAccount();
+            await LoginAsync(ct);
+            return new BotTestResultDto { Success = true, At = DateTime.UtcNow, Message = $"Signed in to {_config.BaseUrl} as {_config.Username}." };
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "The F95zone bot test login failed.");
+            var message = ex.Message.Length > 300 ? ex.Message[..300] + "…" : ex.Message;
+            return new BotTestResultDto { Success = false, At = DateTime.UtcNow, Message = message };
+        }
+        finally
+        {
+            _loginLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Starts a new session (cookie jar) when the bot account in use changed since the last sign-in. Throws
+    /// <see cref="InvalidOperationException"/> when no complete account is set up. Call under <see cref="_loginLock"/>.
+    /// </summary>
+    private void UseCurrentAccount()
+    {
+        var version = settings.Version;
+        if (version == _configVersion)
+            return;
+
+        var (config, _) = settings.Current();
+        if (!config.IsComplete)
+            throw new InvalidOperationException("No F95zone bot account is set up. An admin can add one on the setup page.");
 
         // A manually created handler with a persistent CookieContainer is required —
         // IHttpClientFactory rotates handlers and discards cookies between requests.
-        var cookieContainer = new CookieContainer();
         var handler = new HttpClientHandler
         {
-            CookieContainer = cookieContainer,
+            CookieContainer = new CookieContainer(),
             AllowAutoRedirect = true,
             UseCookies = true
         };
 
-        _httpClient = new HttpClient(handler)
+        var client = new HttpClient(handler)
         {
-            BaseAddress = new Uri(_config.BaseUrl.TrimEnd('/') + "/")
+            BaseAddress = new Uri(config.BaseUrl.TrimEnd('/') + "/")
         };
 
-        _httpClient.DefaultRequestHeaders.Add(
+        client.DefaultRequestHeaders.Add(
             "User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-        _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+        client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+
+        _httpClient?.Dispose();
+        _httpClient = client;
+        _config = config;
+        _configVersion = version;
+        _isLoggedIn = false;
+        _xfToken = null;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -78,11 +111,12 @@ public sealed class F95Service : IDisposable
 
     private async Task EnsureLoggedInAsync(CancellationToken ct)
     {
-        if (_isLoggedIn) return;
+        if (_isLoggedIn && settings.Version == _configVersion) return;
 
         await _loginLock.WaitAsync(ct);
         try
         {
+            UseCurrentAccount();
             if (_isLoggedIn) return;
             await LoginAsync(ct);
         }
@@ -116,12 +150,25 @@ public sealed class F95Service : IDisposable
 
         var body = await response.Content.ReadAsStringAsync(ct);
 
-        using var doc = JsonDocument.Parse(body);
-        if (!doc.RootElement.TryGetProperty("status", out var statusEl) ||
-            statusEl.GetString() != "ok")
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(body);
+        }
+        catch (JsonException)
         {
             throw new InvalidOperationException(
-                $"F95zone login failed. Response: {body}");
+                $"F95zone login failed: the site answered with HTTP {(int)response.StatusCode} instead of a sign-in result.");
+        }
+
+        using (doc)
+        {
+            if (!doc.RootElement.TryGetProperty("status", out var statusEl) ||
+                statusEl.GetString() != "ok")
+            {
+                throw new InvalidOperationException(
+                    $"F95zone login failed. Response: {body}");
+            }
         }
 
         // Refresh the CSRF token from the home page after a successful login.
@@ -236,7 +283,7 @@ public sealed class F95Service : IDisposable
 
     public void Dispose()
     {
-        _httpClient.Dispose();
+        _httpClient?.Dispose();
         _loginLock.Dispose();
     }
 

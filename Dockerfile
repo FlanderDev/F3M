@@ -25,4 +25,7 @@ RUN mkdir -p /app/Storage && chown -R $APP_UID:$APP_UID /app
 
 USER $APP_UID
 
+# "healthy" once the site answers and its database, storage and signing key work (see SiteHealthCheck).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3     CMD wget -q -O /dev/null http://localhost:8080/healthz || exit 1
+
 ENTRYPOINT ["dotnet", "F3M.Server.dll"]

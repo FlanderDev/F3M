@@ -1553,6 +1553,26 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
         }
 }
 
+/* ── Admin: site setup ─────────────────────────────────── */
+.f3m-setup-check {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: .65rem 0;
+}
+
+    .f3m-setup-check + .f3m-setup-check {
+        border-top: 1px solid var(--f3m-border);
+    }
+
+.f3m-setup-table {
+    --bs-table-bg: transparent;
+}
+
+    .f3m-setup-table td:first-child {
+        white-space: nowrap;
+    }
+
 /* ── Optional files: upload form, preview, mod page ─────── */
 /* Bootstrap's muted grey is unreadable on the dark surface; these editors explain a lot in it. */
 .f3m-optional-groups .text-muted,

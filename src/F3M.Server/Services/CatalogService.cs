@@ -459,6 +459,31 @@ public sealed class CatalogService(
         File.Move(temporary, path, overwrite: true);
     }
 
+    // ── Setup page ──────────────────────────────────────────────────────────
+
+    /// <summary>Whether the signing key can be read with the configured password; the problem when it can't.</summary>
+    public (bool Ok, string Message) CheckKey()
+    {
+        try
+        {
+            using var key = LoadKey();
+            return (true, $"Key \"{_opts.KeyId}\" at {_opts.KeyPath} opens with the configured password.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>When index.json was last written (null: never), and how many mods the catalog lists.</summary>
+    public (DateTime? WrittenAt, int Mods) IndexInfo()
+    {
+        var index = new FileInfo(Path.Combine(_opts.Directory, "index.json"));
+        var mods = Path.Combine(_opts.Directory, "mods");
+        var count = Directory.Exists(mods) ? Directory.GetDirectories(mods).Length : 0;
+        return (index.Exists ? index.LastWriteTimeUtc : null, count);
+    }
+
     private ECDsa LoadKey()
     {
         if (!File.Exists(_opts.KeyPath))
