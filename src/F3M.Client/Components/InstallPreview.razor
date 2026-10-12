@@ -1,4 +1,5 @@
-@* "Where will my files end up?" For archives this lists what is inside them, placed under the chosen install path. *@
+@* "Where will my files end up?" For archives this lists what is inside them, placed under the chosen install path.
+   Files and folders can be put into optional groups from here. *@
 @if (Entries.Count > 0 && _result is { } result)
 {
     <div class="f3m-preview mt-3">
@@ -6,8 +7,21 @@
             <span class="fw-semibold small">
                 <i class="bi bi-diagram-3 me-1 text-warning"></i>Where the files will end up
             </span>
-            <span class="small text-secondary">@result.FileCount file@(result.FileCount == 1 ? string.Empty : "s") · @result.TotalBytes.FileSize()</span>
+            <span class="small text-secondary">
+                @result.FileCount file@(result.FileCount == 1 ? string.Empty : "s") · @result.TotalBytes.FileSize()
+                @if (_optionalCount > 0)
+                {
+                    <span> · @_optionalCount optional</span>
+                }
+            </span>
         </div>
+
+        @if (_marking is not null && result.FileCount > 0)
+        {
+            <div class="small text-secondary mb-1">
+                <i class="bi bi-bookmark-plus me-1"></i>Use the bookmark on a file or folder to make it optional (examples, readmes).
+            </div>
+        }
 
         @foreach (var warning in result.Warnings)
         {
@@ -20,12 +34,14 @@
         }
         else
         {
-            <div class="f3m-pv-tree">
-                @foreach (var child in result.Root.Children.Values)
-                {
-                    <InstallPreviewNode @key="child.Name" Node="child" Depth="0" />
-                }
-            </div>
+            <CascadingValue Value="_marking" IsFixed="false">
+                <div class="f3m-pv-tree">
+                    @foreach (var child in result.Root.Children.Values)
+                    {
+                        <InstallPreviewNode @key="child.Name" Node="child" Depth="0" />
+                    }
+                </div>
+            </CascadingValue>
         }
     </div>
 }

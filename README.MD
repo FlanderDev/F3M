@@ -49,9 +49,11 @@ F3M is a mod hub for **Secret Flasher Manaka**. It has two parts:
 - [x] Download in the browser, or open the mod straight in F3M Desktop (`f3m://` link)
 - [x] Accounts with sign-up and login, plus linking an F95zone account (verified through a post on the F95zone profile)
 - [x] Upload with versioning and dependencies. Files may be `.dll`, `.zip`, `.rar` or `.7z`.
+- [x] **Optional files:** named groups for parts a mod works without (examples, tutorials, readmes). The form suggests them and they can be marked in the install preview; F3M Desktop installs them only when a player turns a group on.
 - [x] **Mod types** for each file: BepInEx plugin, Custom Missions v1/v2, Cosplay Loader outfit, texture pack, or custom. The type fills in the install path and category, a preview shows where every file will land, and checks warn about common packaging mistakes.
 - [x] Mods imported from F95zone stay with their original authors, who claim them by signing in with their F95zone account
 - [x] Admin page: users and roles, rebuilding the signed catalog, assigning mod owners
+- [x] F95zone import (admin): downloads about 200 community mods and imports them step by step, with progress, problems and a review of held-back mods
 - [x] User profiles
 - [ ] Mod packs
 - [ ] Collections: the collection pages (`/collection`, the builder) and `AddToCollectionButton` exist but are unused for now; no page offers adding a mod to a collection.
@@ -60,6 +62,7 @@ F3M is a mod hub for **Secret Flasher Manaka**. It has two parts:
 
 - [x] Finds the game: a running game, Steam libraries, or common folders
 - [x] One-click install and removal of mods with all their dependencies, with confirmation before anything is overwritten, and rollback
+- [x] Optional parts of a mod (examples, documentation) stay out of the game folder unless turned on per mod in the Library
 - [x] Profiles: several mod setups for the same game folder
 - [x] An editor for BepInEx `.cfg` settings that keeps the comments
 - [x] Works offline after the first catalog download. It only trusts a **signed** catalog.
@@ -102,13 +105,12 @@ F3M/
 │   ├── F3M.Desktop/        # Avalonia desktop mod manager (Windows/Linux)
 │   ├── F3M.sln
 │   └── global.json         # .NET SDK pin
-├── import/                 # Scripts and data to import community mods from F95zone (see import/README.md)
+├── import/                 # F95zone import: docs, the community mod list, the old Python scripts (see import/README.md)
 ├── docs/                   # Project site (GitHub Pages)
 ├── .github/workflows/      # Release builds: server, Windows installer (Velopack), Linux AppImage
 ├── Dockerfile              # Multi-stage Alpine build of the server
 ├── compose.yaml            # Docker Compose setup
-├── .env.example            # Every setting the container needs
-└── MODDING-ECOSYSTEM.md    # Background: the game's modding scene, frameworks, sources
+└── .env.example            # Every setting the container needs
 ```
 
 | Layer | Technology |
@@ -128,7 +130,7 @@ F3M/
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - Optional:
   - [Docker](https://www.docker.com/) for container builds;
-  - Python 3 and [7-Zip](https://www.7-zip.org/) for the import scripts.
+  - Python 3 and [7-Zip](https://www.7-zip.org/) for the old import scripts (the admin page needs neither).
 
 ### Run the website locally
 
@@ -174,16 +176,13 @@ dotnet dnx -y dotnet-ef@10.0.12 -- migrations add InitialCreate
 
 ### Filling a local server with real mods
 
-`import/` contains scripts that download about 200 community mods from F95zone and upload them to an F3M server through the admin import API:
+Sign in as the debug admin and open **Admin Panel → F95zone import** (`/admin/import`). It works from the import plan shipped with the server (`src/F3M.Server/Import/import-plan.json`), one step at a time:
 
-```bash
-cd import
-python -I tools/download.py
-python -I tools/build_manifests.py
-python -I tools/upload.py --server http://localhost:62445
-```
+1. **Download the files:** about 200 community mods from F95zone (about 110 MB), only what is missing.
+2. **Import the mods:** dependencies first, as unclaimed mods that go to their F95zone uploaders when they sign in.
+3. **Review the held-back mods:** tick the ones whose warnings are fine, then import them.
 
-See [import/README.md](import/README.md) for the options, how imported mods are owned, and how warnings are handled.
+See [import/README.md](import/README.md) for every field of the plan, how imported mods are owned, and the old Python scripts that do the same from the command line.
 
 ## Hosting your own server
 
@@ -227,8 +226,7 @@ Day-to-day work happens on `develop` and feature branches.
 
 | Document | What's in it |
 |---|---|
-| [MODDING-ECOSYSTEM.md](MODDING-ECOSYSTEM.md) | How Secret Flasher Manaka is modded: BepInEx, Custom Missions, Cosplay Loader, Texture Replacer, community sources, common packaging pitfalls, and a map of this codebase |
-| [import/README.md](import/README.md) | Importing community mods from F95zone |
+| [import/README.md](import/README.md) | Importing community mods from F95zone: the admin page, the import plan and its fields (optional groups included), ownership of imported mods |
 | [Project site](https://flanderdev.github.io/F3M/) | Player guide, FAQ and downloads |
 
 ## Contributing

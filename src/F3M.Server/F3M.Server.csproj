@@ -30,6 +30,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!-- The F95zone import plan; the server copies it to Storage/Import on first use. -->
+		<Content Remove="Import\import-plan.json" />
+		<EmbeddedResource Include="Import\import-plan.json" LogicalName="F3M.Server.Import.import-plan.json" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\F3M.Shared\F3M.Shared.csproj" />
 		<ProjectReference Include="..\F3M.Client\F3M.Client.csproj" />
 	</ItemGroup>

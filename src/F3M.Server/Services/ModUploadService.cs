@@ -81,6 +81,22 @@ public sealed record UploadFile(IFormFile Content, string? OriginalName, string?
         var targets = ModTemplates.TargetsOf(name, entries, installPath, root) ?? [];
         return this with { InstallPath = installPath, ArchiveRoot = root, Template = ModTemplates.Classify(targets) };
     }
+
+    /// <summary>The game paths the file installs with its install path and archive folder; empty when unreadable or invalid.</summary>
+    public List<string> Targets()
+    {
+        var name = Helper.SafeOriginalName(OriginalName, Content.FileName);
+        List<string>? entries = null;
+        if (InstallPaths.IsArchive(name))
+        {
+            using var stream = Content.OpenReadStream();
+            entries = ModFileInspector.ListEntries(stream);
+            if (entries is null)
+                return [];
+        }
+
+        return ModTemplates.TargetsOf(name, entries, InstallPath, ArchiveRoot) ?? [];
+    }
 }
 
 /// <summary>
@@ -182,6 +198,10 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
             generated.Add(new GeneratedPathDto { Pattern = pattern, Kind = entry.Kind });
         }
 
+        // ── Validate optional groups (what they cover needs the file contents) ──
+        if (!OptionalFileRules.TryNormalize(dto.OptionalGroups, out var optionalGroups, out var optionalError))
+            return UploadResult.Fail(optionalError ?? "The optional groups are not valid.");
+
         // ── Check the target group. It is created later, once the upload is known to be valid. ──
         ModGroup? existingGroup = null;
         if (dto.ModGroupId is { } modGroupId) // This is a new version of an existing mod
@@ -237,14 +257,21 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
 
             warnings.AddRange(await FindOverlapWarningsAsync(generated, dto.ModGroupId, ct));
 
+            // Optional groups must leave something to install; groups or patterns that match nothing are only noted.
+            var optionalReport = OptionalFileRules.Analyse(optionalGroups, targets);
+            if (optionalReport.Errors.Count > 0)
+                throw new InvalidDataException(optionalReport.Errors[0]);
+            warnings.AddRange(optionalReport.Warnings);
+
             foreach (var pattern in generated.Where(g => GeneratedPathRules.HasDeepWildcard(g.Pattern)))
                 warnings.Add($"'{pattern.Pattern}' matches at any depth. Check that it cannot reach files other mods create.");
 
-            // Files that do not look like their type are stored only once the uploader has accepted that.
+            // Files that do not look like their type are stored only once the uploader has accepted that. Optional
+            // files are not installed by default, so only the rest is checked.
             var typeWarnings = new List<string>();
             for (var i = 0; i < staged.Count; i++)
             {
-                var fileTargets = inspections[i].Entries.Select(e => e.To).ToList();
+                var fileTargets = OptionalFileRules.Installed(optionalGroups, inspections[i].Entries.Select(e => e.To));
                 typeWarnings.AddRange(ModTemplates.Check(staged[i].Template, fileTargets).Select(w => $"{staged[i].OriginalName}: {w}"));
             }
 
@@ -389,6 +416,13 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
                 Kind = g.Kind
             }));
 
+            db.ModOptionalGroups.AddRange(optionalGroups.Select(g => new ModOptionalGroup
+            {
+                ModId = mod.Id,
+                Name = g.Name,
+                Patterns = g.Patterns
+            }));
+
             await db.SaveChangesAsync(ct);
         }
         catch
@@ -433,6 +467,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
             .Include(m => m.Files)
             .Include(m => m.DependencyGroups)
             .Include(m => m.GeneratedPaths)
+            .Include(m => m.OptionalGroups)
             .FirstAsync(m => m.Id == uploaded.Id, ct);
         return new UploadResult(uploadedMod, null, false, warnings);
     }

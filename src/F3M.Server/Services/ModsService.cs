@@ -70,7 +70,7 @@ public partial class ModsService(
 
     public async Task<Mod> GetMod(int id, CancellationToken ct = default)
     {
-        var mod = await db.Mods.Include(m => m.Files).Include(m => m.DependencyGroups)
+        var mod = await db.Mods.Include(m => m.Files).Include(m => m.DependencyGroups).Include(m => m.OptionalGroups)
             .FirstOrDefaultAsync(m => m.Id == id, ct)
             ?? throw new KeyNotFoundException($"No mod with id {id} was found.");
 
@@ -104,6 +104,7 @@ public partial class ModsService(
             .Where(m => m.ModGroupId == groupId && m.IsApproved)
             .Include(m => m.Files)
             .Include(m => m.DependencyGroups)
+            .Include(m => m.OptionalGroups)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync(ct);
 
@@ -160,7 +161,7 @@ public partial class ModsService(
 
     public async Task<Mod> Edit(int id, ModEditDto dto, CancellationToken ct = default)
     {
-        var mod = await db.Mods.Include(m => m.Files).Include(m => m.DependencyGroups)
+        var mod = await db.Mods.Include(m => m.Files).Include(m => m.DependencyGroups).Include(m => m.OptionalGroups)
             .FirstOrDefaultAsync(m => m.Id == id, ct)
             ?? throw new KeyNotFoundException($"No mod with id {id} was found.");
 

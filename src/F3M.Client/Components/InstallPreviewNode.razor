@@ -1,10 +1,10 @@
 @* One row of the preview tree; folders render their children by nesting this component. *@
-<div class="f3m-pv-row @(Node.Conflict ? "f3m-pv-conflict" : string.Empty)" style="padding-left:@(Depth * 16)px">
+<div class="f3m-pv-row @(Node.Conflict ? "f3m-pv-conflict" : string.Empty) @(Node.OptionalGroup is not null ? "f3m-pv-optional" : string.Empty)"
+     style="padding-left:@(Depth * 16)px">
     @if (Node.IsFile)
     {
         <i class="bi bi-file-earmark text-secondary"></i>
         <span class="f3m-pv-name" title="@Node.Source">@Node.Name</span>
-        <span class="f3m-pv-meta">@Node.Size.FileSize()</span>
     }
     else
     {
@@ -13,15 +13,59 @@
             <i class="bi @(open ? "bi-folder2-open" : "bi-folder2") text-warning mx-1"></i>
             <span class="f3m-pv-name">@Node.Name</span>
         </button>
-        <span class="f3m-pv-meta">@Node.FileCount file@(Node.FileCount == 1 ? string.Empty : "s")</span>
+    }
+
+    @* Inside a folder of the same group, the folder's badge says it already. *@
+    @if (Node.OptionalGroup is { } group && !string.Equals(group, ParentGroup, StringComparison.OrdinalIgnoreCase))
+    {
+        <span class="f3m-pv-optional-badge" title="Optional: F3M Desktop leaves this out unless a player turns '@group' on.">
+            <i class="bi bi-bookmark-fill me-1"></i>@group
+            @if (Marking?.CanUnassign(Node) == true)
+            {
+                <button type="button" class="f3m-pv-badge-remove" aria-label="Install @Node.Name again" title="Install it again"
+                        @onclick="() => Marking.Unassign(Node)">
+                    <i class="bi bi-x"></i>
+                </button>
+            }
+        </span>
+    }
+    else if (Node.OptionalMixed)
+    {
+        <span class="f3m-pv-optional-badge mixed" title="Some files in here are optional.">@Node.OptionalCount optional</span>
+    }
+
+    <span class="f3m-pv-meta">@(Node.IsFile ? Node.Size.FileSize() : $"{Node.FileCount} file{(Node.FileCount == 1 ? string.Empty : "s")}")</span>
+
+    @if (Marking is not null)
+    {
+        <button type="button" class="f3m-pv-mark @(menuOpen ? "open" : string.Empty)" aria-label="Make @Node.Name optional"
+                title="Make optional" @onclick="() => menuOpen = !menuOpen">
+            <i class="bi bi-bookmark-plus"></i>
+        </button>
     }
 </div>
+
+@if (Marking is not null && menuOpen)
+{
+    <div class="f3m-pv-menu" style="margin-left:@(Depth * 16 + 20)px">
+        <span class="small text-secondary me-1">@(Node.IsFile ? "This file" : "This folder") is optional, in:</span>
+        @foreach (var name in Marking.GroupNames)
+        {
+            <button type="button" class="btn btn-sm btn-outline-warning py-0" @onclick="() => AssignAsync(name)"
+                    disabled="@(string.Equals(name, Node.OptionalGroup, StringComparison.OrdinalIgnoreCase))">@name</button>
+        }
+        <button type="button" class="btn btn-sm btn-outline-secondary py-0" @onclick="() => AssignAsync(null)">
+            <i class="bi bi-plus"></i>New group
+        </button>
+        <button type="button" class="btn btn-sm btn-link py-0" @onclick="() => menuOpen = false">Close</button>
+    </div>
+}
 
 @if (!Node.IsFile && open)
 {
     foreach (var child in Node.Children.Values.Take(MaxChildren))
     {
-        <InstallPreviewNode @key="child.Name" Node="child" Depth="Depth + 1" />
+        <InstallPreviewNode @key="child.Name" Node="child" Depth="Depth + 1" ParentGroup="@Node.OptionalGroup" />
     }
 
     if (Node.Children.Count > MaxChildren)

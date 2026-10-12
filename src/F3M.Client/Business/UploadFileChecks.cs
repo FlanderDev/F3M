@@ -6,7 +6,7 @@ namespace F3M.Client.Business;
 /// <summary>
 /// What would make the server reject a file of the upload form, checked before it is sent: the same rules as
 /// <see cref="InstallPaths"/> and the server's archive-folder checks. Type rules are only warnings and live in
-/// <see cref="FileEntry.TypeWarnings"/>.
+/// <see cref="FileEntry.TypeWarningsWith"/>.
 /// </summary>
 public static class UploadFileChecks
 {

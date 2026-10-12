@@ -1,6 +1,7 @@
 using F3M.Server.Data;
 using F3M.Server.Models;
 using F3M.Server.Services;
+using F3M.Server.Services.Import;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -66,6 +67,16 @@ builder.Services.AddScoped<IF95LinkApi, F95LinkService>();
 builder.Services.AddScoped<IModsApi, ModsService>();
 builder.Services.AddScoped<ModUploadService>();
 builder.Services.AddScoped<ModOwnershipService>();
+builder.Services.AddScoped<ModImportService>();
+
+// The F95zone import (admin page): one instance holds the running step, its progress and log.
+builder.Services.AddSingleton<F95ImportService>();
+builder.Services.AddSingleton<IImportApi>(sp => sp.GetRequiredService<F95ImportService>());
+builder.Services.AddHttpClient(F95ImportService.HttpClientName, client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(10);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (F3M import)");
+});
 
 builder.Services
         .AddAuthentication(IdentityConstants.ApplicationScheme)

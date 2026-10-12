@@ -43,7 +43,8 @@ public sealed record ModDetail(
     string Size,
     string Dependencies,
     string Published,
-    string? Unsupported);
+    string? Unsupported,
+    string? OptionalParts = null);
 
 public sealed partial class BrowseViewModel : ObservableObject
 {
@@ -259,7 +260,10 @@ public sealed partial class BrowseViewModel : ObservableObject
                 FileOps.FormatBytes(doc.Files.Sum(f => f.Size)),
                 dependencies.Count == 0 ? "None" : string.Join(", ", dependencies),
                 doc.PublishedAt.ToString("yyyy-MM-dd"),
-                unsupported);
+                unsupported,
+                unsupported is null && PlacementRules.OptionalGroupSizes(doc) is { Count: > 0 } parts
+                    ? string.Join(", ", parts.Select(p => $"{p.Name} ({p.Files} file{(p.Files == 1 ? "" : "s")})"))
+                    : null);
         }
         catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException)
         {
