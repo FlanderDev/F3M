@@ -96,7 +96,7 @@
                     <div class="f3m-file-entry-target @(IsValidPath(entry) ? string.Empty : "text-danger")">
                         <i class="bi bi-arrow-return-right me-1"></i>@TargetHint(entry)
                     </div>
-                    @foreach (var warning in entry.TypeWarnings)
+                    @foreach (var warning in entry.TypeWarningsWith(NormalizedGroups))
                     {
                         <div class="f3m-file-entry-target text-warning">
                             <i class="bi bi-exclamation-triangle me-1"></i>@warning
@@ -132,5 +132,8 @@
         <p class="text-danger small mt-1">@Error</p>
     }
 
-    <InstallPreview Entries="Entries" />
+    <InstallPreview Entries="Entries"
+                    OptionalGroups="OptionalGroups"
+                    NormalizedGroups="NormalizedGroups"
+                    OnOptionalGroupsChanged="OnOptionalGroupsChanged" />
 </div>

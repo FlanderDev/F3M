@@ -79,6 +79,9 @@ public class Mod : IId, IName
     /// <summary>Patterns for files this version creates at runtime (plan 5.8).</summary>
     public List<ModGeneratedPath> GeneratedPaths { get; set; } = [];
 
+    /// <summary>Parts of the version the mod does not need, such as examples. Not deployed unless turned on.</summary>
+    public List<ModOptionalGroup> OptionalGroups { get; set; } = [];
+
     /// <summary>
     /// ModGroups (logical mods) that this version depends on — persisted. Points at the group,
     /// not a specific version, so a dependency always follows that mod's current latest version
@@ -171,6 +174,9 @@ public class ModUploadDto
 
     /// <summary>Files the mod creates at runtime that are not part of the archive (plan 5.8).</summary>
     public List<GeneratedPathDto> GeneratedPaths { get; set; } = [];
+
+    /// <summary>Named parts of the upload the mod does not need, such as examples or documentation.</summary>
+    public List<OptionalGroupDto> OptionalGroups { get; set; } = [];
 
     /// <summary>
     /// The uploader has seen the warnings about the files' types and uploads anyway. Without it, an upload with such

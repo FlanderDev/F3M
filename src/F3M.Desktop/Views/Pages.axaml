@@ -24,6 +24,22 @@
                     <TextBlock Text="{Binding State}" Classes="muted" />
                     <TextBlock Text="{Binding RequiredBy, StringFormat='Dependency of {0}'}"
                                Classes="muted" IsVisible="{Binding IsDependency}" />
+                    <StackPanel Spacing="2" Margin="0,4,0,0" IsVisible="{Binding HasOptionalParts}">
+                      <TextBlock Classes="muted" Text="Optional parts, installed only when ticked:" />
+                      <ItemsControl ItemsSource="{Binding OptionalParts}">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <WrapPanel />
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate DataType="vm:OptionalPartToggle">
+                            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsOn}" Margin="0,0,14,0"
+                                      ToolTip.Tip="Files the mod works without, such as examples or readmes. Ticked parts go into the game folder on the next Deploy." />
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
                   </StackPanel>
                   <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Button Content="Config" Command="{Binding ConfigCommand}" IsVisible="{Binding HasConfig}"
@@ -105,6 +121,9 @@
           <TextBlock Text="{Binding Detail.Published, StringFormat='Published {0}'}" Classes="muted" />
           <TextBlock Text="{Binding Detail.Size, StringFormat='Download size {0}'}" Classes="muted" />
           <TextBlock Text="{Binding Detail.Dependencies, StringFormat='Requires: {0}'}" Classes="muted" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Detail.OptionalParts, StringFormat='Optional parts (off unless ticked in the Library): {0}'}"
+                     Classes="muted" TextWrapping="Wrap"
+                     IsVisible="{Binding Detail.OptionalParts, Converter={x:Static ObjectConverters.IsNotNull}}" />
           <Border Classes="badge" HorizontalAlignment="Left">
             <TextBlock Text="{Binding Detail.Category}" />
           </Border>

@@ -32,6 +32,12 @@ public sealed class ProfileDef
     /// <summary>groupId to versionId. Local only; pins are never shared.</summary>
     public Dictionary<int, int> Pins { get; set; } = [];
 
+    /// <summary>
+    /// groupId to the optional groups (examples, documentation) the player turned on for that mod. Optional files of
+    /// every other group stay out of the game folder. Local only, like pins.
+    /// </summary>
+    public Dictionary<int, List<string>> OptionalGroups { get; set; } = [];
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
@@ -53,6 +59,9 @@ public sealed class DeployedMod
     public DateTimeOffset DeployedAt { get; set; }
     public List<DeployedFile> Files { get; set; } = [];
     public List<GeneratedPathRef> GeneratedPaths { get; set; } = [];
+
+    /// <summary>The optional groups that were turned on when it was deployed; their files are in <see cref="Files"/>.</summary>
+    public List<string> OptionalGroups { get; set; } = [];
 
     /// <summary>Directories this deploy created, removed again when the mod leaves if they are empty.</summary>
     public List<string> CreatedDirectories { get; set; } = [];
