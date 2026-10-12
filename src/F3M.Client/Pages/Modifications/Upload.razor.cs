@@ -190,7 +190,8 @@ public partial class Upload
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        Categories = [.. await ModsApi.GetCategories(), .. Configuration.DefaultCategories];
+        // The default categories first, then any other the site already uses; each once.
+        Categories = [.. Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()).Distinct(StringComparer.OrdinalIgnoreCase)];
 
         if (GroupId is not int groupId)
             return;
