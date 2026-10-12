@@ -19,7 +19,8 @@ public sealed record VersionDocument(
     string? PreviewUrl,
     IReadOnlyList<VersionFile> Files,
     IReadOnlyList<DependencyRef> Dependencies,
-    IReadOnlyList<GeneratedPathRef> GeneratedPaths);
+    IReadOnlyList<GeneratedPathRef> GeneratedPaths,
+    IReadOnlyList<OptionalGroupRef>? OptionalGroups = null);
 
 public sealed record VersionFile(
     int FileId,
@@ -36,6 +37,12 @@ public sealed record PlacementRef(string From, string To, string Sha256, long Si
 public sealed record DependencyRef(int GroupId, string Version);
 
 public sealed record GeneratedPathRef(string Pattern, string Kind);
+
+/// <summary>
+/// A named part of the version the mod does not need (examples, documentation). Placements matching its patterns are
+/// left out of a deploy unless the player turns the group on. Missing in documents published before groups existed.
+/// </summary>
+public sealed record OptionalGroupRef(string Name, IReadOnlyList<string> Patterns);
 
 public sealed record IndexDocument(int Schema, DateTime GeneratedAt, IReadOnlyList<IndexGroup> Groups);
 

@@ -32,6 +32,7 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 
 builder.Services.AddScoped<IProfileApi, HttpProfileApi>();
 builder.Services.AddScoped<IAdminApi, HttpAdminApi>();
+builder.Services.AddScoped<IImportApi, HttpImportApi>();
 builder.Services.AddScoped<ITelemetryApi, HttpTelemetryApi>();
 builder.Services.AddScoped<IF95LinkApi, HttpF95LinkApi>();
 builder.Services.AddScoped<IModsApi, HttpModsApi>();

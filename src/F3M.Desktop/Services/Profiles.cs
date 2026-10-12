@@ -61,15 +61,20 @@ public sealed class Profiles(AppServices app)
     {
         var copy = Create(source.Name + " copy", source.GroupIds);
         copy.Pins = new Dictionary<int, int>(source.Pins);
+        copy.OptionalGroups = source.OptionalGroups.ToDictionary(p => p.Key, p => p.Value.ToList());
         Save(copy);
         return copy;
     }
 
-    /// <summary>Builds a profile from what is deployed right now. Pins are not carried over.</summary>
+    /// <summary>Builds a profile from what is deployed right now, with its optional groups. Pins are not carried over.</summary>
     public ProfileDef CaptureDeployed()
     {
         var state = app.Deploy.LoadState();
-        return Create("Captured setup", state.Mods.Select(m => m.GroupId));
+        var profile = Create("Captured setup", state.Mods.Select(m => m.GroupId));
+        profile.OptionalGroups = state.Mods.Where(m => m.OptionalGroups.Count > 0).ToDictionary(m => m.GroupId, m => m.OptionalGroups.ToList());
+        if (profile.OptionalGroups.Count > 0)
+            Save(profile);
+        return profile;
     }
 
     public void Save(ProfileDef profile) => FileOps.WriteJsonAtomic(Path.Combine(Folder, profile.Id + ".json"), profile);

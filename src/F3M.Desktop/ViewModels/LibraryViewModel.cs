@@ -6,6 +6,29 @@ using F3M.Desktop.Services;
 
 namespace F3M.Desktop.ViewModels;
 
+/// <summary>An optional group of a mod (examples, documentation), turned on or off for the active profile.</summary>
+public sealed partial class OptionalPartToggle : ObservableObject
+{
+    private readonly Action<bool> _changed;
+
+    public OptionalPartToggle(string name, int files, bool isOn, Action<bool> changed)
+    {
+        Name = name;
+        Files = files;
+        _isOn = isOn;
+        _changed = changed;
+    }
+
+    public string Name { get; }
+    public int Files { get; }
+    public string Label => $"{Name} ({Files} file{(Files == 1 ? "" : "s")})";
+
+    [ObservableProperty]
+    private bool _isOn;
+
+    partial void OnIsOnChanged(bool value) => _changed(value);
+}
+
 /// <summary>One mod of the active profile, with the actions available for it.</summary>
 public sealed partial class LibraryRow : ObservableObject
 {
@@ -19,7 +42,8 @@ public sealed partial class LibraryRow : ObservableObject
         bool isDependency,
         string requiredBy,
         bool hasConfig,
-        bool isDeployed)
+        bool isDeployed,
+        IEnumerable<OptionalPartToggle> optionalParts)
     {
         GroupId = groupId;
         VersionId = versionId;
@@ -30,6 +54,7 @@ public sealed partial class LibraryRow : ObservableObject
         RequiredBy = requiredBy;
         HasConfig = hasConfig;
         IsDeployed = isDeployed;
+        OptionalParts = [.. optionalParts];
 
         RemoveCommand = new AsyncRelayCommand(() => owner.RemoveAsync(this));
         PinCommand = new RelayCommand(() => owner.Pin(this));
@@ -49,6 +74,10 @@ public sealed partial class LibraryRow : ObservableObject
     public string RequiredBy { get; }
     public bool HasConfig { get; }
     public bool IsDeployed { get; }
+
+    /// <summary>The mod's optional groups. Ticked ones are installed on the next Deploy.</summary>
+    public IReadOnlyList<OptionalPartToggle> OptionalParts { get; }
+    public bool HasOptionalParts => OptionalParts.Count > 0;
 
     public IAsyncRelayCommand RemoveCommand { get; }
     public IRelayCommand PinCommand { get; }
@@ -109,17 +138,27 @@ public sealed partial class LibraryViewModel : ObservableObject
                     .Select(d => d.Name));
 
                 deployed.TryGetValue(groupId, out var mod);
+                var enabled = PlacementRules.EnabledGroups(doc, profile);
                 var state = mod is null
                     ? (_app.Downloads.IsCached(groupId, doc.VersionId) ? "Cached, not deployed" : "Not downloaded")
-                    : mod.VersionId == doc.VersionId
-                        ? $"Deployed v{mod.Version}"
-                        : $"Deployed v{mod.Version}, update to v{doc.Version}";
+                    : mod.VersionId != doc.VersionId
+                        ? $"Deployed v{mod.Version}, update to v{doc.Version}"
+                        : PlacementRules.SameGroups(mod.OptionalGroups, enabled)
+                            ? $"Deployed v{mod.Version}"
+                            : $"Deployed v{mod.Version}, optional files changed: Deploy to apply";
+
+                var docGroupId = groupId;
+                var modName = doc.Name;
+                var parts = PlacementRules.OptionalGroupSizes(doc).Select(part => new OptionalPartToggle(
+                    part.Name, part.Files, enabled.Contains(part.Name, StringComparer.OrdinalIgnoreCase),
+                    on => SetOptionalGroup(docGroupId, modName, part.Name, on)));
 
                 rows.Add(new LibraryRow(
                     this, groupId, doc.VersionId, doc.Name, doc.Version, state,
                     isDependency, requiredBy,
                     mod?.Files.Any(f => f.Kind == "config") ?? false,
-                    mod is not null));
+                    mod is not null,
+                    parts));
             }
 
             var direct = profile.GroupIds.Count;
@@ -172,6 +211,28 @@ public sealed partial class LibraryViewModel : ObservableObject
         {
             _shell.Notify(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Turns an optional group (examples, documentation) of a mod on or off for the active profile. Like every profile
+    /// change, it reaches the game folder with the next Deploy.
+    /// </summary>
+    public void SetOptionalGroup(int groupId, string modName, string groupName, bool on)
+    {
+        var profile = _shell.ActiveProfile;
+        if (profile is null) return;
+
+        if (!profile.OptionalGroups.TryGetValue(groupId, out var enabled))
+            profile.OptionalGroups[groupId] = enabled = [];
+        enabled.RemoveAll(name => string.Equals(name, groupName, StringComparison.OrdinalIgnoreCase));
+        if (on) enabled.Add(groupName);
+        if (enabled.Count == 0) profile.OptionalGroups.Remove(groupId);
+
+        _app.Profiles.Save(profile);
+        _shell.Notify(on
+            ? $"{groupName} of {modName} will be installed. Deploy to apply it."
+            : $"{groupName} of {modName} will be removed from the game folder on the next Deploy.");
+        _ = _shell.RefreshStateAsync();
     }
 
     /// <summary>Freezes the mod at the version the profile resolves to now. Local to this machine.</summary>

@@ -3,6 +3,7 @@ using F3M.Client.Models;
 using F3M.Client.Services;
 using F3M.Shared;
 using F3M.Shared.Helpers;
+using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 
@@ -27,6 +28,15 @@ public partial class PickerModFiles
 
     /// <summary>The mod's name, which names a mission folder when an archive has loose .code files.</summary>
     [Parameter] public string? ModName { get; set; }
+
+    /// <summary>The upload's optional groups, which the preview lets the author fill; null hides that.</summary>
+    [Parameter] public List<OptionalGroupDraft>? OptionalGroups { get; set; }
+
+    /// <summary>The valid optional groups, normalised. Their files are left out of the type checks and marked in the preview.</summary>
+    [Parameter] public IReadOnlyList<OptionalGroupDto> NormalizedGroups { get; set; } = [];
+
+    /// <summary>Raised after the preview changed <see cref="OptionalGroups"/>.</summary>
+    [Parameter] public EventCallback OnOptionalGroupsChanged { get; set; }
 
     // ── State ─────────────────────────────────────────────────────────────────
 
