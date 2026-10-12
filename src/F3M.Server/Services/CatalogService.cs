@@ -120,6 +120,7 @@ public sealed class CatalogService(
             var mod = await db.Mods.AsNoTracking()
                 .Include(m => m.Files)
                 .Include(m => m.GeneratedPaths)
+                .Include(m => m.OptionalGroups)
                 .Include(m => m.DependencyGroups)
                 .FirstOrDefaultAsync(m => m.Id == versionId, ct);
 
@@ -211,6 +212,7 @@ public sealed class CatalogService(
             var mods = await db.Mods.AsNoTracking()
                 .Include(m => m.Files)
                 .Include(m => m.GeneratedPaths)
+                .Include(m => m.OptionalGroups)
                 .Include(m => m.DependencyGroups)
                 .Where(m => m.IsApproved)
                 .ToListAsync(ct);
@@ -275,6 +277,12 @@ public sealed class CatalogService(
             .Select(p => new GeneratedPathRef(p.Pattern, EnumName(p.Kind)))
             .ToList();
 
+        // In upload order: a file belongs to the first group that matches it.
+        var optionalGroups = mod.OptionalGroups
+            .OrderBy(g => g.Id)
+            .Select(g => new OptionalGroupRef(g.Name, [.. g.Patterns]))
+            .ToList();
+
         return new VersionDocument(
             SchemaVersion,
             mod.ModGroupId,
@@ -288,7 +296,8 @@ public sealed class CatalogService(
             PreviewUrl(mod.PreviewImageName),
             files,
             dependencies,
-            generatedPaths);
+            generatedPaths,
+            optionalGroups);
     }
 
     private static IEnumerable<ModFileEntry> EntriesOf(IReadOnlyDictionary<int, List<ModFileEntry>> entries, int fileId) =>

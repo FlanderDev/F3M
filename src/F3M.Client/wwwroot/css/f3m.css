@@ -1469,3 +1469,181 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
     border-radius: 6px;
     border: 1px dashed rgba(255, 193, 7, .35);
 }
+
+/* ── Admin: F95zone import ─────────────────────────────── */
+.f3m-import-muted {
+    color: #9ca3af;
+}
+
+.f3m-import-step {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .9rem 0;
+}
+
+    .f3m-import-step + .f3m-import-step {
+        border-top: 1px solid var(--f3m-border);
+    }
+
+.f3m-import-step-no {
+    flex: 0 0 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--f3m-amber-dim);
+    color: var(--f3m-amber);
+    font-family: var(--f3m-font-h);
+    font-weight: 800;
+}
+
+.f3m-import-progress {
+    background: var(--f3m-surface-2);
+    border-radius: 8px;
+    padding: .75rem 1rem;
+}
+
+.f3m-import-attention {
+    border-color: rgba(255,193,7,.35) !important;
+}
+
+.f3m-import-problems {
+    border-color: rgba(220,53,69,.4) !important;
+}
+
+.f3m-import-heldback {
+    display: flex;
+    gap: .75rem;
+    padding: .75rem;
+    margin-bottom: .5rem;
+    border-radius: 8px;
+    background: var(--f3m-surface-2);
+    cursor: pointer;
+}
+
+    .f3m-import-heldback:last-child {
+        margin-bottom: 0;
+    }
+
+.f3m-import-details {
+    border-color: var(--f3m-border) !important;
+}
+
+    .f3m-import-details > summary {
+        cursor: pointer;
+    }
+
+.f3m-import-log {
+    max-height: 360px;
+    overflow-y: auto;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: .78rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 575.98px) {
+    .f3m-import-step {
+        flex-wrap: wrap;
+    }
+
+        .f3m-import-step > .btn {
+            width: 100%;
+        }
+}
+
+/* ── Optional files: upload form, preview, mod page ─────── */
+/* Bootstrap's muted grey is unreadable on the dark surface; these editors explain a lot in it. */
+.f3m-optional-groups .text-muted,
+.f3m-generated-paths .text-muted {
+    color: #9ca3af !important;
+}
+
+.f3m-optional-group {
+    border: 1px solid var(--f3m-border);
+    border-radius: 8px;
+    padding: .6rem .75rem;
+    margin-bottom: .5rem;
+    background: var(--f3m-surface-2);
+}
+
+.f3m-pv-optional .f3m-pv-name {
+    color: #9ca3af;
+}
+
+.f3m-pv-optional-badge {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    font-family: var(--f3m-font-b);
+    font-size: .66rem;
+    padding: 0 .4rem;
+    border-radius: 999px;
+    background: var(--f3m-amber-dim);
+    color: var(--f3m-amber);
+}
+
+    .f3m-pv-optional-badge.mixed {
+        background: transparent;
+        border: 1px dashed rgba(255,193,7,.45);
+    }
+
+.f3m-pv-badge-remove {
+    background: none;
+    border: 0;
+    padding: 0 0 0 .15rem;
+    color: inherit;
+    line-height: 1;
+}
+
+.f3m-pv-mark {
+    background: none;
+    border: 0;
+    padding: 0 .2rem;
+    color: var(--f3m-muted);
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.f3m-pv-row:hover .f3m-pv-mark,
+.f3m-pv-mark:focus-visible,
+.f3m-pv-mark.open {
+    opacity: 1;
+    color: var(--f3m-amber);
+}
+
+/* Touch screens have no hover: keep the bookmark visible there. */
+@media (hover: none) {
+    .f3m-pv-mark {
+        opacity: .7;
+    }
+}
+
+.f3m-pv-menu {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .3rem;
+    padding: .3rem 0 .4rem;
+    font-family: var(--f3m-font-b);
+    white-space: normal;
+}
+
+.f3m-optional-parts {
+    border-top: 1px solid var(--f3m-border);
+    padding-top: .6rem;
+}
+
+.f3m-optional-part {
+    font-size: .72rem;
+    padding: .1rem .5rem;
+    border-radius: 999px;
+    background: var(--f3m-amber-dim);
+    color: var(--f3m-amber);
+}
+
+.f3m-optional-hint {
+    font-size: .7rem;
+    color: #9ca3af;
+}

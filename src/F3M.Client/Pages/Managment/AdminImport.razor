@@ -1,0 +1,367 @@
+@page "/admin/import"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IImportApi Api
+@inject IJSRuntime JS
+
+<PageTitle>F3M - F95zone import</PageTitle>
+
+<div class="container py-5" style="max-width:1100px;">
+    <div class="mb-4">
+        <a href="/admin" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Admin Panel</a>
+        <h1 class="fw-black mb-1 fs-2 mt-2">
+            <i class="bi bi-cloud-download-fill text-warning me-2"></i>F95zone import
+        </h1>
+        <p class="small mb-0">
+            Downloads the community mods named in the import plan from F95zone and imports them as unclaimed mods,
+            which go to their F95zone uploaders when they sign in. Each step only runs when you start it; it keeps
+            running on the server if you leave this page.
+        </p>
+    </div>
+
+    @if (actionError is not null)
+    {
+        <div class="alert alert-danger small">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@actionError
+        </div>
+    }
+
+    @if (status is null)
+    {
+        @if (loadError is not null)
+        {
+            <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>@loadError</div>
+        }
+        else
+        {
+            <div class="placeholder-glow">
+                @for (int i = 0; i < 4; i++)
+                {
+                    <div class="placeholder w-100 mb-3" style="height:90px;border-radius:8px;"></div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        var plan = status.Plan;
+        var job = status.Job;
+
+        <!-- Plan -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div>
+                    <h2 class="fs-5 fw-bold mb-2"><i class="bi bi-file-earmark-code text-warning me-2"></i>Import plan</h2>
+                    @if (plan.Error is null)
+                    {
+                        <p class="small mb-1">
+                            @Plural(plan.Mods, "mod") with @Plural(plan.Versions, "version") and @Plural(plan.Files, "file");
+                            @Plural(status.Skipped.Count, "listed mod") left out on purpose.
+                        </p>
+                    }
+                    <p class="small mb-0 f3m-import-muted">
+                        @if (plan.IsBundled)
+                        {
+                            <span>The plan shipped with this server version.</span>
+                        }
+                        else
+                        {
+                            <span>An uploaded plan, since @plan.UploadedAt?.ToLocalTime().ToString("MMM d, yyyy HH:mm").</span>
+                        }
+                    </p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="DownloadPlan">
+                        <i class="bi bi-download me-1"></i>Download JSON
+                    </button>
+                    <label class="btn btn-sm btn-outline-secondary mb-0 @(Running || busy ? "disabled" : string.Empty)">
+                        <i class="bi bi-upload me-1"></i>Replace…
+                        <InputFile OnChange="ReplacePlan" accept=".json,application/json" style="display:none;" disabled="@(Running || busy)" />
+                    </label>
+                    @if (!plan.IsBundled)
+                    {
+                        <button class="btn btn-sm btn-outline-warning" @onclick="ResetPlan" disabled="@(Running || busy)">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Use the shipped plan
+                        </button>
+                    }
+                </div>
+            </div>
+            @if (plan.Error is not null)
+            {
+                <div class="alert alert-danger small mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>The plan can't be used: @plan.Error
+                </div>
+            }
+            @if (planMessage is not null)
+            {
+                <div class="alert alert-success small mt-3 mb-0"><i class="bi bi-check-circle-fill me-2"></i>@planMessage</div>
+            }
+        </div>
+
+        <!-- Steps -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <div class="f3m-import-step">
+                <span class="f3m-import-step-no">1</span>
+                <div class="flex-grow-1">
+                    <h3 class="fs-6 fw-bold mb-1">Download the files</h3>
+                    <p class="small mb-0">
+                        @plan.FilesDownloaded of @plan.Files files are on the server (@Size(plan.DownloadedBytes)).
+                        Only missing files are downloaded, with a short pause between them.
+                    </p>
+                </div>
+                <button class="btn btn-warning fw-semibold text-nowrap" @onclick="StartDownload"
+                        disabled="@(Running || busy || plan.Error is not null || MissingFiles == 0)">
+                    <i class="bi bi-cloud-download me-1"></i>
+                    @(MissingFiles == 0 ? "All downloaded" : $"Download {Plural(MissingFiles, "file")}")
+                </button>
+            </div>
+
+            <div class="f3m-import-step">
+                <span class="f3m-import-step-no">2</span>
+                <div class="flex-grow-1">
+                    <h3 class="fs-6 fw-bold mb-1">Import the mods</h3>
+                    <p class="small mb-0">
+                        @Count(ImportModState.Imported) of @status.Mods.Count mods are imported. Mods are imported
+                        dependencies first, missing versions only. Mods whose files don't fit their type are held back
+                        until you accept their warnings below; this button leaves them out.
+                    </p>
+                </div>
+                <button class="btn btn-warning fw-semibold text-nowrap" @onclick="StartImport"
+                        disabled="@(Running || busy || plan.Error is not null || ModsToImport == 0)">
+                    <i class="bi bi-box-arrow-in-down me-1"></i>
+                    @(ModsToImport > 0 ? $"Import {Plural(ModsToImport, "mod")}" : HeldBack.Count > 0 ? "Rest needs review" : "All imported")
+                </button>
+            </div>
+
+            @if (job.Kind != ImportJobKind.None)
+            {
+                <div class="f3m-import-progress mt-3">
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-1 small">
+                        <span class="fw-semibold">
+                            @(job.Kind == ImportJobKind.Download ? "Download" : "Import")
+                            @if (job.Running)
+                            {
+                                <span>: @job.Done of @job.Total</span>
+                            }
+                            else if (job.FinishedAt is { } finished)
+                            {
+                                <span class="f3m-import-muted"> finished @finished.ToLocalTime().ToString("HH:mm:ss")</span>
+                            }
+                        </span>
+                        @if (job.Running)
+                        {
+                            <button class="btn btn-sm btn-outline-danger" @onclick="Cancel" disabled="@(job.Cancelling || busy)">
+                                @(job.Cancelling ? "Stopping…" : "Cancel")
+                            </button>
+                        }
+                    </div>
+                    @if (job.Running || job.Total > 0)
+                    {
+                        <div class="progress" style="height:8px;" role="progressbar" aria-valuenow="@Percent(job.Done, job.Total)" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar bg-warning @(job.Running ? "progress-bar-striped progress-bar-animated" : string.Empty)"
+                                 style="width:@(Percent(job.Done, job.Total))%"></div>
+                        </div>
+                    }
+                    @if (job.Running && job.Current is not null)
+                    {
+                        <div class="small mt-1 text-truncate f3m-import-muted">@job.Current</div>
+                    }
+                    @if (!job.Running && job.Summary is not null)
+                    {
+                        <div class="small mt-1">@job.Summary</div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Held back -->
+        @if (HeldBack.Count > 0)
+        {
+            <div class="f3m-surface rounded-3 border p-4 mb-4 f3m-import-attention">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+                    <div style="max-width:700px;">
+                        <h2 class="fs-5 fw-bold mb-1">
+                            <i class="bi bi-exclamation-diamond-fill text-warning me-2"></i>Held back for warnings (@HeldBack.Count)
+                        </h2>
+                        <p class="small mb-0">
+                            The server found that these files don't quite fit their mod type. Check each one: tick the ones
+                            that are fine to store as they are, then import them. If one is really wrong, fix it in the plan instead.
+                        </p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetAllAccepted(acceptedKeys.Count < HeldBack.Count)">
+                            @(acceptedKeys.Count < HeldBack.Count ? "Tick all" : "Untick all")
+                        </button>
+                        <button class="btn btn-sm btn-warning fw-semibold" @onclick="ImportAccepted"
+                                disabled="@(Running || busy || acceptedKeys.Count == 0)">
+                            <i class="bi bi-check2-square me-1"></i>Accept &amp; import @(acceptedKeys.Count > 0 ? $"({acceptedKeys.Count})" : string.Empty)
+                        </button>
+                    </div>
+                </div>
+
+                @foreach (var mod in HeldBack)
+                {
+                    var key = mod.Key;
+                    <label class="f3m-import-heldback">
+                        <input type="checkbox" class="form-check-input mt-1" checked="@acceptedKeys.Contains(key)"
+                               @onchange="e => ToggleAccepted(key, e.Value is true)" />
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">
+                                @mod.Name <span class="f3m-import-muted fw-normal">@mod.HeldBackVersion · @mod.Author</span>
+                                @if (mod.SourceUrl is not null)
+                                {
+                                    <a href="@mod.SourceUrl" target="_blank" rel="noopener" class="ms-1" title="The F95zone post" @onclick:stopPropagation="true">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                }
+                            </div>
+                            <ul class="small mb-0 ps-3">
+                                @foreach (var warning in mod.Warnings)
+                                {
+                                    <li>@warning</li>
+                                }
+                            </ul>
+                        </div>
+                    </label>
+                }
+            </div>
+        }
+
+        <!-- Problems -->
+        @if (Problems.Count > 0)
+        {
+            <div class="f3m-surface rounded-3 border p-4 mb-4 f3m-import-problems">
+                <h2 class="fs-5 fw-bold mb-1"><i class="bi bi-x-octagon-fill text-danger me-2"></i>Problems (@Problems.Count)</h2>
+                <p class="small mb-3">
+                    Running the step again retries these. Problems that come from the plan (a wrong archive folder, a removed
+                    attachment) need a corrected plan.
+                </p>
+                <ul class="list-unstyled small mb-0">
+                    @foreach (var mod in Problems)
+                    {
+                        <li class="mb-2">
+                            <span class="badge @BadgeClass(mod.State) me-2">@Label(mod.State)</span>
+                            <span class="fw-semibold">@mod.Name</span>
+                            @if (mod.SourceUrl is not null)
+                            {
+                                <a href="@mod.SourceUrl" target="_blank" rel="noopener" class="ms-1"><i class="bi bi-box-arrow-up-right"></i></a>
+                            }
+                            <div class="f3m-import-muted">@mod.Issue</div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <!-- All mods -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h2 class="fs-5 fw-bold mb-0"><i class="bi bi-list-check text-warning me-2"></i>Mods</h2>
+                <div class="d-flex flex-wrap gap-2">
+                    <select class="form-select form-select-sm" style="width:auto;" @bind="stateFilter">
+                        <option value="">All (@status.Mods.Count)</option>
+                        @foreach (var state in Enum.GetValues<ImportModState>())
+                        {
+                            var count = Count(state);
+                            if (count > 0)
+                            {
+                                <option value="@state">@Label(state) (@count)</option>
+                            }
+                        }
+                    </select>
+                    <input class="form-control form-control-sm f3m-search-input" style="width:220px;" type="search"
+                           placeholder="Search mods…" @bind="search" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 f3m-admin-table">
+                    <thead>
+                        <tr>
+                            <th>Mod</th>
+                            <th>Category</th>
+                            <th class="text-center">Files</th>
+                            <th class="text-center">Versions</th>
+                            <th>Status</th>
+                            <th class="text-end">Links</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var mod in FilteredMods)
+                        {
+                            <tr>
+                                <td class="align-middle">
+                                    <div class="fw-semibold">@mod.Name</div>
+                                    <div class="f3m-import-muted text-truncate" style="max-width:340px;" title="@mod.Note">@mod.Author</div>
+                                </td>
+                                <td class="align-middle small">@mod.Category</td>
+                                <td class="align-middle text-center small">@mod.FilesDownloaded/@mod.Files</td>
+                                <td class="align-middle text-center small">@mod.VersionsImported/@mod.Versions</td>
+                                <td class="align-middle">
+                                    <span class="badge @BadgeClass(mod.State)" title="@mod.Issue">@Label(mod.State)</span>
+                                </td>
+                                <td class="align-middle text-end text-nowrap">
+                                    @if (mod.ModId is { } modId)
+                                    {
+                                        <a href="/mod/@modId" class="me-2" title="The mod on F3M"><i class="bi bi-box-seam"></i></a>
+                                    }
+                                    @if (mod.SourceUrl is not null)
+                                    {
+                                        <a href="@mod.SourceUrl" target="_blank" rel="noopener" title="The F95zone post"><i class="bi bi-box-arrow-up-right"></i></a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (!FilteredMods.Any())
+                        {
+                            <tr><td colspan="6" class="text-center py-4 small">No mods match.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Left out by the plan -->
+        @if (status.Skipped.Count > 0)
+        {
+            <details class="f3m-surface rounded-3 border p-4 mb-4 f3m-import-details">
+                <summary class="fw-bold">Left out by the plan (@status.Skipped.Count)</summary>
+                <ul class="list-unstyled small mt-3 mb-0">
+                    @foreach (var skipped in status.Skipped)
+                    {
+                        <li class="mb-2">
+                            @if (skipped.Url is not null)
+                            {
+                                <a href="@skipped.Url" target="_blank" rel="noopener" class="fw-semibold">@skipped.Name</a>
+                            }
+                            else
+                            {
+                                <span class="fw-semibold">@skipped.Name</span>
+                            }
+                            <div class="f3m-import-muted">@skipped.Reason</div>
+                        </li>
+                    }
+                </ul>
+            </details>
+        }
+
+        <!-- Log -->
+        <details class="f3m-surface rounded-3 border p-4 f3m-import-details" open="@Running">
+            <summary class="fw-bold">Log (@status.Log.Count)</summary>
+            @if (status.Log.Count == 0)
+            {
+                <p class="small mt-3 mb-0 f3m-import-muted">Nothing has run since the server started.</p>
+            }
+            else
+            {
+                <div class="f3m-import-log mt-3">
+                    @foreach (var line in Enumerable.Reverse(status.Log))
+                    {
+                        <div class="@(line.IsError ? "text-danger" : string.Empty)">
+                            <span class="f3m-import-muted">@line.At.ToLocalTime().ToString("HH:mm:ss")</span> @line.Message
+                        </div>
+                    }
+                </div>
+            }
+        </details>
+    }
+</div>

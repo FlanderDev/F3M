@@ -13,21 +13,22 @@ public static class GeneratedPathRules
     public const int MaxPatternsPerVersion = 20;
 
     /// <summary>Validates a pattern and returns it normalised: '/' separators, trimmed, no '.' segments.</summary>
-    public static bool TryNormalize(string? input, out string normalized, out string? error)
+    /// <param name="noun">What the pattern is called in error messages; optional files use the same grammar.</param>
+    public static bool TryNormalize(string? input, out string normalized, out string? error, string noun = "generated-file pattern")
     {
         normalized = string.Empty;
         error = null;
 
         if (string.IsNullOrWhiteSpace(input))
         {
-            error = "A generated-file pattern cannot be empty.";
+            error = $"A {noun} cannot be empty.";
             return false;
         }
 
         var raw = input.Trim().Replace('\\', '/');
         if (raw.Length > MaxLength)
         {
-            error = $"A generated-file pattern can be at most {MaxLength} characters long.";
+            error = $"A {noun} can be at most {MaxLength} characters long.";
             return false;
         }
 
@@ -43,7 +44,7 @@ public static class GeneratedPathRules
 
         if (segments.Length == 0)
         {
-            error = "A generated-file pattern cannot be empty.";
+            error = $"A {noun} cannot be empty.";
             return false;
         }
 

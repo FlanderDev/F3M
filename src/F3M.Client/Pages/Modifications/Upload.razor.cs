@@ -50,9 +50,11 @@ public partial class Upload
     private IEnumerable<ModTemplate> UsedTemplates =>
         fileEntries.Select(e => ModTemplates.Find(e.Template)).OfType<ModTemplate>().DistinctBy(t => t.Id);
 
-    /// <summary>After the files or their types change: fill in the category and the required mods.</summary>
+    /// <summary>After the files or their types change: fill in the category, the required mods and the suggested optional groups.</summary>
     private async Task OnFilesChanged()
     {
+        RefreshSuggestedGroups();
+
         if (!categoryChosen && !IsNewVersion
             && UsedTemplates.FirstOrDefault(t => t.Id != ModTemplates.Custom) is { } main)
         {
@@ -89,7 +91,8 @@ public partial class Upload
     {
         get
         {
-            var warnings = fileEntries.SelectMany(e => e.TypeWarnings.Select(w => $"{e.OriginalName}: {w}")).ToList();
+            var installed = OptionalCheck.Normalized;
+            var warnings = fileEntries.SelectMany(e => e.TypeWarningsWith(installed).Select(w => $"{e.OriginalName}: {w}")).ToList();
             foreach (var template in UsedTemplates.Where(t => t.RequiredModName is not null))
             {
                 if (requiredMods.GetValueOrDefault(template.RequiredModName!) is { } required
@@ -139,6 +142,43 @@ public partial class Upload
     // (inside its archive folder). The pattern editor checks generated-file patterns against them.
     private IReadOnlyList<string> ShippedPaths => [.. fileEntries.SelectMany(e => e.Targets ?? [])];
 
+    // ── Optional groups ───────────────────────────────────────────────────────
+
+    // Edited in place by the groups editor and by the install preview.
+    private readonly List<OptionalGroupDraft> optionalGroups = [];
+
+    // Suggestions the author removed; they are not suggested again for this upload.
+    private readonly HashSet<string> dismissedSuggestions = new(StringComparer.OrdinalIgnoreCase);
+
+    // Read several times per render; evaluated again only when the groups or the files change.
+    private (string Key, OptionalGroupsCheck Check)? optionalCheck;
+
+    private OptionalGroupsCheck OptionalCheck
+    {
+        get
+        {
+            var key = string.Join('\u0001', optionalGroups.Select(g => $"{g.Name}\u0002{string.Join('\u0002', g.Patterns)}"))
+                      + "\u0003" + string.Join('\u0001', fileEntries.Select(e => $"{e.OriginalName}|{e.InstallPath}|{e.ArchiveRoot}|{e.Size}"));
+            if (optionalCheck is not { } cached || cached.Key != key)
+                optionalCheck = cached = (key, OptionalGroupChecks.Evaluate(optionalGroups, [.. ShippedPaths]));
+            return cached.Check;
+        }
+    }
+
+    private bool HasInvalidOptionalGroups => OptionalCheck.Error is not null;
+
+    /// <summary>
+    /// Suggests readmes and examples as optional groups (<see cref="ModTemplates.SuggestOptionalGroups(IReadOnlyList{OptionalGroupDto}, IReadOnlyCollection{string}, IEnumerable{string})"/>).
+    /// Untouched suggestions follow the files; groups the author made or edited stay as they are.
+    /// </summary>
+    private void RefreshSuggestedGroups()
+    {
+        optionalGroups.RemoveAll(g => g.IsSuggestion);
+        var own = optionalGroups.Select(g => g.ToDto()).ToList();
+        foreach (var suggestion in ModTemplates.SuggestOptionalGroups(own, [.. ShippedPaths], dismissedSuggestions))
+            optionalGroups.Add(new OptionalGroupDraft { Name = suggestion.Name, Patterns = suggestion.Patterns, IsSuggestion = true });
+    }
+
     // Warnings the server returned for the last upload (overlaps with other mods' patterns, deep wildcards).
     private List<string> uploadWarnings = [];
     private string? uploadError;
@@ -163,6 +203,10 @@ public partial class Upload
             dto.Category = existingMod.Category;
             dto.Description = existingMod.Description;
             dto.ModGroupId = groupId;
+
+            // A new version usually ships the same extras: start from the latest version's groups.
+            foreach (var group in existingMod.OptionalGroups)
+                optionalGroups.Add(new OptionalGroupDraft { Name = group.Name, Patterns = [.. group.Patterns] });
         }
     }
 
@@ -231,6 +275,14 @@ public partial class Upload
                 content.Add(new StringContent(generated.Kind.ToString()), $"GeneratedPaths[{i}].Kind");
             }
 
+            var groups = OptionalCheck.Normalized;
+            for (var i = 0; i < groups.Count; i++)
+            {
+                content.Add(new StringContent(groups[i].Name), $"OptionalGroups[{i}].Name");
+                for (var j = 0; j < groups[i].Patterns.Count; j++)
+                    content.Add(new StringContent(groups[i].Patterns[j]), $"OptionalGroups[{i}].Patterns[{j}]");
+            }
+
             progress = 50; StateHasChanged();
 
             var response = await Http.PostAsync("api/mods/upload", content);
@@ -275,6 +327,8 @@ public partial class Upload
         dto = new();
         dependencyItems = [];
         fileEntries.Clear();
+        optionalGroups.Clear();
+        dismissedSuggestions.Clear();
         categoryChosen = false;
         requirementsAdded.Clear();
         acceptedWarnings = null;

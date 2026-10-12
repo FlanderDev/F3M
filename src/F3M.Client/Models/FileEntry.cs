@@ -1,5 +1,6 @@
 using F3M.Client.Services;
 using F3M.Shared.Helpers;
+using F3M.Shared.Models;
 
 namespace F3M.Client.Models;
 
@@ -56,6 +57,7 @@ public sealed class FileEntry
     private string _cacheKey = "\0";
     private List<string>? _targets;
     private IReadOnlyList<string> _warnings = [];
+    private string? _warningsKey;
 
     /// <summary>The game paths this file installs; null when the install path or archive folder is not valid.</summary>
     public List<string>? Targets
@@ -67,14 +69,24 @@ public sealed class FileEntry
         }
     }
 
-    /// <summary>What does not look right for the file's type (<see cref="ModTemplates.Check"/>).</summary>
-    public IReadOnlyList<string> TypeWarnings
+    /// <summary>
+    /// What does not look right for the file's type (<see cref="ModTemplates.Check"/>), looking only at the files that
+    /// are installed: those in an optional group are not.
+    /// </summary>
+    public IReadOnlyList<string> TypeWarningsWith(IReadOnlyList<OptionalGroupDto> optionalGroups)
     {
-        get
+        Refresh();
+        if (_targets is not { Count: > 0 } targets)
+            return [];
+
+        var key = string.Join('\n', optionalGroups.Select(g => $"{g.Name}:{string.Join('|', g.Patterns)}"));
+        if (key != _warningsKey)
         {
-            Refresh();
-            return _warnings;
+            _warningsKey = key;
+            _warnings = ModTemplates.Check(Template, OptionalFileRules.Installed(optionalGroups, targets));
         }
+
+        return _warnings;
     }
 
     private void Refresh()
@@ -86,6 +98,6 @@ public sealed class FileEntry
         _cacheKey = key;
         var paths = Listing?.Entries.Select(e => e.RelativePath).ToList();
         _targets = ModTemplates.TargetsOf(OriginalName, paths, InstallPath, ArchiveRoot);
-        _warnings = _targets is { Count: > 0 } ? ModTemplates.Check(Template, _targets) : [];
+        _warningsKey = null;
     }
 }

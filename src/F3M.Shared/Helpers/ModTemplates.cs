@@ -1,3 +1,6 @@
+using System.Text.RegularExpressions;
+using F3M.Shared.Models;
+
 namespace F3M.Shared.Helpers;
 
 /// <summary>One kind of mod file: where its files belong in the game folder and what it needs to work.</summary>
@@ -271,6 +274,125 @@ public static class ModTemplates
         if (cleaned.Length > 60)
             cleaned = cleaned[..60].TrimEnd('.', ' ');
         return cleaned.Length == 0 || !InstallPaths.TrySplit(cleaned, out var parts, out _) || parts.Count != 1 ? "Mod" : cleaned;
+    }
+
+    // ── Optional groups ───────────────────────────────────────────────────────
+
+    /// <summary>The suggested group for readmes, licences and changelogs.</summary>
+    public const string DocumentationGroup = "Documentation";
+
+    /// <summary>The suggested group for example, sample, tutorial and demo files and folders.</summary>
+    public const string ExamplesGroup = "Examples";
+
+    private static readonly string[] DocumentationOnlyExtensions = [".md", ".pdf", ".url", ".rtf"];
+    private static readonly string[] DocumentationNamedExtensions = ["", ".txt", ".html", ".htm"];
+    private static readonly string[] DocumentationWords = ["readme", "license", "licence", "changelog", "thirdpartynotice", "documentation"];
+    private static readonly HashSet<string> ExampleWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "example", "examples", "sample", "samples", "tutorial", "tutorials", "demo", "demos",
+    };
+
+    // A single file named like an example only counts when the game never loads its type: "cc_sample.json" is a v1
+    // mission called "Free Sample". Folders named Examples are a clear sign whatever they hold.
+    private static readonly string[] ExampleFileExtensions = [".zip", ".rar", ".7z", ".txt", ".blend", ".psd", ".xcf", ".kra"];
+
+    /// <summary>
+    /// Optional groups worth suggesting for the paths a version installs: <see cref="DocumentationGroup"/> for readmes,
+    /// licences and changelogs, and <see cref="ExamplesGroup"/> for folders named example, sample, tutorial or demo,
+    /// and for such files of a type the game does not load (archives, text). Suggests nothing that would leave no file
+    /// installed. The uploader can change or drop any of it.
+    /// </summary>
+    public static List<OptionalGroupDto> SuggestOptionalGroups(IReadOnlyCollection<string> targets)
+    {
+        var paths = targets.Select(t => t.Replace('\\', '/').Trim('/')).Where(t => t.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var documentation = paths.Where(p => IsDocumentation(Path.GetFileName(p))).ToList();
+
+        var examples = new List<string>();
+        foreach (var path in paths.Except(documentation, StringComparer.OrdinalIgnoreCase))
+        {
+            var parts = path.Split('/');
+            var index = Array.FindIndex(parts, part => IsExampleName(part));
+            if (index < 0)
+                continue;
+
+            var isFile = index == parts.Length - 1;
+            if (isFile && !ExampleFileExtensions.Contains(Path.GetExtension(parts[index]), StringComparer.OrdinalIgnoreCase))
+                continue;
+
+            var pattern = OptionalFileRules.PatternFor(string.Join('/', parts.Take(index + 1)), isFolder: !isFile);
+            if (!examples.Contains(pattern, StringComparer.OrdinalIgnoreCase))
+                examples.Add(pattern);
+        }
+
+        var groups = new List<OptionalGroupDto>();
+        if (documentation.Count > 0)
+            groups.Add(new OptionalGroupDto { Name = DocumentationGroup, Patterns = [.. documentation.Take(OptionalFileRules.MaxPatternsPerGroup)] });
+        if (examples.Count > 0)
+            groups.Add(new OptionalGroupDto { Name = ExamplesGroup, Patterns = [.. examples.Take(OptionalFileRules.MaxPatternsPerGroup)] });
+
+        // Only valid patterns, and never a suggestion that leaves the mod without files.
+        if (!OptionalFileRules.TryNormalize(groups, out var normalized, out _))
+            return [];
+        return OptionalFileRules.Installed(normalized, paths).Count == 0 ? [] : normalized;
+    }
+
+    /// <summary>
+    /// The suggested groups (<see cref="SuggestOptionalGroups(IReadOnlyCollection{string})"/>) that can be added to
+    /// <paramref name="existing"/>: none with a name already used or in <paramref name="excludeNames"/> (suggestions
+    /// the uploader removed), only patterns for files no existing group has, and nothing at all when the result would
+    /// leave no file installed or the existing groups are invalid.
+    /// </summary>
+    public static List<OptionalGroupDto> SuggestOptionalGroups(
+        IReadOnlyList<OptionalGroupDto> existing,
+        IReadOnlyCollection<string> targets,
+        IEnumerable<string>? excludeNames = null)
+    {
+        if (!OptionalFileRules.TryNormalize(existing, out var normalized, out _))
+            return [];
+
+        var excluded = new HashSet<string>(excludeNames ?? [], StringComparer.OrdinalIgnoreCase);
+        var added = new List<OptionalGroupDto>();
+        foreach (var suggestion in SuggestOptionalGroups(targets))
+        {
+            if (normalized.Count + added.Count >= OptionalFileRules.MaxGroupsPerVersion
+                || excluded.Contains(suggestion.Name)
+                || normalized.Any(g => string.Equals(g.Name, suggestion.Name, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            var patterns = suggestion.Patterns
+                .Where(p => !normalized.Any(g => g.Patterns.Contains(p, StringComparer.OrdinalIgnoreCase)))
+                .Where(p => targets.Any(t => GeneratedPathRules.IsMatch(p, t) && OptionalFileRules.GroupOf(normalized, t) is null))
+                .ToList();
+            if (patterns.Count > 0)
+                added.Add(new OptionalGroupDto { Name = suggestion.Name, Patterns = patterns });
+        }
+
+        return added.Count > 0 && OptionalFileRules.Installed([.. normalized, .. added], targets).Count > 0 ? added : [];
+    }
+
+    /// <summary>
+    /// A readme, licence, changelog or similar: a document by its type (.md, .pdf, ...), or a text or web page whose
+    /// name says so. Never a file a mod loads, like .code, .json or .dll.
+    /// </summary>
+    public static bool IsDocumentation(string fileName)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        if (DocumentationOnlyExtensions.Contains(extension))
+            return true;
+        if (!DocumentationNamedExtensions.Contains(extension))
+            return false;
+
+        var letters = new string(Path.GetFileNameWithoutExtension(fileName).Where(char.IsLetter).ToArray()).ToLowerInvariant();
+        return DocumentationWords.Any(letters.Contains);
+    }
+
+    /// <summary>A file or folder name with the word example, sample, tutorial or demo in it (ExampleMission, my_demo).</summary>
+    private static bool IsExampleName(string name)
+    {
+        var stem = Path.HasExtension(name) ? Path.GetFileNameWithoutExtension(name) : name;
+        // Words split at anything but letters, and at lower-to-upper case changes ("ExampleMission").
+        var words = Regex.Split(Regex.Replace(stem, "([a-z])([A-Z])", "$1 $2"), "[^A-Za-z]+");
+        return words.Any(ExampleWords.Contains);
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────

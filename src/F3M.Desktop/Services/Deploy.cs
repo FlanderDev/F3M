@@ -40,6 +40,9 @@ public sealed class DeployPlan
     /// <summary>A reason the deploy cannot run at all.</summary>
     public List<string> Blocked { get; } = [];
 
+    /// <summary>groupId to the optional groups that are turned on, for every mod of the profile.</summary>
+    public Dictionary<int, List<string>> OptionalGroups { get; } = [];
+
     public List<VersionDocument> NeedsDownload { get; } = [];
     public long DownloadBytes { get; set; }
 
@@ -146,10 +149,15 @@ public sealed class Deploy(AppServices app)
         var root = app.Game.RootOrThrow();
         var state = LoadState();
         var plan = new DeployPlan { ProfileId = profile.Id, ProfileName = profile.Name, StateStamp = StateStampNow() };
+        foreach (var (groupId, doc) in target)
+            plan.OptionalGroups[groupId] = PlacementRules.EnabledGroups(doc, profile);
 
+        // A mod is redeployed when its version changes, and also when an optional group was turned on or off: files of
+        // both versions are compared below, so only what differs is copied or deleted.
         foreach (var mod in state.Mods)
         {
-            if (target.TryGetValue(mod.GroupId, out var doc) && doc.VersionId == mod.VersionId)
+            if (target.TryGetValue(mod.GroupId, out var doc) && doc.VersionId == mod.VersionId
+                && PlacementRules.SameGroups(mod.OptionalGroups, plan.OptionalGroups[mod.GroupId]))
                 plan.Stays.Add(mod);
             else
                 plan.Removed.Add(mod);
@@ -160,7 +168,7 @@ public sealed class Deploy(AppServices app)
         foreach (var (groupId, doc) in target)
         {
             foreach (var file in doc.Files)
-            foreach (var placement in file.Placements)
+            foreach (var placement in file.Placements.Where(p => PlacementRules.IsInstalled(doc, p, plan.OptionalGroups[groupId])))
             {
                 var to = PlacementRules.Normalize(placement.To, "game folder");
                 if (writers.TryGetValue(to, out var other) && other != groupId)
@@ -222,8 +230,9 @@ public sealed class Deploy(AppServices app)
             plan.Added.Add(doc);
             if (!app.Downloads.IsCached(groupId, doc.VersionId)) plan.NeedsDownload.Add(doc);
 
+            // Optional files of groups that are turned off stay in the cache only.
             foreach (var file in doc.Files)
-            foreach (var placement in file.Placements)
+            foreach (var placement in file.Placements.Where(p => PlacementRules.IsInstalled(doc, p, plan.OptionalGroups[groupId])))
             {
                 var to = PlacementRules.Normalize(placement.To, "game folder");
                 var kind = PlacementRules.KindOf(placement.Kind);
@@ -351,6 +360,7 @@ public sealed class Deploy(AppServices app)
                     DeployedAt = now,
                     Files = plan.Files.Where(f => f.GroupId == doc.GroupId).Select(f => f.Record).ToList(),
                     GeneratedPaths = doc.GeneratedPaths.ToList(),
+                    OptionalGroups = plan.OptionalGroups.TryGetValue(doc.GroupId, out var on) ? on : [],
                     CreatedDirectories = createdDirs.TryGetValue(doc.GroupId, out var dirs) ? dirs : new List<string>(),
                 });
             }

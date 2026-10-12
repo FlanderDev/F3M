@@ -1,0 +1,85 @@
+@* Named parts of the upload the mod does not need: examples, tutorials, documentation. *@
+
+<div class="f3m-optional-groups">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <label class="form-label fw-semibold small mb-0">Optional files <span class="text-muted fw-normal">(optional)</span></label>
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Add" disabled="@(!CanAdd)">
+            <i class="bi bi-plus-lg me-1"></i>Add group
+        </button>
+    </div>
+    <p class="small text-muted mb-2">
+        Files the mod works without, such as examples, tutorials or readmes, in named groups. F3M Desktop leaves them out
+        unless a player turns a group on. Mark files in the preview above, or use patterns like the generated files:
+        <code>CustomMissions2/MyPack/Examples/**</code>.
+    </p>
+
+    @if (Groups.Count == 0)
+    {
+        <div class="small text-muted border rounded p-2" style="border-color:var(--f3m-border) !important;">
+            No optional files. Everything is installed.
+        </div>
+    }
+    else if (Check.Report is { } report)
+    {
+        <div class="small mb-2">
+            <i class="bi bi-box-seam me-1 text-warning"></i>
+            F3M Desktop installs @report.Installed of @ShippedPaths.Count file@(ShippedPaths.Count == 1 ? string.Empty : "s");
+            @(ShippedPaths.Count - report.Installed) @(ShippedPaths.Count - report.Installed == 1 ? "is" : "are") optional.
+        </div>
+    }
+
+    @for (var g = 0; g < Groups.Count; g++)
+    {
+        var group = Groups[g];
+        var groupIndex = g;
+        var count = FileCount(group);
+
+        <div class="f3m-optional-group">
+            <div class="d-flex gap-2 align-items-center mb-2">
+                <input type="text"
+                       class="form-control form-control-sm f3m-input fw-semibold"
+                       aria-label="Group name"
+                       placeholder="Examples"
+                       maxlength="@OptionalFileRules.MaxNameLength"
+                       value="@group.Name"
+                       @oninput="e => NameChanged(group, e)" />
+                @if (group.IsSuggestion)
+                {
+                    <span class="badge bg-info text-dark flex-shrink-0" title="Suggested from the file names. Change it, or remove it if these files are needed.">suggested</span>
+                }
+                <span class="small text-muted flex-shrink-0">@count file@(count == 1 ? string.Empty : "s")</span>
+                <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0" aria-label="Remove group @group.Name" @onclick="() => RemoveGroup(groupIndex)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+
+            @for (var p = 0; p < group.Patterns.Count; p++)
+            {
+                var patternIndex = p;
+                <div class="d-flex gap-2 mb-1">
+                    <input type="text"
+                           class="form-control form-control-sm f3m-input font-monospace"
+                           aria-label="Pattern"
+                           placeholder="CustomMissions2/MyPack/Examples/**"
+                           value="@group.Patterns[patternIndex]"
+                           @oninput="e => PatternChanged(group, patternIndex, e)" />
+                    <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" aria-label="Remove pattern" @onclick="() => RemovePattern(group, groupIndex, patternIndex)">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            }
+            <button type="button" class="btn btn-sm btn-link px-0" @onclick="() => AddPattern(group)" disabled="@(group.Patterns.Count >= OptionalFileRules.MaxPatternsPerGroup)">
+                <i class="bi bi-plus me-1"></i>Add pattern
+            </button>
+        </div>
+    }
+
+    @if (Check.Error is { } error)
+    {
+        <div class="small text-danger mt-1"><i class="bi bi-x-circle me-1"></i>@error</div>
+    }
+    @foreach (var warning in Check.Report?.Warnings ?? [])
+    {
+        <div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle me-1"></i>@warning</div>
+    }
+</div>

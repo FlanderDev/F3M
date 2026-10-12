@@ -1,5 +1,6 @@
 using F3M.Server.Models;
 using F3M.Shared;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -16,6 +17,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ModFile> ModFiles => Set<ModFile>();
     public DbSet<ModFileEntry> ModFileEntries => Set<ModFileEntry>();
     public DbSet<ModGeneratedPath> ModGeneratedPaths => Set<ModGeneratedPath>();
+    public DbSet<ModOptionalGroup> ModOptionalGroups => Set<ModOptionalGroup>();
     public DbSet<F95PendingVerification> F95PendingVerifications => Set<F95PendingVerification>();
     public DbSet<Telemetry.ErrorReport> TelemetryErrorReports => Set<Telemetry.ErrorReport>();
 
@@ -75,6 +77,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
              .WithOne()
              .HasForeignKey(p => p.ModId)
              .OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(m => m.OptionalGroups)
+             .WithOne()
+             .HasForeignKey(g => g.ModId)
+             .OnDelete(DeleteBehavior.Cascade);
             // Dependencies (List<Mod>) is a resolved, read-only view for display — not persisted.
             e.Ignore(m => m.Dependencies);
         });
@@ -104,6 +110,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.HasKey(x => x.Id);
             e.Property(x => x.Pattern).IsRequired().HasMaxLength(260);
             e.Property(x => x.Kind).HasConversion<string>();
+            e.HasIndex(x => x.ModId);
+        });
+
+        modelBuilder.Entity<ModOptionalGroup>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(OptionalFileRules.MaxNameLength);
+            // Stored as a JSON array; the patterns are only ever read with their group.
+            e.PrimitiveCollection(x => x.Patterns);
             e.HasIndex(x => x.ModId);
         });
 
