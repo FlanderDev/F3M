@@ -347,7 +347,7 @@ public sealed class CatalogService(
         {
             try
             {
-                var inspection = ModFileInspector.Inspect(Path.Combine(Assets.Files, file.FileName), file.OriginalName, file.InstallPath);
+                var inspection = ModFileInspector.Inspect(Path.Combine(Assets.Files, file.FileName), file.OriginalName, file.InstallPath, file.ArchiveRoot);
 
                 file.Sha256 = inspection.Sha256;
                 file.IsArchive = inspection.IsArchive;

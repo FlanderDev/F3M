@@ -1,5 +1,6 @@
 using F3M.Shared;
 using F3M.Shared.Api;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -17,6 +18,9 @@ public partial class ModDetail
     private Mod? selectedVersion;
     private List<Mod> allVersions = [];
     private ModGroup? group;
+
+    // Whose profiles the author line links to; null while an imported mod is unclaimed.
+    private ModOwnerDto? owner;
     private bool loading = true;
     private bool isOwner;
     private bool isAdmin;
@@ -45,8 +49,23 @@ public partial class ModDetail
 
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    // The id the page shows. Following a link to another mod (a requirement) keeps this component and only changes
+    // Id, so the page loads whenever Id differs from it, not just once.
+    private int? loadedId;
+
+    protected override async Task OnParametersSetAsync()
     {
+        if (loadedId == Id)
+            return;
+        loadedId = Id;
+
+        loading = true;
+        isOwner = false;
+        showDeleteConfirm = showRemoveConfirm = false;
+        deleteError = claimMessage = assignMessage = null;
+        activeFileId = null;
+        dlSuccess = dlError = false;
+
         try
         {
             // Load the requested version
@@ -59,6 +78,7 @@ public partial class ModDetail
             // otherwise not see it in this list at all.
             allVersions = result.Versions.Count > 0 ? result.Versions : [selectedVersion];
             group = result.Group;
+            owner = result.Owner;
             assignUserId = group.OwnerId;
 
             // Check ownership
@@ -74,7 +94,7 @@ public partial class ModDetail
                 isAdmin = state.User.IsInRole(AppRoles.Admin);
             }
 
-            if (isAdmin)
+            if (isAdmin && users.Count == 0)
                 users = await AdminApi.GetUsersAsync();
         }
         catch (Exception ex)
@@ -84,6 +104,22 @@ public partial class ModDetail
             selectedVersion = null;
         }
         finally { loading = false; }
+    }
+
+    /// <summary>
+    /// The uploader's F95zone profile: the owner's linked account, or for an import still unclaimed, the F95 user
+    /// who posted it. Null when neither is known.
+    /// </summary>
+    private (string Url, string Name)? F95Link
+    {
+        get
+        {
+            if (owner?.F95UserId is { Length: > 0 } ownerId)
+                return (F95Profile.LinkFor(owner.F95Username, ownerId), owner.F95Username ?? ownerId);
+            if (owner is null && group?.F95OwnerUserId is { Length: > 0 } posterId)
+                return (F95Profile.LinkFor(group.F95OwnerName, posterId), group.F95OwnerName ?? posterId);
+            return null;
+        }
     }
 
     private void SelectVersion(Mod ver)
@@ -191,6 +227,7 @@ public partial class ModDetail
                 // Reload so the owner actions appear.
                 var refreshed = await ModsApi.GetVersions(group.Id);
                 group = refreshed.Group;
+                owner = refreshed.Owner;
                 isOwner = true;
             }
         }
@@ -213,6 +250,7 @@ public partial class ModDetail
         {
             var userId = assignUserId == ModGroup.UnclaimedOwnerId ? (int?)null : assignUserId;
             group = await AdminApi.AssignModOwnerAsync(group.Id, new AssignModOwnerDto { UserId = userId });
+            owner = (await ModsApi.GetVersions(group.Id)).Owner;
             assignUserId = group.OwnerId;
             isOwner = group.OwnerId == currentUserId;
             assignMessage = userId is null

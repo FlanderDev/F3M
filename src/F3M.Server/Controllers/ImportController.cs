@@ -25,7 +25,10 @@ public sealed class ImportController(AppDbContext db, ModUploadService uploader,
     /// Stores one mod, or one version of it when <c>ModGroupId</c> is set. Same form fields as the upload form, plus:
     /// <paramref name="author"/> (credit shown on the mod), <paramref name="uploadedAt"/> (original publication date),
     /// <paramref name="f95OwnerUserId"/> and <paramref name="f95OwnerName"/> (who posted it on F95zone) and
-    /// <paramref name="sourceUrl"/> (where). Returns the group id, or the reason as text when the upload is rejected.
+    /// <paramref name="sourceUrl"/> (where). Returns the group id, or the reason as text when the upload is rejected;
+    /// 422 with the warnings when the files don't match their types and <c>AcceptWarnings</c> is not set.
+    /// A file whose type is <see cref="UploadFile.AutoTemplate"/> gets its type, and without an install path also its
+    /// install path and archive folder, from its contents (<see cref="UploadFile.Recognise"/>).
     /// </summary>
     [HttpPost("upload")]
     [RequestSizeLimit(Configuration.MaxTotalSize)]
@@ -34,6 +37,8 @@ public sealed class ImportController(AppDbContext db, ModUploadService uploader,
         [FromForm] IFormFileCollection files,
         [FromForm] List<string> installPaths,
         [FromForm] List<string> originalNames,
+        [FromForm] List<string>? archiveRoots,
+        [FromForm] List<string>? templates,
         IFormFile? previewImage,
         [FromForm] string author,
         [FromForm] DateTime? uploadedAt,
@@ -64,15 +69,16 @@ public sealed class ImportController(AppDbContext db, ModUploadService uploader,
             ownerId = existingUser ?? ModGroup.UnclaimedOwnerId;
         }
 
-        var uploadFiles = files.Select((f, i) => new UploadFile(
-            f,
-            i < originalNames.Count ? originalNames[i] : null,
-            i < installPaths.Count ? installPaths[i] : null)).ToList();
+        var uploadFiles = UploadFile.FromForm(files, originalNames, installPaths, archiveRoots, templates)
+            .Select(f => f.Recognise(dto.Name))
+            .ToList();
 
         var when = uploadedAt is { } at ? DateTime.SpecifyKind(at.ToUniversalTime(), DateTimeKind.Utc) : (DateTime?)null;
         var origin = new UploadOrigin(NullIfEmpty(f95OwnerUserId), NullIfEmpty(f95OwnerName), NullIfEmpty(sourceUrl));
 
         var result = await uploader.UploadAsync(dto, uploadFiles, previewImage, new UploadOwner(ownerId, author), when, origin, ct);
+        if (result.Unconfirmed is { } unconfirmed)
+            return UnprocessableEntity(new UploadWarningsResult { Warnings = [.. unconfirmed] });
         if (result.Mod is not { } mod)
             return BadRequest(result.Error ?? "The upload was rejected.");
 

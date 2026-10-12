@@ -50,15 +50,17 @@ public partial class ModsService(
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(m => m.Category == category);
 
+        // The id breaks ties (many mods share a download count), so pages never overlap or skip a mod when the
+        // browse page appends them one after another.
         query = sort switch
         {
-            SortBy.Newest => query.OrderByDescending(m => m.UploadedAt),
-            SortBy.Oldest => query.OrderBy(m => m.UploadedAt),
-            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount),
-            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount),
-            SortBy.NameAsc => query.OrderBy(m => m.Name),
-            SortBy.NameDesc => query.OrderByDescending(m => m.Name),
-            _ => query.OrderByDescending(m => m.UploadedAt)
+            SortBy.Newest => query.OrderByDescending(m => m.UploadedAt).ThenByDescending(m => m.Id),
+            SortBy.Oldest => query.OrderBy(m => m.UploadedAt).ThenBy(m => m.Id),
+            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount).ThenByDescending(m => m.Id),
+            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount).ThenBy(m => m.Id),
+            SortBy.NameAsc => query.OrderBy(m => m.Name).ThenBy(m => m.Id),
+            SortBy.NameDesc => query.OrderByDescending(m => m.Name).ThenByDescending(m => m.Id),
+            _ => query.OrderByDescending(m => m.UploadedAt).ThenByDescending(m => m.Id)
         };
 
         var totalCount = await query.CountAsync(ct);
@@ -106,7 +108,16 @@ public partial class ModsService(
             .ToListAsync(ct);
 
         await ResolveDependenciesAsync(versions, ct);
-        return new ModVersionsResult { Group = group, Versions = versions };
+
+        // The owner's public names, for the profile links on the mod page. An unclaimed import has no owner yet.
+        var owner = group.IsUnclaimed
+            ? null
+            : await db.Users.AsNoTracking()
+                .Where(u => u.Id == group.OwnerId)
+                .Select(u => new ModOwnerDto { Username = u.UserName ?? string.Empty, F95UserId = u.F95UserId, F95Username = u.F95Username })
+                .FirstOrDefaultAsync(ct);
+
+        return new ModVersionsResult { Group = group, Versions = versions, Owner = owner };
     }
 
     public async Task<List<string>> GetCategories(CancellationToken ct = default)

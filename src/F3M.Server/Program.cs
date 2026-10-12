@@ -188,9 +188,21 @@ else
 
 app.UseHttpsRedirection();
 
+// The client's own files (index.html, js/, css/) keep their names across releases, so browsers must ask whether
+// they changed (a cheap 304 via ETag) instead of guessing a lifetime: a stale f3m.js breaks pages that call newer
+// functions in it. Files under _framework have the build's hash in their name and can be cached as usual.
+var clientFiles = new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        if (!context.Context.Request.Path.StartsWithSegments("/_framework"))
+            context.Context.Response.Headers.CacheControl = "no-cache";
+    }
+};
+
 // IMPORTANT: UseBlazorFrameworkFiles must come before UseStaticFiles and UseRouting.
 app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(clientFiles);
 
 // Serve preview thumbnails from the persistent asset directory (outside wwwroot).
 // Mod files are deliberately NOT served from here: they are only reachable through the download
@@ -222,7 +234,7 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 app.MapControllers();
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", clientFiles);
 
 app.Run();
 return 0;

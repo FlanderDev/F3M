@@ -110,6 +110,21 @@ public class ModFile
     [MaxLength(260)]
     public string InstallPath { get; set; } = string.Empty;   // suggested install path
 
+    /// <summary>
+    /// Archives only: the folder inside the archive whose contents are installed ('/' separated, "" = all of it).
+    /// Files outside it are not installed, and the folder's own name does not appear in the game folder. For archives
+    /// packed with an extra top folder, or that carry more than the mod itself.
+    /// </summary>
+    [MaxLength(260)]
+    public string ArchiveRoot { get; set; } = string.Empty;
+
+    /// <summary>
+    /// What kind of mod file this is, as chosen by the uploader (a <see cref="Helpers.ModTemplates"/> id). Decides
+    /// which rules the upload was checked against; <see cref="Helpers.ModTemplates.Custom"/> for none.
+    /// </summary>
+    [MaxLength(Helpers.ModTemplates.MaxIdLength)]
+    public string Template { get; set; } = Helpers.ModTemplates.Custom;
+
     /// <summary>SHA-256 of the uploaded file (lower-case hex), computed on upload. Empty for files uploaded before catalog support.</summary>
     [MaxLength(64)]
     public string Sha256 { get; set; } = string.Empty;
@@ -145,14 +160,32 @@ public class ModUploadDto
     [MaxLength(20)]
     public string Version { get; set; } = "1.0.0";
 
+    /// <summary>The category of an upload whose author picked none.</summary>
+    public const string UnspecifiedCategory = "Unspecified";
+
     [MaxLength(50)]
-    public string Category { get; set; } = "Unspecified";
+    public string Category { get; set; } = UnspecifiedCategory;
 
     /// <summary>If set, this upload is a new version of an existing mod group.</summary>
     public int? ModGroupId { get; set; }
 
     /// <summary>Files the mod creates at runtime that are not part of the archive (plan 5.8).</summary>
     public List<GeneratedPathDto> GeneratedPaths { get; set; } = [];
+
+    /// <summary>
+    /// The uploader has seen the warnings about the files' types and uploads anyway. Without it, an upload with such
+    /// warnings is answered with <see cref="UploadWarningsResult"/> and not stored.
+    /// </summary>
+    public bool AcceptWarnings { get; set; }
+}
+
+/// <summary>
+/// The answer (HTTP 422) to an upload whose files do not match their types and whose uploader has not accepted that
+/// yet. Nothing was stored; sending the same upload again with <see cref="ModUploadDto.AcceptWarnings"/> stores it.
+/// </summary>
+public class UploadWarningsResult
+{
+    public List<string> Warnings { get; set; } = [];
 }
 
 /// <summary>One entry in the multi-file list on the upload form.</summary>
@@ -194,4 +227,17 @@ public class ModVersionsResult
 {
     public ModGroup Group { get; set; } = new();
     public List<Mod> Versions { get; set; } = [];
+
+    /// <summary>The account the mod belongs to; null while an imported mod is unclaimed.</summary>
+    public ModOwnerDto? Owner { get; set; }
+}
+
+/// <summary>Who owns a mod, for the links to their F3M and F95zone profiles. Only public names and ids.</summary>
+public class ModOwnerDto
+{
+    public string Username { get; set; } = string.Empty;
+
+    /// <summary>Null when the account was never linked to F95zone.</summary>
+    public string? F95UserId { get; set; }
+    public string? F95Username { get; set; }
 }

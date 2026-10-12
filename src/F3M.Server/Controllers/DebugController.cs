@@ -41,6 +41,8 @@ public sealed class DebugController(ModUploadService uploader) : ControllerBase
         [FromForm] IFormFileCollection files,
         [FromForm] List<string> installPaths,
         [FromForm] List<string> originalNames,
+        [FromForm] List<string>? archiveRoots,
+        [FromForm] List<string>? templates,
         IFormFile? previewImage,
         [FromForm] string author,
         [FromForm] DateTime? uploadedAt,
@@ -49,15 +51,14 @@ public sealed class DebugController(ModUploadService uploader) : ControllerBase
         if (!IsLocalNetwork(HttpContext.Connection.RemoteIpAddress))
             return Unauthorized("Access denied: Only local network allowed");
 
-        var uploadFiles = files.Select((f, i) => new UploadFile(
-            f,
-            i < originalNames.Count ? originalNames[i] : null,
-            i < installPaths.Count ? installPaths[i] : null)).ToList();
+        var uploadFiles = UploadFile.FromForm(files, originalNames, installPaths, archiveRoots, templates);
 
         var when = uploadedAt is { } at ? DateTime.SpecifyKind(at.ToUniversalTime(), DateTimeKind.Utc) : (DateTime?)null;
         var result = await uploader.UploadAsync(dto, uploadFiles, previewImage, new UploadOwner(ModGroup.UnclaimedOwnerId, author), when, ct: ct);
         if (result.Forbidden)
             return Forbid();
+        if (result.Unconfirmed is { } unconfirmed)
+            return UnprocessableEntity(new UploadWarningsResult { Warnings = [.. unconfirmed] });
         if (result.Mod is not { } mod)
             return BadRequest(result.Error);
 

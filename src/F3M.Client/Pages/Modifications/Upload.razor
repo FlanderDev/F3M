@@ -67,7 +67,7 @@
                     </div>
                     <div class="col-8">
                         <label class="form-label fw-semibold small">Category</label>
-                        <InputSelect class="form-select f3m-select" @bind-Value="dto.Category" disabled="@IsNewVersion">
+                        <InputSelect class="form-select f3m-select" @bind-Value="dto.Category" @bind-Value:after="() => categoryChosen = true" disabled="@IsNewVersion">
                             @foreach (var cat in Categories)
                             {
                                 <option value="@cat">@cat</option>
@@ -88,7 +88,8 @@
                     <label class="form-label fw-semibold small">Mods which this mod depends on<span class="text-danger"></span></label>
                     <MultiSelectDropdown TModel="Mod"
                                          LoadValuesAsync="LoadMultiSelectDropdownValues"
-                                         OnDropdownClosed="e => SetDependencies(e.Select(s => s.Model).ToList())" />
+                                         SelectedItems="dependencyItems"
+                                         SelectedItemsChanged="OnDependenciesChanged" />
                 </div>
 
                 <!-- Preview image -->
@@ -101,7 +102,7 @@
 
                 <!-- Mod files -->
                 <div class="mb-4">
-                    <PickerModFiles Entries="fileEntries" OnEntriesChanged="StateHasChanged" />
+                    <PickerModFiles Entries="fileEntries" ModName="@dto.Name" OnEntriesChanged="OnFilesChanged" />
                 </div>
 
                 <!-- Generated files (plan 5.8) -->
@@ -135,6 +136,29 @@
                     </div>
                 }
 
+                @if (TypeWarnings is { Count: > 0 } typeWarnings)
+                {
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <div class="fw-semibold mb-1">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Please check before publishing
+                        </div>
+                        <ul class="mb-2 ps-3">
+                            @foreach (var warning in typeWarnings)
+                            {
+                                <li>@warning</li>
+                            }
+                        </ul>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="accept-type-warnings"
+                                   checked="@WarningsAccepted"
+                                   @onchange="@(e => WarningsAccepted = e.Value is true)" />
+                            <label class="form-check-label" for="accept-type-warnings">
+                                I've checked these and want to publish anyway.
+                            </label>
+                        </div>
+                    </div>
+                }
+
                 @if (HasInvalidGeneratedPaths)
                 {
                     <div class="alert alert-warning py-2 small mb-3">
@@ -144,7 +168,7 @@
 
                 <!-- Submit -->
                 <button type="submit" class="btn btn-warning fw-bold w-100"
-                        disabled="@(uploading || fileEntries.Count == 0 || HasInvalidInstallPaths || HasInvalidGeneratedPaths)">
+                        disabled="@(uploading || fileEntries.Count == 0 || HasInvalidInstallPaths || HasInvalidGeneratedPaths || NeedsConfirmation)">
                     @if (uploading)
                     {
                         <span class="spinner-border spinner-border-sm me-2"></span>

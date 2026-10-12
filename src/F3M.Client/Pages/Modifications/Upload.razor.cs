@@ -1,6 +1,6 @@
 using F3M.Client.Business;
+using F3M.Client.Components;
 using F3M.Client.Models;
-using F3M.Client.Services;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -27,13 +27,97 @@ public partial class Upload
     // The dropdown reports full Mod objects (from SearchMods, one per logical mod); kept here
     // for display, then reduced to distinct ModGroupIds on dto for transmission — a dependency
     // targets the logical mod, not the specific version that happened to show up in search.
-    private List<Mod> selectedDependencies = [];
+    // The page adds the mod a file's type needs (the framework, a loader) to the same list.
+    private List<MultiSelectDropdown<Mod>.InternalItem> dependencyItems = [];
 
-    private void SetDependencies(List<Mod> selected)
+    private void OnDependenciesChanged(List<MultiSelectDropdown<Mod>.InternalItem> selected)
     {
-        selectedDependencies = selected;
-        dto.DependencyGroupIds = [.. selected.Select(m => m.ModGroupId).Distinct()];
+        dependencyItems = selected;
+        dto.DependencyGroupIds = [.. selected.Select(i => i.Model.ModGroupId).Distinct()];
     }
+
+    // ── Types: category, required mods, warnings ──────────────────────────────
+
+    // The author picked a category; the files' types no longer change it.
+    private bool categoryChosen;
+
+    // Required mods by name (ModTemplate.RequiredModName), looked up once; null when the site doesn't have it.
+    private readonly Dictionary<string, Mod?> requiredMods = new(StringComparer.OrdinalIgnoreCase);
+
+    // Required mods added on the author's behalf once; removing one again is their call.
+    private readonly HashSet<string> requirementsAdded = new(StringComparer.OrdinalIgnoreCase);
+
+    private IEnumerable<ModTemplate> UsedTemplates =>
+        fileEntries.Select(e => ModTemplates.Find(e.Template)).OfType<ModTemplate>().DistinctBy(t => t.Id);
+
+    /// <summary>After the files or their types change: fill in the category and the required mods.</summary>
+    private async Task OnFilesChanged()
+    {
+        if (!categoryChosen && !IsNewVersion
+            && UsedTemplates.FirstOrDefault(t => t.Id != ModTemplates.Custom) is { } main)
+        {
+            dto.Category = main.Category;
+        }
+
+        foreach (var name in UsedTemplates.Select(t => t.RequiredModName).OfType<string>().Distinct().ToList())
+        {
+            if (!requiredMods.ContainsKey(name))
+            {
+                var found = await ModsApi.SearchMods(name);
+                requiredMods[name] = found?.FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (requiredMods[name] is not { } required || requirementsAdded.Contains(name) || IsRequirementOf(required))
+                continue;
+
+            requirementsAdded.Add(name);
+            if (!dependencyItems.Any(i => i.Model.ModGroupId == required.ModGroupId))
+                OnDependenciesChanged([.. dependencyItems, new MultiSelectDropdown<Mod>.InternalItem(required, false)]);
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>A new version of the required mod itself does not need it.</summary>
+    private bool IsRequirementOf(Mod required) => GroupId == required.ModGroupId;
+
+    /// <summary>
+    /// Everything about the files' types the author should look at before publishing: per file, and the required mods
+    /// that are on the site but not listed. The server checks the same again.
+    /// </summary>
+    private List<string> TypeWarnings
+    {
+        get
+        {
+            var warnings = fileEntries.SelectMany(e => e.TypeWarnings.Select(w => $"{e.OriginalName}: {w}")).ToList();
+            foreach (var template in UsedTemplates.Where(t => t.RequiredModName is not null))
+            {
+                if (requiredMods.GetValueOrDefault(template.RequiredModName!) is { } required
+                    && !IsRequirementOf(required)
+                    && !dependencyItems.Any(i => i.Model.ModGroupId == required.ModGroupId))
+                {
+                    warnings.Add($"{template.Name} files need {template.RequiredModName}. Add it as a requirement so that players get it too.");
+                }
+            }
+
+            // What the server found that the form didn't (it has the final say).
+            foreach (var warning in serverWarnings.Where(w => !warnings.Contains(w)))
+                warnings.Add(warning);
+            return warnings;
+        }
+    }
+
+    // The warnings the author accepted; a change to them needs a new confirmation.
+    private string? acceptedWarnings;
+    private List<string> serverWarnings = [];
+
+    private bool WarningsAccepted
+    {
+        get => TypeWarnings is { Count: > 0 } warnings && acceptedWarnings == string.Join('\n', warnings);
+        set => acceptedWarnings = value ? string.Join('\n', TypeWarnings) : null;
+    }
+
+    private bool NeedsConfirmation => TypeWarnings.Count > 0 && !WarningsAccepted;
 
     // Passed directly into ModImagePicker via @bind-*
     private byte[]? imageBytes;
@@ -46,62 +130,14 @@ public partial class Upload
     // Passed by reference into ModFileList; the component mutates it in place.
     private readonly List<FileEntry> fileEntries = [];
 
-    private bool HasInvalidInstallPaths =>
-        fileEntries.Any(e => !InstallPaths.TryPlan(e.OriginalName, e.InstallPath, out _));
+    private bool HasInvalidInstallPaths => UploadFileChecks.HasProblems(fileEntries);
 
     private bool HasInvalidGeneratedPaths =>
         GeneratedPathChecks.HasErrors(GeneratedPathChecks.Evaluate(dto.GeneratedPaths, ShippedPaths));
 
-    // Game paths this upload installs itself: each plain file's target, and each archive entry's extracted path.
-    // The pattern editor checks generated-file patterns against them. Recomputed only when the files change,
-    // since listing an archive means reading its index.
-    private IReadOnlyList<string> shippedPaths = [];
-    private string shippedKey = string.Empty;
-
-    private IReadOnlyList<string> ShippedPaths
-    {
-        get
-        {
-            var key = string.Join('\n', fileEntries.Select(e =>
-                $"{e.OriginalName}\t{e.InstallPath}\t{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(e.Bytes)}"));
-
-            if (key != shippedKey)
-            {
-                shippedKey = key;
-                shippedPaths = ComputeShippedPaths();
-            }
-
-            return shippedPaths;
-        }
-    }
-
-    private List<string> ComputeShippedPaths()
-    {
-        var paths = new List<string>();
-        foreach (var entry in fileEntries)
-        {
-            if (!InstallPaths.TryPlan(entry.OriginalName, entry.InstallPath, out var placement))
-                continue;
-
-            if (!placement.IsArchive)
-            {
-                paths.Add(placement.Target);
-                continue;
-            }
-
-            var listing = ArchiveInspector.List(entry.Bytes);
-            if (listing.Error is not null)
-                continue;
-
-            foreach (var archiveEntry in listing.Entries)
-            {
-                if (InstallPaths.TryExpand(placement.Target, archiveEntry.RelativePath, out var target))
-                    paths.Add(target);
-            }
-        }
-
-        return paths;
-    }
+    // Game paths this upload installs itself: each plain file's target, and each archive entry's extracted path
+    // (inside its archive folder). The pattern editor checks generated-file patterns against them.
+    private IReadOnlyList<string> ShippedPaths => [.. fileEntries.SelectMany(e => e.Targets ?? [])];
 
     // Warnings the server returned for the last upload (overlaps with other mods' patterns, deep wildcards).
     private List<string> uploadWarnings = [];
@@ -162,6 +198,9 @@ public partial class Upload
             if (dto.ModGroupId.HasValue)
                 content.Add(new StringContent(dto.ModGroupId.Value.ToString()), nameof(ModUploadDto.ModGroupId));
 
+            if (WarningsAccepted)
+                content.Add(new StringContent("true"), nameof(ModUploadDto.AcceptWarnings));
+
             foreach (var depGroupId in dto.DependencyGroupIds)
                 content.Add(new StringContent(depGroupId.ToString()), nameof(ModUploadDto.DependencyGroupIds));
 
@@ -181,6 +220,8 @@ public partial class Upload
                 content.Add(filePart, "files", entry.OriginalName);
                 content.Add(new StringContent(entry.InstallPath ?? string.Empty), "installPaths");
                 content.Add(new StringContent(entry.OriginalName), "originalNames");
+                content.Add(new StringContent(entry.ArchiveRoot), "archiveRoots");
+                content.Add(new StringContent(entry.Template), "templates");
             }
 
             for (var i = 0; i < dto.GeneratedPaths.Count; i++)
@@ -209,6 +250,14 @@ public partial class Upload
                         .ToList();
                 }
             }
+            else if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+            {
+                // The server found things about the files' types to confirm first; nothing was stored.
+                var result = await response.Content.ReadFromJsonAsync<UploadWarningsResult>();
+                serverWarnings = result?.Warnings ?? [];
+                acceptedWarnings = null;
+                uploadError = "Please look at the warnings about the files' types and confirm them.";
+            }
             else
             {
                 uploadError = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
@@ -224,8 +273,12 @@ public partial class Upload
     private void Reset()
     {
         dto = new();
-        selectedDependencies = [];
+        dependencyItems = [];
         fileEntries.Clear();
+        categoryChosen = false;
+        requirementsAdded.Clear();
+        acceptedWarnings = null;
+        serverWarnings = [];
         imageBytes = null;
         imageFileName = string.Empty;
         previewDataUrl = null;

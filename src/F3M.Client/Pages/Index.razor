@@ -4,6 +4,8 @@
 @attribute [GeneratedPathName("/Browse", "Browse")]
 
 @inject IModsApi ModsApi
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <PageTitle>F3M - Browse</PageTitle>
 
@@ -13,7 +15,7 @@
         <div class="row align-items-center g-3">
             <div class="col">
                 <h1 class="fw-black mb-0 fs-3">Browse Mods</h1>
-                <p class="small mb-0">@(result?.TotalCount ?? 0) mods available</p>
+                <p class="small mb-0">@totalCount mods available</p>
             </div>
             <div class="col-auto">
                 <CollectionBadge />
@@ -95,7 +97,8 @@
 <div class="container-fluid px-4 py-4">
     @if (loading)
     {
-        <div class="mod-grid">
+        @* The placeholders also tell how many cards fit on the screen (see OnAfterRenderAsync). *@
+        <div class="mod-grid" @ref="placeholderGrid">
             @for (int i = 0; i < 12; i++)
             {
                 <div class="mod-card-skeleton">
@@ -110,7 +113,7 @@
             }
         </div>
     }
-    else if (result?.Items.Count == 0)
+    else if (mods.Count == 0)
     {
         <div class="f3m-empty text-center py-5">
             <i class="bi bi-inbox display-3 opacity-50 d-block mb-3"></i>
@@ -122,36 +125,33 @@
     else
     {
         <div class="mod-grid">
-            @foreach (var mod in result!.Items)
+            @foreach (var mod in mods)
             {
-                <ModCard Mod="mod" />
+                <ModCard @key="mod.Id" Mod="mod" />
             }
         </div>
 
-        <!-- Pagination -->
-        @if (result.TotalPages > 1)
+        @if (loadingMore)
         {
-            <div class="d-flex justify-content-center mt-5">
-                <ul class="pagination f3m-pagination gap-1 mb-0">
-                    <li class="page-item @(currentPage == 1 ? "disabled" : string.Empty)">
-                        <button class="page-link" @onclick="() => GoToPage(currentPage - 1)">
-                            <i class="bi bi-chevron-left"></i>
-                        </button>
-                    </li>
-                    @for (int p = 1; p <= result.TotalPages; p++)
-                    {
-                        var pg = p;
-                        <li class="page-item @(pg == currentPage ? "active" : string.Empty)">
-                            <button class="page-link" @onclick="() => GoToPage(pg)">@pg</button>
-                        </li>
-                    }
-                    <li class="page-item @(currentPage == result.TotalPages ? "disabled" : string.Empty)">
-                        <button class="page-link" @onclick="() => GoToPage(currentPage + 1)">
-                            <i class="bi bi-chevron-right"></i>
-                        </button>
-                    </li>
-                </ul>
+            <div class="text-center py-4">
+                <span class="spinner-border spinner-border-sm text-warning me-2"></span>
+                <span class="small">Loading more mods…</span>
             </div>
         }
+        else if (mods.Count < totalCount)
+        {
+            @* Usually the list grows before this is reached; for keyboards, and when scrolling can't be watched. *@
+            <div class="text-center py-4">
+                <button class="btn btn-sm btn-outline-warning" @onclick="LoadMoreClicked">
+                    Load more (@(totalCount - mods.Count) left)
+                </button>
+            </div>
+        }
+        else if (totalCount > batchSize)
+        {
+            <p class="text-center small py-4 mb-0">That's all @totalCount mods.</p>
+        }
     }
+
+    <div @ref="listEnd" aria-hidden="true"></div>
 </div>

@@ -78,6 +78,25 @@ public static class InstallPaths
     }
 
     /// <summary>
+    /// Where an archive entry goes when only the folder <paramref name="rootParts"/> of the archive is installed:
+    /// the entry's path below that folder, or false when the entry lies outside it.
+    /// </summary>
+    public static bool TryStripRoot(IReadOnlyList<string> rootParts, IReadOnlyList<string> entryParts, out List<string> relative)
+    {
+        relative = [];
+        if (entryParts.Count <= rootParts.Count)
+            return false;
+        for (var i = 0; i < rootParts.Count; i++)
+        {
+            if (!string.Equals(rootParts[i], entryParts[i], StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        relative = [.. entryParts.Skip(rootParts.Count)];
+        return true;
+    }
+
+    /// <summary>
     /// The author's install path is the full target path including the file name (the upload dialog
     /// pre-fills the name); a path whose last part isn't the file's name is taken as a folder.
     /// No path: plain files go to BepInEx/plugins, archives are extracted into the game folder.

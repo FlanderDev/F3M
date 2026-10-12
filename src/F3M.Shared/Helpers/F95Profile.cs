@@ -27,4 +27,8 @@ public static partial class F95Profile
     }
 
     public static string Url(string username, string userId) => $"https://f95zone.to/members/{username}.{userId}/";
+
+    /// <summary>A profile link from the user id, with the name when it is known (F95zone finds the profile by id either way).</summary>
+    public static string LinkFor(string? username, string userId) =>
+        string.IsNullOrWhiteSpace(username) ? $"https://f95zone.to/members/{userId}/" : Url(username, userId);
 }

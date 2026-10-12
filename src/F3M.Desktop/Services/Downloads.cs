@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
-using System.IO.Compression;
 using System.Net;
 using F3M.Desktop.Core;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
+using SharpCompress.Archives;
 
 namespace F3M.Desktop.Services;
 
@@ -21,8 +21,8 @@ public static class PlacementRules
             if (!InstallPaths.TrySplit(file.OriginalName, out var nameParts, out _) || nameParts.Count != 1)
                 throw new UserException($"'{file.OriginalName}' is not a valid file name in {doc.Name}.");
 
-            if (file.IsArchive && !file.OriginalName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                throw new UserException($"{doc.Name} ships a {Path.GetExtension(file.OriginalName)} archive, which the desktop app cannot open yet.");
+            if (file.IsArchive && !InstallPaths.IsArchive(file.OriginalName))
+                throw new UserException($"{doc.Name} ships a {Path.GetExtension(file.OriginalName)} archive, which the desktop app cannot open.");
 
             var froms = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var placement in file.Placements)
@@ -268,7 +268,11 @@ public sealed class Downloads(AppServices app)
         }
     }
 
-    /// <summary>Plain uploads are kept as one file under their name. Archives are extracted entry by entry, path-checked.</summary>
+    /// <summary>
+    /// Plain uploads are kept as one file under their name. From archives (.zip, .7z, .rar, read with the same library
+    /// the server inspects them with) only the entries the catalog places are extracted, each path-checked; anything
+    /// else in the archive is never used. <see cref="VerifyPlacementsAsync"/> then checks that every placement arrived.
+    /// </summary>
     private static void Extract(VersionFile file, string partPath, string destination)
     {
         Directory.CreateDirectory(destination);
@@ -278,20 +282,28 @@ public sealed class Downloads(AppServices app)
             return;
         }
 
+        var wanted = file.Placements.Select(p => p.From).ToHashSet(StringComparer.Ordinal);
         try
         {
-            using var archive = ZipFile.OpenRead(partPath);
+            using var stream = File.OpenRead(partPath);
+            using var archive = ArchiveFactory.OpenArchive(stream);
             foreach (var entry in archive.Entries)
             {
-                if (entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\')) continue;
-                var target = FileOps.ResolveUnder(destination, entry.FullName);
+                if (entry.IsDirectory || string.IsNullOrEmpty(entry.Key)) continue;
+
+                // The catalog names entries '/' separated, the way the server read them.
+                if (!InstallPaths.TrySplit(entry.Key, out var parts, out _) || !wanted.Contains(string.Join('/', parts))) continue;
+
+                var target = FileOps.ResolveUnder(destination, string.Join('/', parts));
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                entry.ExtractToFile(target, overwrite: true);
+                using var source = entry.OpenEntryStream();
+                using var output = File.Create(target);
+                source.CopyTo(output);
             }
         }
-        catch (InvalidDataException)
+        catch (Exception ex) when (ex is not (UserException or OperationCanceledException or IOException or UnauthorizedAccessException))
         {
-            throw new UserException($"{file.OriginalName} is not a valid zip archive.");
+            throw new UserException($"{file.OriginalName} could not be opened. It may be damaged; try the download again.");
         }
     }
 

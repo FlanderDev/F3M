@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "F3M.Shared", "F3M.Shared\F3
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "F3M.Desktop", "F3M.Desktop\F3M.Desktop.csproj", "{A38C05C5-2E1C-D0A3-0590-017152830498}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "F3M.Shared.Tests", "F3M.Shared.Tests\F3M.Shared.Tests.csproj", "{56B2F1A9-DFC0-4A89-A9A0-2C9B620D3210}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,10 @@ Global
 		{A38C05C5-2E1C-D0A3-0590-017152830498}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A38C05C5-2E1C-D0A3-0590-017152830498}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A38C05C5-2E1C-D0A3-0590-017152830498}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56B2F1A9-DFC0-4A89-A9A0-2C9B620D3210}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56B2F1A9-DFC0-4A89-A9A0-2C9B620D3210}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56B2F1A9-DFC0-4A89-A9A0-2C9B620D3210}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56B2F1A9-DFC0-4A89-A9A0-2C9B620D3210}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

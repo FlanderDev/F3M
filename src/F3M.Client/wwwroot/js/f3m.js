@@ -26,6 +26,44 @@ window.f3m = {
     },
 
     /**
+     * How many cards of a CSS grid fit on the screen: its columns times the rows the window is tall, measured on the
+     * cards (or placeholders) it shows. Called from Blazor via IJSRuntime.
+     */
+    gridScreenful: function (grid) {
+        if (!grid || !grid.firstElementChild) return 0;
+        const style = getComputedStyle(grid);
+        const columns = style.gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+        const rowHeight = grid.firstElementChild.getBoundingClientRect().height + (parseFloat(style.rowGap) || 0);
+        const rows = rowHeight > 0 ? Math.ceil(window.innerHeight / rowHeight) : 1;
+        return columns * Math.max(1, rows);
+    },
+
+    /**
+     * Infinite scroll: calls dotNet.LoadMore() whenever `sentinel` (an element after the list) comes within
+     * `margin` pixels of the screen, and again after each batch while it is still that close. LoadMore resolves
+     * to false when there is nothing more to load. Returns { check, dispose }: check() looks again (after the list
+     * was replaced), dispose() stops watching.
+     */
+    watchListEnd: function (sentinel, dotNet, margin) {
+        let busy = false;
+        const near = () => sentinel.isConnected && sentinel.getBoundingClientRect().top < window.innerHeight + margin;
+        const load = async () => {
+            if (busy) return;
+            busy = true;
+            try {
+                let more = true;
+                while (more && near()) more = await dotNet.invokeMethodAsync('LoadMore');
+            } catch { /* the page is going away */ }
+            finally { busy = false; }
+        };
+        const observer = new IntersectionObserver(
+            entries => { if (entries.some(e => e.isIntersecting)) load(); },
+            { rootMargin: margin + 'px 0px' });
+        observer.observe(sentinel);
+        return { check: load, dispose: () => observer.disconnect() };
+    },
+
+    /**
      * Programmatically click the hidden file input (for the custom dropzone).
      */
     triggerFileInput: function (inputId) {

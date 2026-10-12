@@ -36,12 +36,53 @@
                     </div>
 
                     <div class="f3m-file-entry-path">
-                        <i class="bi bi-folder2 flex-shrink-0" style="font-size:.8rem;"></i>
+                        <i class="bi bi-tags flex-shrink-0" style="font-size:.8rem;" title="Type"></i>
+                        <select class="f3m-type-select"
+                                aria-label="Type of @entry.OriginalName"
+                                value="@entry.Template"
+                                @onchange="@(e => SetTemplate(entry, e.Value?.ToString()))">
+                            @foreach (var template in ModTemplates.All)
+                            {
+                                <option value="@template.Id">@template.Name</option>
+                            }
+                        </select>
+                        @if (entry.Suggestion is { TemplateId: not ModTemplates.Custom } suggestion)
+                        {
+                            <span class="f3m-type-hint">
+                                @(suggestion.TemplateId == entry.Template ? "recognised from the contents" : $"looks like {TemplateName(suggestion.TemplateId)}")
+                            </span>
+                        }
+                    </div>
+                    <div class="f3m-file-entry-target">@(ModTemplates.Find(entry.Template)?.Description)</div>
+
+                    @if (entry.Listing is not null)
+                    {
+                        <div class="f3m-file-entry-path">
+                            <i class="bi bi-box-arrow-in-down-right flex-shrink-0" style="font-size:.8rem;" title="Archive folder"></i>
+                            <input class="f3m-path-input"
+                                   type="text"
+                                   list="f3m-archive-folders-@idx"
+                                   aria-label="Archive folder of @entry.OriginalName"
+                                   placeholder="Folder inside the archive to install (empty: the whole archive)"
+                                   value="@entry.ArchiveRoot"
+                                   @onchange="@(e => SetArchiveRoot(entry, e.Value?.ToString()))" />
+                            <datalist id="f3m-archive-folders-@idx">
+                                @foreach (var folder in entry.ArchiveFolders)
+                                {
+                                    <option value="@folder"></option>
+                                }
+                            </datalist>
+                        </div>
+                    }
+
+                    <div class="f3m-file-entry-path">
+                        <i class="bi bi-folder2 flex-shrink-0" style="font-size:.8rem;" title="Install path"></i>
                         <input class="f3m-path-input"
                                type="text"
-                               placeholder="Install path (e.g. Manaka/Mods/Textures)"
+                               aria-label="Install path of @entry.OriginalName"
+                               placeholder="Install path (e.g. BepInEx/plugins/MyMod)"
                                value="@entry.InstallPath"
-                               @oninput="@(e => Entries[idx].InstallPath = e.Value?.ToString() ?? string.Empty)" />
+                               @oninput="@(e => SetInstallPath(entry, e.Value?.ToString()))" />
 
                         <button type="button"
                                 class="btn btn-sm btn-outline-warning flex-shrink-0"
@@ -55,6 +96,12 @@
                     <div class="f3m-file-entry-target @(IsValidPath(entry) ? string.Empty : "text-danger")">
                         <i class="bi bi-arrow-return-right me-1"></i>@TargetHint(entry)
                     </div>
+                    @foreach (var warning in entry.TypeWarnings)
+                    {
+                        <div class="f3m-file-entry-target text-warning">
+                            <i class="bi bi-exclamation-triangle me-1"></i>@warning
+                        </div>
+                    }
                 </div>
             }
         </div>
@@ -63,7 +110,7 @@
     @* One shared SaveModFileDialog, driven by _fsdTargetIndex *@
     <SaveModFileDialog @bind-Visible="_fsdOpen"
                        Title="Choose Install Path"
-                       InitialPath="Manaka/Mods/Textures"
+                       InitialPath="@(_fsdTargetIndex >= 0 && _fsdTargetIndex < Entries.Count ? Entries[_fsdTargetIndex].InstallPath : string.Empty)"
                        DefaultName="@(_fsdTargetIndex >= 0 && _fsdTargetIndex < Entries.Count ? Entries[_fsdTargetIndex].OriginalName : string.Empty)"
                        OnSave="ApplyFsdPath" />
 
