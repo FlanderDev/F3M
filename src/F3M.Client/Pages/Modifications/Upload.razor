@@ -102,7 +102,21 @@
 
                 <!-- Mod files -->
                 <div class="mb-4">
-                    <PickerModFiles Entries="fileEntries" ModName="@dto.Name" OnEntriesChanged="OnFilesChanged" />
+                    <PickerModFiles Entries="fileEntries"
+                                    ModName="@dto.Name"
+                                    OnEntriesChanged="OnFilesChanged"
+                                    OptionalGroups="optionalGroups"
+                                    NormalizedGroups="OptionalCheck.Normalized"
+                                    OnOptionalGroupsChanged="StateHasChanged" />
+                </div>
+
+                <!-- Optional files: examples, tutorials, readmes -->
+                <div class="mb-4">
+                    <OptionalGroupsEditor Groups="optionalGroups"
+                                          ShippedPaths="ShippedPaths"
+                                          Check="OptionalCheck"
+                                          Dismissed="dismissedSuggestions"
+                                          OnChanged="StateHasChanged" />
                 </div>
 
                 <!-- Generated files (plan 5.8) -->
@@ -159,6 +173,13 @@
                     </div>
                 }
 
+                @if (HasInvalidOptionalGroups)
+                {
+                    <div class="alert alert-warning py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Fix the optional files before publishing: @OptionalCheck.Error
+                    </div>
+                }
+
                 @if (HasInvalidGeneratedPaths)
                 {
                     <div class="alert alert-warning py-2 small mb-3">
@@ -168,7 +189,7 @@
 
                 <!-- Submit -->
                 <button type="submit" class="btn btn-warning fw-bold w-100"
-                        disabled="@(uploading || fileEntries.Count == 0 || HasInvalidInstallPaths || HasInvalidGeneratedPaths || NeedsConfirmation)">
+                        disabled="@(uploading || fileEntries.Count == 0 || HasInvalidInstallPaths || HasInvalidGeneratedPaths || HasInvalidOptionalGroups || NeedsConfirmation)">
                     @if (uploading)
                     {
                         <span class="spinner-border spinner-border-sm me-2"></span>

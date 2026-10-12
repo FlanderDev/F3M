@@ -315,6 +315,27 @@ namespace F3M.Server.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ModOptionalGroups",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ModId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 40, nullable: false),
+                    Patterns = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ModOptionalGroups", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ModOptionalGroups_Mods_ModId",
+                        column: x => x.ModId,
+                        principalTable: "Mods",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ModFileEntries",
                 columns: table => new
                 {
@@ -427,6 +448,11 @@ namespace F3M.Server.Migrations
                 column: "F95OwnerUserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ModOptionalGroups_ModId",
+                table: "ModOptionalGroups",
+                column: "ModId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Mods_Category",
                 table: "Mods",
                 column: "Category");
@@ -476,6 +502,9 @@ namespace F3M.Server.Migrations
 
             migrationBuilder.DropTable(
                 name: "ModGeneratedPaths");
+
+            migrationBuilder.DropTable(
+                name: "ModOptionalGroups");
 
             migrationBuilder.DropTable(
                 name: "TelemetryErrorReports");

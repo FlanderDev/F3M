@@ -49,7 +49,44 @@ public static class PlacementRules
             if (targets.Any(t => GeneratedPathRules.IsMatch(pattern, t)))
                 throw new UserException($"A generated-file pattern of {doc.Name} matches one of its own files: {generated.Pattern}");
         }
+
+        var optional = (doc.OptionalGroups ?? []).Select(g => new OptionalGroupDto { Name = g.Name, Patterns = [.. g.Patterns] }).ToList();
+        if (!OptionalFileRules.TryNormalize(optional, out _, out var optionalError))
+            throw new UserException($"{doc.Name} has invalid optional files: {optionalError}");
     }
+
+    /// <summary>
+    /// The optional groups of <paramref name="doc"/> the profile turned on, in the document's spelling and order. Names
+    /// the version no longer has are ignored.
+    /// </summary>
+    public static List<string> EnabledGroups(VersionDocument doc, ProfileDef profile)
+    {
+        if (doc.OptionalGroups is not { Count: > 0 } groups || !profile.OptionalGroups.TryGetValue(doc.GroupId, out var on))
+            return [];
+        return [.. groups.Select(g => g.Name).Where(name => on.Contains(name, StringComparer.OrdinalIgnoreCase))];
+    }
+
+    /// <summary>True when a placement goes into the game folder with these optional groups turned on.</summary>
+    public static bool IsInstalled(VersionDocument doc, PlacementRef placement, IReadOnlyCollection<string> enabledGroups) =>
+        OptionalFileRules.IsInstalled(doc.OptionalGroups, Normalize(placement.To, "game folder"), enabledGroups);
+
+    /// <summary>How many placements of the version belong to each optional group, in the document's order.</summary>
+    public static List<(string Name, int Files)> OptionalGroupSizes(VersionDocument doc)
+    {
+        var groups = doc.OptionalGroups ?? [];
+        var counts = groups.ToDictionary(g => g.Name, _ => 0, StringComparer.OrdinalIgnoreCase);
+        foreach (var placement in doc.Files.SelectMany(f => f.Placements))
+        {
+            if (OptionalFileRules.GroupOf(groups, Normalize(placement.To, "game folder")) is { } name)
+                counts[name]++;
+        }
+
+        return [.. groups.Select(g => (g.Name, counts[g.Name]))];
+    }
+
+    /// <summary>Same optional groups, ignoring order and case.</summary>
+    public static bool SameGroups(IEnumerable<string> a, IEnumerable<string> b) =>
+        a.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(b);
 
     /// <summary>A relative, normalised path. Throws a user message for anything else.</summary>
     public static string Normalize(string input, string label)

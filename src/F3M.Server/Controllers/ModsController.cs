@@ -166,6 +166,7 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
     // Form fields:
     //   Name, Description, Version, Category, ModGroupId (optional)
     //   GeneratedPaths[i].Pattern and GeneratedPaths[i].Kind (optional, plan 5.8)
+    //   OptionalGroups[i].Name and OptionalGroups[i].Patterns[j] (optional): parts the mod does not need
     //   previewImage (optional IFormFile)
     //   files[]           — multiple mod files
     //   installPaths[]    — one install path per file (same index)

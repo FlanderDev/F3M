@@ -361,6 +361,31 @@ namespace F3M.Server.Migrations
                     b.ToTable("ModGroups");
                 });
 
+            modelBuilder.Entity("F3M.Shared.Models.ModOptionalGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ModId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.PrimitiveCollection<string>("Patterns")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModId");
+
+                    b.ToTable("ModOptionalGroups");
+                });
+
             modelBuilder.Entity("F3M.Shared.Models.Telemetry+ErrorReport", b =>
                 {
                     b.Property<int>("Id")
@@ -571,6 +596,15 @@ namespace F3M.Server.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("F3M.Shared.Models.ModOptionalGroup", b =>
+                {
+                    b.HasOne("F3M.Shared.Models.Mod", null)
+                        .WithMany("OptionalGroups")
+                        .HasForeignKey("ModId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
@@ -642,6 +676,8 @@ namespace F3M.Server.Migrations
                     b.Navigation("Files");
 
                     b.Navigation("GeneratedPaths");
+
+                    b.Navigation("OptionalGroups");
                 });
 #pragma warning restore 612, 618
         }
