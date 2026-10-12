@@ -89,6 +89,9 @@ public sealed record CollectionLink(IReadOnlyList<int> GroupIds, string? Name)
     /// <summary>Relative path of the web page, e.g. <c>/collection?mods=45,67</c>.</summary>
     public string ToWebPath() => "/collection?" + ToQuery();
 
-    /// <summary>Protocol link opened by the desktop app, e.g. <c>f3m://v1/import-profile?mods=45,67</c>.</summary>
-    public string ToProtocolUri() => ProtocolPrefix + ToQuery();
+    /// <summary>
+    /// Protocol link opened by the desktop app for the site at <paramref name="server"/>, e.g.
+    /// <c>f3m://v1/import-profile?mods=45,67&amp;server=https%3A%2F%2Ff3m.example</c>.
+    /// </summary>
+    public string ToProtocolUri(string server) => DesktopLink.WithServer(ProtocolPrefix + ToQuery(), server);
 }

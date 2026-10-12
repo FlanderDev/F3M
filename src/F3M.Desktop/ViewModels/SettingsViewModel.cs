@@ -18,6 +18,37 @@ public sealed partial class SettingsViewModel : ObservableObject
         _shell = shell;
         DataFolder = app.Paths.Root;
         LoadFromSettings();
+        LoadTrustedSites();
+    }
+
+    /// <summary>Sites whose f3m:// links act without asking. Revoking applies at once, outside the save bar.</summary>
+    public ObservableCollection<TrustedSiteRow> TrustedSites { get; } = [];
+
+    public bool HasTrustedSites => TrustedSites.Count > 0;
+
+    public void LoadTrustedSites()
+    {
+        TrustedSites.Clear();
+        foreach (var site in _app.Settings.TrustedSites.Order(StringComparer.Ordinal))
+            TrustedSites.Add(new TrustedSiteRow(site, RevokeTrust));
+        OnPropertyChanged(nameof(HasTrustedSites));
+    }
+
+    private void RevokeTrust(string site)
+    {
+        _app.Settings.TrustedSites.RemoveAll(s => string.Equals(s, site, StringComparison.Ordinal));
+        try
+        {
+            _app.SaveSettings();
+            Status = $"Links from {site} ask again before they act.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            AppLog.Error("Settings could not be saved", ex);
+            Status = "The change could not be saved. See the diagnostics log.";
+        }
+
+        LoadTrustedSites();
     }
 
     private void LoadFromSettings()
@@ -436,6 +467,14 @@ public sealed partial class SettingsViewModel : ObservableObject
 }
 
 /// <summary>One install in Auto-detect's list, with the button that picks it.</summary>
+public sealed partial class TrustedSiteRow(string site, Action<string> revoke)
+{
+    public string Site => site;
+
+    [RelayCommand]
+    private void Revoke() => revoke(site);
+}
+
 public sealed partial class GameInstallRow(GameInstall install, Action<GameInstall> use)
 {
     public string Folder => install.Folder;

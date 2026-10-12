@@ -83,15 +83,6 @@
                     <ValidationMessage For="@(() => dto.Description)" class="text-danger small mt-1 d-block" />
                 </div>
 
-                <!-- Mod Dependencies -->
-                <div class="mb-3">
-                    <label class="form-label fw-semibold small">Mods which this mod depends on<span class="text-danger"></span></label>
-                    <MultiSelectDropdown TModel="Mod"
-                                         LoadValuesAsync="LoadMultiSelectDropdownValues"
-                                         SelectedItems="dependencyItems"
-                                         SelectedItemsChanged="OnDependenciesChanged" />
-                </div>
-
                 <!-- Preview image -->
                 <div class="mb-3">
                     <PickerImage HintText="@ImagePickerHint"
@@ -124,6 +115,15 @@
                     <GeneratedPathsEditor Entries="dto.GeneratedPaths"
                                           ShippedPaths="ShippedPaths"
                                           OnEntriesChanged="StateHasChanged" />
+                </div>
+
+                <!-- Mod Dependencies -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Mods which this mod depends on<span class="text-danger"></span></label>
+                    <MultiSelectDropdown TModel="Mod"
+                                         LoadValuesAsync="LoadMultiSelectDropdownValues"
+                                         SelectedItems="dependencyItems"
+                                         SelectedItemsChanged="OnDependenciesChanged" />
                 </div>
 
                 <!-- Upload error -->

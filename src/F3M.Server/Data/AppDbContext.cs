@@ -83,6 +83,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
              .OnDelete(DeleteBehavior.Cascade);
             // Dependencies (List<Mod>) is a resolved, read-only view for display — not persisted.
             e.Ignore(m => m.Dependencies);
+            e.Ignore(m => m.ShippedPaths);
         });
 
         modelBuilder.Entity<ModFile>(e =>

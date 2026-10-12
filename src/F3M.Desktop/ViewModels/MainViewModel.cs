@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using F3M.Desktop.Core;
 using F3M.Desktop.Services;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 
 namespace F3M.Desktop.ViewModels;
@@ -485,7 +486,7 @@ public sealed partial class MainViewModel : ObservableObject
         await RefreshStateAsync();
     }
 
-    /// <summary>Entry point for a second launch and for f3m:// links. Every link is confirmed before it acts.</summary>
+    /// <summary>Entry point for a second launch and for f3m:// links. See <see cref="AllowLinkAsync"/> for when a link may act.</summary>
     public async Task HandleMessageAsync(string message)
     {
         if (message == "show")
@@ -510,6 +511,9 @@ public sealed partial class MainViewModel : ObservableObject
         switch (request)
         {
             case OpenModRequest open:
+                var group = _app.Catalog.Group(open.GroupId);
+                var what = group is null ? $"open mod {open.GroupId}" : $"open **{Markup.Escape(group.Name)}** by {Markup.Escape(group.Author)}";
+                if (!await AllowLinkAsync(request, "Open mod", what, "Open", confirmUntrusted: false)) return;
                 CurrentPage = BrowsePage;
                 await BrowsePage.SelectGroupAsync(open.GroupId);
                 break;
@@ -522,6 +526,59 @@ public sealed partial class MainViewModel : ObservableObject
                 await ConfirmImportAsync(import);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Whether a link may act. A link for another site than the app's server is refused (its mod numbers mean other
+    /// mods here). A trusted site acts right away. The first link of a site asks whether to trust it, showing what the
+    /// link wants. A link without a site (from an older website) is confirmed every time, except harmless ones.
+    /// </summary>
+    private async Task<bool> AllowLinkAsync(ProtocolRequest request, string title, string what, string okText, bool confirmUntrusted = true)
+    {
+        var server = request.Server;
+        what = what.TrimEnd('.') + ".";
+        if (server is null)
+        {
+            if (!confirmUntrusted) return true;
+            return await ConfirmAsync(title, char.ToUpperInvariant(what[0]) + what[1..] + "\n\nRequested from your browser. The link does not say which site it comes from.", okText);
+        }
+
+        DesktopLink.TryNormalizeServer(_app.Settings.ServerUrl, out var ours);
+        if (!string.Equals(server, ours, StringComparison.Ordinal))
+        {
+            var body = $"A link from **{Markup.Escape(server)}** wants to {what}\n\n" +
+                       $"F3M Desktop gets its mods from **{Markup.Escape(ours)}**, so the link can't be used here. " +
+                       "To use mods from that site, change the server address in Settings.";
+            if (await ConfirmAsync("Link for another site", body, "Open Settings")) CurrentPage = SettingsPage;
+            return false;
+        }
+
+        if (_app.Settings.TrustedSites.Contains(server, StringComparer.Ordinal)) return true;
+
+        var question = $"**{Markup.Escape(server)}** asks F3M Desktop to {what}\n\n" +
+                       "Do you trust this site? Its links then work without asking again. Only trust a site you use: " +
+                       "any page can claim to be it, but its links can only use mods from F3M Desktop's catalog.\n\n" +
+                       "You can take the trust back in Settings.";
+        if (!await ConfirmAsync($"Trust {Markup.Escape(new Uri(server).Host)}?", question, $"Trust and {okText.ToLowerInvariant()}")) return false;
+
+        TrustSite(server);
+        return true;
+    }
+
+    private void TrustSite(string server)
+    {
+        _app.Settings.TrustedSites.Add(server);
+        try
+        {
+            _app.SaveSettings();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.Error("The trusted site could not be saved", ex);
+            Notify("The trusted site could not be saved; you will be asked again next time.");
+        }
+
+        SettingsPage.LoadTrustedSites();
     }
 
     /// <summary>At most five links in a minute, and an identical link is ignored within ten seconds.</summary>
@@ -548,9 +605,8 @@ public sealed partial class MainViewModel : ObservableObject
             var versionId = request.VersionId ?? group.LatestVersionId;
             var doc = await _app.Catalog.GetVersionAsync(request.GroupId, versionId, CancellationToken.None);
             var size = doc.Files.Sum(f => f.Size);
-            var body = $"**{Markup.Escape(doc.Name)}** {doc.Version} by {Markup.Escape(doc.Author)}\nSize: {FileOps.FormatBytes(size)}\n\n" +
-                       "Requested from your browser. The app cannot tell which site sent this request.";
-            if (!await ConfirmAsync("Download mod", body, "Download")) return;
+            var what = $"download **{Markup.Escape(doc.Name)}** {doc.Version} by {Markup.Escape(doc.Author)} ({FileOps.FormatBytes(size)})";
+            if (!await AllowLinkAsync(request, "Download mod", what, "Download")) return;
             await DownloadModAsync(request.GroupId, versionId, doc.Name);
         }
         catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException)
@@ -574,7 +630,8 @@ public sealed partial class MainViewModel : ObservableObject
             lines.Add("Nothing is downloaded or deployed by adding this profile.");
 
             var name = request.Collection.Name ?? "Imported collection";
-            if (!await ConfirmAsync($"Add profile \"{name}\"?", string.Join("\n", lines), "Add profile")) return;
+            var what = $"add the profile \"{Markup.Escape(name)}\":\n" + string.Join("\n", lines);
+            if (!await AllowLinkAsync(request, $"Add profile \"{name}\"?", what, "Add profile")) return;
 
             var profile = _app.Profiles.Create(name, summary.Available);
             await RefreshStateAsync();

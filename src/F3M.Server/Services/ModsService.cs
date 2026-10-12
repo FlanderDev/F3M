@@ -75,7 +75,15 @@ public partial class ModsService(
             ?? throw new KeyNotFoundException($"No mod with id {id} was found.");
 
         await ResolveDependenciesAsync([mod], ct);
+        mod.ShippedPaths = await ShippedPathsAsync(mod, ct);
         return mod;
+    }
+
+    /// <summary>Every game-relative path the version's files install, from their stored entries.</summary>
+    private async Task<List<string>> ShippedPathsAsync(Mod mod, CancellationToken ct)
+    {
+        var fileIds = mod.Files.Select(f => f.Id).ToList();
+        return await db.ModFileEntries.Where(e => fileIds.Contains(e.ModFileId)).Select(e => e.To).Distinct().ToListAsync(ct);
     }
 
     public async Task<List<Mod>> SearchMods(string query, CancellationToken ct = default)
@@ -173,6 +181,54 @@ public partial class ModsService(
         mod.Version = dto.Version;
         mod.Category = dto.Category;
 
+        // Optional groups: the same rules as on upload, against the files this version ships.
+        if (dto.OptionalGroups is not null)
+        {
+            if (!OptionalFileRules.TryNormalize(dto.OptionalGroups, out var groups, out var groupError))
+                throw new InvalidDataException(groupError);
+
+            var report = OptionalFileRules.Analyse(groups, await ShippedPathsAsync(mod, ct));
+            if (report.Errors.Count > 0)
+                throw new InvalidDataException(report.Errors[0]);
+
+            db.ModOptionalGroups.RemoveRange(mod.OptionalGroups);
+            mod.OptionalGroups = [.. groups.Select(g => new ModOptionalGroup { ModId = mod.Id, Name = g.Name, Patterns = g.Patterns })];
+        }
+
+        // Preview image: written now; the replaced one is deleted once the change is saved and nothing else uses it.
+        var oldPreview = mod.PreviewImageName;
+        string? newPreviewPath = null;
+        if (dto.PreviewImageBase64 is { Length: > 0 } base64)
+        {
+            var extension = Path.GetExtension(dto.PreviewImageFileName ?? string.Empty).ToLowerInvariant();
+            if (!Configuration.AllowedThumbnailExtension.Contains(extension))
+                throw new InvalidDataException($"Image type '{extension}' not allowed. Use {string.Join(", ", Configuration.AllowedThumbnailExtension)}.");
+
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromBase64String(base64);
+            }
+            catch (FormatException)
+            {
+                throw new InvalidDataException("The preview image could not be read.");
+            }
+
+            if (bytes.Length == 0)
+                throw new InvalidDataException("The preview image is empty.");
+            if (bytes.Length > Configuration.MaxImageSize)
+                throw new InvalidDataException("Preview image exceeds 8 MB.");
+
+            var name = $"{Guid.NewGuid():N}{extension}";
+            newPreviewPath = Path.Combine(Assets.Images, name);
+            await File.WriteAllBytesAsync(newPreviewPath, bytes, ct);
+            mod.PreviewImageName = name;
+        }
+        else if (dto.RemovePreviewImage)
+        {
+            mod.PreviewImageName = null;
+        }
+
         var requestedIds = dto.DependencyGroupIds.Where(depId => depId != mod.ModGroupId).Distinct().ToList();
         var newDependencyGroups = requestedIds.Count > 0
             ? await db.ModGroups.Where(g => requestedIds.Contains(g.Id)).ToListAsync(ct)
@@ -182,10 +238,29 @@ public partial class ModsService(
         mod.DependencyGroups.AddRange(newDependencyGroups);
 
         await RecalculateLatestVersion(db, group?.Id, mod);
-        await db.SaveChangesAsync(ct);
-        // Metadata changed, so the published document must be rewritten. Placements never change here.
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            if (newPreviewPath is not null)
+                File.Delete(newPreviewPath);
+            throw;
+        }
+
+        // Older versions of the group may still show the replaced preview (versions inherit it on upload).
+        if (oldPreview is { Length: > 0 } && oldPreview != mod.PreviewImageName
+            && !await db.Mods.AnyAsync(m => m.PreviewImageName == oldPreview, ct))
+        {
+            try { File.Delete(Path.Combine(Assets.Images, oldPreview)); }
+            catch (IOException) { /* an orphaned image is harmless */ }
+        }
+
+        // Metadata or optional groups changed, so the published document must be rewritten. Files never change here.
         await catalog.TryPublishVersionAsync(mod.Id, ct);
         await ResolveDependenciesAsync([mod], ct);
+        mod.ShippedPaths = await ShippedPathsAsync(mod, ct);
         return mod;
     }
 

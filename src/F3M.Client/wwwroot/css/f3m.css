@@ -297,6 +297,21 @@ a {
     gap: 6px;
 }
 
+/* Next to the author on the mod page: registered on F3M, or not yet (unclaimed import). */
+.f3m-author-verified,
+.f3m-author-unregistered {
+    margin-left: .3rem;
+    cursor: help;
+}
+
+.f3m-author-verified {
+    color: #0dcaf0;
+}
+
+.f3m-author-unregistered {
+    color: #9ca3af;
+}
+
 .f3m-profile-link {
     display: inline-flex;
     align-items: center;
@@ -646,7 +661,11 @@ a {
 }
 
 /* ── Footer ─────────────────────────────────────────────── */
+/* Stays at the bottom of the window while the page scrolls, like the navbar at the top. Below the modals (1050+). */
 .f3m-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1020;
     background: var(--f3m-surface);
     border-top: 1px solid var(--f3m-border);
 }

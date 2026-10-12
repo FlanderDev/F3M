@@ -67,7 +67,7 @@ F3M is a mod hub for a BepInEx-modded Unity game. It has two parts:
 - [x] Profiles: several mod setups for the same game folder
 - [x] An editor for BepInEx `.cfg` settings that keeps the comments
 - [x] Works offline after the first catalog download. It only trusts a **signed** catalog.
-- [x] `f3m://` links from the website, always confirmed in the app first
+- [x] `f3m://` links from the website: registered at every start, and the first link from a site asks whether to trust it (revocable in Settings)
 - [x] Updates itself (Windows installer and Linux AppImage)
 
 ## For players
