@@ -16,6 +16,7 @@ public partial class Index
     private const string CategoryAll = "All Categories";
     private string selectedCategory = CategoryAll;
     private string[] categories = [];
+    private IEnumerable<string> CategoryOptions => categories.Prepend(CategoryAll);
     private string searchTerm = string.Empty;
     private SortBy sortBy = SortBy.Newest;
     private System.Timers.Timer? _debounce;
@@ -45,7 +46,7 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
-        categories = [.. await ModsApi.GetCategories()];
+        categories = [.. F3M.Shared.Helpers.Categories.OthersLast(Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()))];
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -177,6 +178,17 @@ public partial class Index
         _debounce.AutoReset = false;
         _debounce.Start();
     }
+
+    private static string SortText(SortBy sort) => sort switch
+    {
+        SortBy.Newest => "Newest",
+        SortBy.Oldest => "Oldest",
+        SortBy.DownloadsDesc => "Most downloads",
+        SortBy.DownloadsAsc => "Fewest downloads",
+        SortBy.NameAsc => "Name A–Z",
+        SortBy.NameDesc => "Name Z–A",
+        _ => sort.ToString(),
+    };
 
     private async Task SelectCategory(string cat) { selectedCategory = cat; await LoadMods(); }
     private async Task ClearFilters() { searchTerm = string.Empty; selectedCategory = CategoryAll; sortBy = SortBy.Newest; await LoadMods(); }

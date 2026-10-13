@@ -39,6 +39,13 @@ public class ChangePasswordDto
 public class PublicProfileDto
 {
     public string Username { get; set; } = string.Empty;
+
+    /// <summary>
+    /// False for an author without an F3M account, such as the uploader of mods imported from F95zone: the page then
+    /// lists the mods published under that name, and <see cref="RegisteredAt"/> is not set.
+    /// </summary>
+    public bool HasAccount { get; set; } = true;
+
     public DateTime RegisteredAt { get; set; }
     public int ModCount { get; set; }
     public List<Mod> Mods { get; set; } = [];

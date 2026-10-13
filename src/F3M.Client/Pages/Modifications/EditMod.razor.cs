@@ -92,8 +92,8 @@ public partial class EditMod
             mod = await ModsApi.GetMod(Id);
 
             // Like the upload page: the default categories, then any other the site uses, and the mod's own; each once.
-            Categories = [.. Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()).Append(mod.Category)
-                .Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase)];
+            Categories = [.. F3M.Shared.Helpers.Categories.OthersLast(
+                Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()).Append(mod.Category))];
 
             // Check ownership or admin
             if (AuthState is not null)

@@ -84,6 +84,7 @@ else
                                         </div>
                                     </div>
                                     <button class="btn btn-sm btn-outline-warning flex-shrink-0"
+                                            title="Download @f.OriginalName" aria-label="Download @f.OriginalName"
                                             @onclick:stopPropagation="true"
                                             @onclick="() => DownloadFile(selectedVersion.Id, f)"
                                             disabled="@(downloadingFileId == f.Id)">
@@ -118,13 +119,13 @@ else
                     }
 
                     @* The desktop app is the main way to get a mod (it installs it); the browser download is the fallback. *@
-                    <div class="row g-2">
-                        <div class="col-6">
+                    <div class="f3m-download-choices">
+                        <div>
                             <DesktopDownloadButton GroupId="@selectedVersion.ModGroupId"
                                                    VersionId="@(selectedVersion.Id == allVersions[0].Id ? null : selectedVersion.Id)"
                                                    Label="F3M Desktop" />
                         </div>
-                        <div class="col-6">
+                        <div>
                             @if (selectedVersion.Files.Count > 1)
                             {
                                 <button class="btn btn-outline-warning fw-semibold w-100 text-nowrap"
@@ -285,7 +286,8 @@ else
             </div>
 
             <!-- Middle col: info -->
-            <div class="col-lg-5">
+            @* Phones show the name and description first, above the image and the downloads. *@
+            <div class="col-lg-5 order-first order-lg-0">
                 <div class="d-flex gap-2 mb-2 flex-wrap align-items-center">
                     <span class="mod-card-category" style="position:static;font-size:.72rem;">@selectedVersion.Category</span>
 
@@ -297,7 +299,7 @@ else
                                     type="button" data-bs-toggle="dropdown">
                                 v@(selectedVersion.Version)
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-dark f3m-version-dropdown">
+                            <ul class="dropdown-menu f3m-dropdown-menu f3m-version-dropdown">
                                 @foreach (var ver in allVersions)
                                 {
                                     var v = ver;

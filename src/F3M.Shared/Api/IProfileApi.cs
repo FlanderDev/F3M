@@ -27,8 +27,8 @@ public interface IProfileApi
     [Get("mods")]
     Task<List<Mod>> GetMyModsAsync(CancellationToken ct = default);
 
-    /// <summary>Public view of another user's account. Throws <see cref="KeyNotFoundException"/>
-    /// (mapped to 404 by the controller) if no such user exists.</summary>
+    /// <summary>Public view of another user's account, or of the mods published under a name that has no account
+    /// (imported mods). Throws <see cref="KeyNotFoundException"/> (mapped to 404 by the controller) if neither exists.</summary>
     [Get("u/{username}")]
     [GenAllowAnonymous]
     Task<PublicProfileDto> GetPublicProfileAsync(string username, CancellationToken ct = default);
