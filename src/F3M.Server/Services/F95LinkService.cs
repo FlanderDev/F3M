@@ -128,6 +128,18 @@ public class F95LinkService(
         {
             posts = await f95.GetProfilePostsAsync(verification.F95Username, f95UserId, ct);
         }
+        catch (ProfileMismatchException ex)
+        {
+            logger.LogWarning("Verification {Id}: {Url} leads to {Name}.{UserId}.", verification.Id,
+                F95Profile.Url(verification.F95Username, f95UserId), ex.ActualName, ex.ActualId);
+            verification.Status = F95VerificationStatus.Cancelled;
+            await db.SaveChangesAsync(ct);
+            return new LinkF95PollResponse
+            {
+                Status = VerificationState.Error,
+                Message = "That profile address doesn't match the F95zone account it opens. Copy the address from your own profile page and start again."
+            };
+        }
         catch (Exception ex)
         {
             logger.LogError(ex,

@@ -19,6 +19,9 @@ namespace F3M.Server.Services;
 public partial class ModsService(
     AppDbContext db, IHttpContextAccessor httpContextAccessor, CatalogService catalog, ModOwnershipService ownership) : IModsApi
 {
+    private const int MinSearchLength = 3;
+    private const int MaxSearchResults = 50;
+
     private ClaimsPrincipal CurrentPrincipal =>
         httpContextAccessor.HttpContext?.User
         ?? throw new InvalidOperationException("ModsService was called outside of an HTTP request.");
@@ -30,14 +33,10 @@ public partial class ModsService(
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        // Latest version per group: pick the Mod row with the highest UploadedAt per ModGroupId
-        var latestIds = db.Mods
-            .Where(m => m.IsApproved)
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
+        // Latest version per group: the one RecalculateLatestVersion marked (highest version number), the same one the
+        // signed catalog and so the desktop app offer. Upload dates would disagree after a fix for an older version.
         var query = db.Mods
-            .Where(m => latestIds.Contains(m.Id))
+            .Where(m => m.IsApproved && m.IsLatestVersion)
             .Include(m => m.Files)
             .AsQueryable();
 
@@ -92,14 +91,16 @@ public partial class ModsService(
         // a logical mod (ModGroup) to depend on, not a specific version — so results are
         // deduped to one entry (the latest approved version) per group, rather than surfacing
         // every version of every matching mod as a separate pickable row.
-        var latestIds = db.Mods
-            .Where(m => m.IsApproved)
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
+        // The picker asks from three characters on; anything shorter would list the whole site.
+        var text = query?.Trim() ?? string.Empty;
+        if (text.Length < MinSearchLength)
+            return [];
 
-        var pattern = LikePattern(query.Trim());
+        var pattern = LikePattern(text);
         return await db.Mods
-            .Where(m => latestIds.Contains(m.Id) && EF.Functions.Like(m.Name, pattern, "\\"))
+            .Where(m => m.IsApproved && m.IsLatestVersion && EF.Functions.Like(m.Name, pattern, "\\"))
+            .OrderBy(m => m.Name)
+            .Take(MaxSearchResults)
             .ToListAsync(ct);
     }
 
@@ -113,7 +114,9 @@ public partial class ModsService(
             .Include(m => m.Files)
             .Include(m => m.DependencyGroups)
             .Include(m => m.OptionalGroups)
-            .OrderByDescending(m => m.UploadedAt)
+            // The latest version first (the page and the desktop button treat the first one as "latest"), then by date.
+            .OrderByDescending(m => m.IsLatestVersion)
+            .ThenByDescending(m => m.UploadedAt)
             .ToListAsync(ct);
 
         await ResolveDependenciesAsync(versions, ct);
@@ -132,13 +135,8 @@ public partial class ModsService(
     public async Task<List<string>> GetCategories(CancellationToken ct = default)
     {
         // Category of each group = category of its latest version
-        var latestIds = db.Mods
-            .Where(m => m.IsApproved)
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
         return await db.Mods
-            .Where(m => latestIds.Contains(m.Id))
+            .Where(m => m.IsApproved && m.IsLatestVersion)
             .Select(m => m.Category)
             .Distinct()
             .OrderBy(c => c)
@@ -368,15 +366,11 @@ public partial class ModsService(
         if (groupIds.Count == 0)
             return;
 
-        var latestIds = db.Mods
-            .Where(m => m.IsApproved && groupIds.Contains(m.ModGroupId))
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
         var latestByGroup = (await db.Mods
-                .Where(m => latestIds.Contains(m.Id))
+                .Where(m => m.IsApproved && m.IsLatestVersion && groupIds.Contains(m.ModGroupId))
                 .ToListAsync(ct))
-            .ToDictionary(m => m.ModGroupId);
+            .GroupBy(m => m.ModGroupId)
+            .ToDictionary(g => g.Key, g => g.First());
 
         foreach (var mod in mods)
         {

@@ -34,6 +34,15 @@ public interface IAdminApi
     Task<CatalogRebuildResult> RebuildCatalogAsync(CancellationToken ct = default);
 
     /// <summary>
+    /// The error reports the website sent (newest first), <paramref name="take"/> of them after skipping
+    /// <paramref name="skip"/>. At most <see cref="MaxErrorReportsPerPage"/> per call.
+    /// </summary>
+    [Get("errors")]
+    Task<ErrorReportPage> GetErrorReportsAsync([Query] int skip = 0, [Query] int take = 25, CancellationToken ct = default);
+
+    public const int MaxErrorReportsPerPage = 500;
+
+    /// <summary>
     /// Gives a mod group to another user, or makes it unclaimed again (null user) so it goes to its F95 uploader on
     /// their next sign-in. Throws <see cref="KeyNotFoundException"/> for an unknown group or user.
     /// </summary>

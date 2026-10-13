@@ -9,7 +9,7 @@ namespace F3M.Server.Services.Import;
 /// <summary>
 /// What the F95zone import downloads and imports: Import/import-plan.json (shipped with the server), or a replacement
 /// an admin uploaded. Built from the community mod list and the hand-made decisions about each post's attachments;
-/// import/README.md describes every field.
+/// Import/README.md describes every field.
 /// </summary>
 public sealed class ImportPlan
 {
