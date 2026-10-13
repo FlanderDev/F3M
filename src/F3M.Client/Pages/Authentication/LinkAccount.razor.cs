@@ -26,9 +26,6 @@ public partial class LinkAccount
     private bool usernameTaken;
     private string? refusedName;
 
-    private string finalUsername = string.Empty;
-    private bool isNewUser;
-
     private string parsedName = string.Empty;
 
     private bool UrlParsed => F95Profile.TryParse(profileUrl, out parsedName, out _);
@@ -97,17 +94,18 @@ public partial class LinkAccount
             switch (result.Status)
             {
                 case VerificationState.Verified:
-                    finalUsername = result.Username ?? dto.Username ?? string.Empty;
-                    isNewUser = result.IsNewUser;
                     password = confirmPassword = string.Empty;
-                    step = Step.Done;
 
-                    // The server signed us in with a cookie during the check; show that everywhere right away.
+                    // The server signed us in with a cookie during the check; show that everywhere right away. The
+                    // profile page is [Authorize]d and waits for this refreshed state, then shows a welcome note.
                     Acct.RefreshAuthenticationState();
+                    Navigation.NavigateTo($"/profile?welcome={(result.IsNewUser ? "new" : "back")}");
                     break;
 
                 case VerificationState.Pending:
-                    pendingMessage = "No post with the code yet. Check that you posted it on your own profile and that it contains the whole code, then try again. It can take a minute to show up.";
+                    // The server says why when it knows (posted from another account, profile not readable, ...).
+                    pendingMessage = result.Message
+                                     ?? "No post with the code yet. Check that you posted it on your own profile and that it contains the whole code, then try again. It can take a minute to show up.";
                     break;
 
                 case VerificationState.Expired:

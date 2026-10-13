@@ -2,6 +2,7 @@
 @inject IAccountManagement Acct
 @inject IF95LinkApi F95Link
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <PageTitle>F3M - Create account</PageTitle>
 
@@ -180,42 +181,6 @@
                 <button class="btn btn-link btn-sm w-100 f3m-auth-sub" @onclick="ResetToStart">
                     <i class="bi bi-arrow-left me-1"></i>Use a different profile
                 </button>
-                break;
-
-            case Step.Done:
-                <div class="text-center mb-3">
-                    <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
-                </div>
-                <h2 class="fw-black text-center mb-1">
-                    @(isNewUser ? $"Welcome, {finalUsername}!" : $"Welcome back, {finalUsername}!")
-                </h2>
-                <p class="text-center small f3m-auth-sub mb-4">
-                    @(isNewUser ? "Your account is ready and you're signed in." : "You're signed in and your new password is set.")
-                </p>
-
-                <div class="f3m-name-preview mb-3">
-                    <div class="small f3m-auth-sub mb-1">Next time, sign in with</div>
-                    <div><i class="bi bi-person-fill text-warning me-2"></i>Username <strong>@finalUsername</strong></div>
-                    <div><i class="bi bi-key-fill text-warning me-2"></i>The password you just chose</div>
-                </div>
-
-                <p class="small f3m-auth-sub mb-4">
-                    <i class="bi bi-info-circle me-1"></i>
-                    You can delete the code post from your F95zone profile now.
-                </p>
-
-                <div class="small fw-semibold mb-2">What's next?</div>
-                <div class="d-grid gap-2">
-                    <a class="btn btn-warning fw-bold" href="/">
-                        <i class="bi bi-grid me-2"></i>Browse mods
-                    </a>
-                    <a class="btn btn-outline-secondary" href="@Paths.Upload">
-                        <i class="bi bi-cloud-arrow-up me-2"></i>Upload a mod
-                    </a>
-                    <a class="btn btn-outline-secondary" href="@Configuration.DesktopDownloadUrl" target="_blank" rel="noopener">
-                        <i class="bi bi-download me-2"></i>Get the desktop app
-                    </a>
-                </div>
                 break;
         }
     </div>
