@@ -98,6 +98,37 @@ window.f3m = {
     },
 
     /**
+     * POSTs a request body with XMLHttpRequest, which (unlike fetch) reports how much of it was sent. Calls
+     * dotNet.invokeMethodAsync('OnUploadProgress', sent, total) at most once per percent. Resolves to
+     * { status, body, warnings } (warnings: the X-F3M-Warnings header, or null); rejects when the connection fails.
+     */
+    uploadWithProgress: function (url, contentType, body, dotNet) {
+        return new Promise(function (resolve, reject) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url);
+            xhr.withCredentials = true;
+            xhr.setRequestHeader('Content-Type', contentType);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+            let lastPercent = -1;
+            xhr.upload.onprogress = function (e) {
+                if (!e.lengthComputable) return;
+                const percent = Math.floor(e.loaded * 100 / e.total);
+                if (percent === lastPercent) return;
+                lastPercent = percent;
+                dotNet.invokeMethodAsync('OnUploadProgress', e.loaded, e.total).catch(function () { /* the page is going away */ });
+            };
+            xhr.onload = function () {
+                resolve({ status: xhr.status, body: xhr.responseText, warnings: xhr.getResponseHeader('X-F3M-Warnings') });
+            };
+            xhr.onerror = xhr.onabort = xhr.ontimeout = function () {
+                reject(new Error('The upload was interrupted.'));
+            };
+            xhr.send(body);
+        });
+    },
+
+    /**
      * Copies text to the clipboard. Resolves true on success, false when the browser refuses.
      */
     copyText: async function (text) {

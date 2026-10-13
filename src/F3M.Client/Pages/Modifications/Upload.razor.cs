@@ -7,8 +7,10 @@ using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.JSInterop;
+using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace F3M.Client.Pages.Modifications;
 
@@ -185,7 +187,28 @@ public partial class Upload
     private bool uploading;
     private bool uploadSuccess;
     private int uploadedId;
-    private int progress;
+
+    // How much of the request the browser has sent; uploadTotal stays 0 while the files are being prepared.
+    private long uploadSent;
+    private long uploadTotal;
+
+    private int UploadPercent => uploadTotal > 0 ? (int)(uploadSent * 100 / uploadTotal) : 0;
+
+    private string UploadStatus =>
+        uploadTotal == 0 ? "Preparing the files…"
+        : uploadSent < uploadTotal ? $"Uploading… {uploadSent.FileSize()} of {uploadTotal.FileSize()}"
+        : "Uploaded. The server is checking the files…";
+
+    /// <summary>Called by f3m.uploadWithProgress as the browser sends the request.</summary>
+    [JSInvokable]
+    public void OnUploadProgress(long sent, long total)
+    {
+        uploadSent = sent;
+        uploadTotal = total;
+        StateHasChanged();
+    }
+
+    private sealed record UploadResponse(int Status, string Body, string? Warnings);
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
@@ -212,9 +235,10 @@ public partial class Upload
     }
 
     // ── Submit ────────────────────────────────────────────────────────────────
-    // Stays a raw HttpClient multipart POST — Upload isn't part of IModsApi. It binds via
+    // Stays a hand-built multipart POST — Upload isn't part of IModsApi. It binds via
     // [FromForm]/IFormFileCollection on the server, which RouteGen's [Body] (JSON only)
-    // doesn't cover.
+    // doesn't cover. It is sent through f3m.uploadWithProgress (XMLHttpRequest), because
+    // HttpClient in the browser uses fetch, which can't report how much has been sent.
     private async Task HandleSubmit()
     {
         bool isAuthed = await AuthState.IsAuthenticatedAsync();
@@ -229,7 +253,7 @@ public partial class Upload
 
         uploading = true;
         uploadError = null;
-        progress = 10;
+        uploadSent = uploadTotal = 0;
         StateHasChanged();
 
         try
@@ -255,8 +279,6 @@ public partial class Upload
                 imgPart.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                 content.Add(imgPart, "previewImage", imageFileName);
             }
-
-            progress = 20; StateHasChanged();
 
             foreach (var entry in fileEntries)
             {
@@ -284,43 +306,54 @@ public partial class Upload
                     content.Add(new StringContent(groups[i].Patterns[j]), $"OptionalGroups[{i}].Patterns[{j}]");
             }
 
-            progress = 50; StateHasChanged();
+            // The same copy of the body HttpClient would make before handing it to the browser.
+            var body = await content.ReadAsByteArrayAsync();
+            uploadTotal = body.Length;
+            StateHasChanged();
 
-            var response = await Http.PostAsync("api/mods/upload", content);
-            progress = 90; StateHasChanged();
+            using var progressTarget = DotNetObjectReference.Create(this);
+            var response = await JS.InvokeAsync<UploadResponse>("f3m.uploadWithProgress", CancellationToken.None,
+                Nav.ToAbsoluteUri("api/mods/upload").ToString(), content.Headers.ContentType!.ToString(), body, progressTarget);
+            uploadSent = uploadTotal;
 
-            if (response.IsSuccessStatusCode)
+            if (response.Status is >= 200 and < 300)
             {
-                var uploaded = await response.Content.ReadFromJsonAsync<Mod>();
+                var uploaded = JsonSerializer.Deserialize<Mod>(response.Body, JsonOptions);
                 uploadedId = uploaded?.Id ?? 0;
                 uploadSuccess = true;
-                progress = 100;
 
-                if (response.Headers.TryGetValues("X-F3M-Warnings", out var warningValues))
+                if (response.Warnings is { Length: > 0 } warningHeader)
                 {
-                    uploadWarnings = Uri.UnescapeDataString(string.Concat(warningValues))
+                    uploadWarnings = Uri.UnescapeDataString(warningHeader)
                         .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                         .ToList();
                 }
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+            else if (response.Status == (int)HttpStatusCode.UnprocessableEntity)
             {
                 // The server found things about the files' types to confirm first; nothing was stored.
-                var result = await response.Content.ReadFromJsonAsync<UploadWarningsResult>();
+                var result = JsonSerializer.Deserialize<UploadWarningsResult>(response.Body, JsonOptions);
                 serverWarnings = result?.Warnings ?? [];
                 acceptedWarnings = null;
                 uploadError = "Please look at the warnings about the files' types and confirm them.";
             }
             else
             {
-                uploadError = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? "Session expired. Please sign in again."
-                    : await response.Content.ReadAsStringAsync();
+                uploadError = response.Status switch
+                {
+                    (int)HttpStatusCode.Unauthorized => "Session expired. Please sign in again.",
+                    (int)HttpStatusCode.RequestEntityTooLarge => $"The upload is too large. All files together can be at most {Configuration.MaxTotalSize.FileSize()}.",
+                    _ => string.IsNullOrWhiteSpace(response.Body) ? $"The upload failed (HTTP {response.Status})." : response.Body,
+                };
             }
         }
+        catch (JSException) { uploadError = "The upload was interrupted. Check your connection and try again."; }
         catch (Exception ex) { uploadError = ex.Message; }
         finally { uploading = false; }
     }
+
+    // What HttpClient's ReadFromJsonAsync uses.
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     // ── Reset ─────────────────────────────────────────────────────────────────
     private void Reset()
@@ -341,7 +374,7 @@ public partial class Upload
         uploadSuccess = false;
         uploadWarnings = [];
         uploading = false;
-        progress = 0;
+        uploadSent = uploadTotal = 0;
         uploadedId = 0;
     }
 
