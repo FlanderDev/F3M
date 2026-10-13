@@ -46,7 +46,7 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
-        categories = [.. await ModsApi.GetCategories()];
+        categories = [.. F3M.Shared.Helpers.Categories.OthersLast(Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()))];
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
