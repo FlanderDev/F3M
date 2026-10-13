@@ -17,7 +17,8 @@ namespace F3M.Server.Services;
 /// same pattern as ProfileService/AdminService.
 /// </summary>
 public partial class ModsService(
-    AppDbContext db, IHttpContextAccessor httpContextAccessor, CatalogService catalog, ModOwnershipService ownership) : IModsApi
+    AppDbContext db, IHttpContextAccessor httpContextAccessor, CatalogService catalog, ModOwnershipService ownership,
+    ILogger<ModsService> logger) : IModsApi
 {
     private const int MinSearchLength = 3;
     private const int MaxSearchResults = 50;
@@ -255,6 +256,8 @@ public partial class ModsService(
             catch (IOException) { /* an orphaned image is harmless */ }
         }
 
+        logger.LogInformation("Mod {ModId} ({Name} v{Version}, group {GroupId}) was edited.", mod.Id, mod.Name, mod.Version, mod.ModGroupId);
+
         // Metadata or optional groups changed, so the published document must be rewritten. Files never change here.
         await catalog.TryPublishVersionAsync(mod.Id, ct);
         await ResolveDependenciesAsync([mod], ct);
@@ -295,6 +298,10 @@ public partial class ModsService(
 
         await RecalculateLatestVersion(db, group?.Id, excludeModId: mod.Id);
         await db.SaveChangesAsync(ct);
+        logger.LogInformation(remaining == 0
+                ? "Mod {ModId} ({Name} v{Version}) was deleted, and with it its group {GroupId} (it was the last version)."
+                : "Mod {ModId} ({Name} v{Version}) was deleted from group {GroupId}.",
+            mod.Id, mod.Name, mod.Version, mod.ModGroupId);
         await catalog.TryRemoveVersionAsync(mod.ModGroupId, mod.Id, ct);
 
         foreach (var path in diskFiles)
@@ -335,6 +342,8 @@ public partial class ModsService(
         db.Mods.RemoveRange(versions);
         db.ModGroups.Remove(group);
         await db.SaveChangesAsync(ct);
+        logger.LogInformation("Mod group {GroupId} ({Name}) was deleted with {Count} versions; {Dependents} other mods lost it as a dependency.",
+            groupId, versions.FirstOrDefault(v => v.IsLatestVersion)?.Name ?? versions.FirstOrDefault()?.Name, versions.Count, dependents.Count);
 
         foreach (var version in versions)
             await catalog.TryRemoveVersionAsync(groupId, version.Id, ct);

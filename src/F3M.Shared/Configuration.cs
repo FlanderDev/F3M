@@ -33,6 +33,10 @@ public static class Configuration
     /// <summary>Where the desktop app is downloaded: the newest GitHub release, whatever its tag.</summary>
     public const string DesktopDownloadUrl = "https://github.com/FlanderDev/F3M/releases/latest";
 
+    /// <summary>Length limits for account passwords, checked by the forms and the server alike.</summary>
+    public const int PasswordMinLength = 8;
+    public const int PasswordMaxLength = 256;
+
     public static readonly string[] DefaultCategories = ["BepInEx-Plugin", "Custom-Missions 1", "Custom-Missions 2", "Cosplay-Loader", "Texture Edits", "Others"];
     public static readonly string[] AllowedFileExtension = [".dll", ".zip", ".rar", ".7z", ".pak", ".mod"];
     public static readonly string[] AllowedThumbnailExtension = [".jpg", ".jpeg", ".png", ".webp"];

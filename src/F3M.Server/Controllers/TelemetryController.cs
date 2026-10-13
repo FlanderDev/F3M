@@ -1,39 +1,36 @@
-﻿using F3M.Server.Data;
+using F3M.Server.Logging;
 using F3M.Shared.Api;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace F3M.Server.Controllers;
 
-public sealed class TelemetryController(AppDbContext db, ILogger<TelemetryController> logger) : TelemetryApiControllerBase
+public sealed class TelemetryController(LogStore log) : TelemetryApiControllerBase
 {
-    // Anyone can post here, so only bounded text is stored, and the id and time are the server's.
-    private const int MaxMessage = 2_000;
-    private const int MaxStackTrace = 16_000;
-    private const int MaxShort = 500;
-
-    public override async Task<IActionResult> ReportError(Telemetry.ErrorReport errorReport, CancellationToken ct)
+    // Anyone can post here: LogStore bounds the text, and the time is the server's.
+    public override Task<IActionResult> ReportError(Telemetry.ErrorReport errorReport, CancellationToken ct)
     {
-        try
+        var details = string.Join(Environment.NewLine, new[]
         {
-            var report = new Telemetry.ErrorReport
-            {
-                Message = Truncate(errorReport.Message, MaxMessage),
-                StackTrace = Truncate(errorReport.StackTrace, MaxStackTrace),
-                Source = Truncate(errorReport.Source, MaxShort),
-                TargetSite = Truncate(errorReport.TargetSite, MaxShort),
-                Timestamp = DateTime.UtcNow,
-            };
-            await db.TelemetryErrorReports.AddAsync(report, ct);
-            await db.SaveChangesAsync(ct);
-            return Ok();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while posting the error report.");
-            return Problem("Unable to post error report.", statusCode: StatusCodes.Status500InternalServerError);
-        }
-    }
+            errorReport.TargetSite is { Length: > 0 } method ? $"Method: {method}" : null,
+            errorReport.StackTrace
+        }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
-    private static string? Truncate(string? text, int max) => text is { Length: > 0 } && text.Length > max ? text[..max] : text;
+        log.Write(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = LogSeverity.Error,
+            Source = LogSource.Browser,
+            Category = errorReport.Source,
+            Message = string.IsNullOrWhiteSpace(errorReport.Message) ? "(no message)" : errorReport.Message,
+            Details = details.Length > 0 ? details : null,
+            UserName = User.Identity is { IsAuthenticated: true } identity ? identity.Name : null,
+            // The page the visitor was on, as far as the browser says: the referrer, without its query.
+            RequestPath = Request.Headers.Referer.ToString() is { Length: > 0 } referer && Uri.TryCreate(referer, UriKind.Absolute, out var page)
+                ? page.AbsolutePath
+                : null
+        });
+
+        return Task.FromResult<IActionResult>(Ok());
+    }
 }

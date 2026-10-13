@@ -34,13 +34,23 @@ public interface IAdminApi
     Task<CatalogRebuildResult> RebuildCatalogAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// The error reports the website sent (newest first), <paramref name="take"/> of them after skipping
-    /// <paramref name="skip"/>. At most <see cref="MaxErrorReportsPerPage"/> per call.
+    /// The site log, newest first: <paramref name="take"/> entries after skipping <paramref name="skip"/>, at most
+    /// <see cref="MaxLogEntriesPerPage"/> per call. Only entries of at least <paramref name="minLevel"/> from the
+    /// chosen <paramref name="source"/> whose message, category or user contains <paramref name="search"/>.
     /// </summary>
-    [Get("errors")]
-    Task<ErrorReportPage> GetErrorReportsAsync([Query] int skip = 0, [Query] int take = 25, CancellationToken ct = default);
+    [Get("log")]
+    Task<LogPage> GetLogAsync(
+        [Query] int skip = 0,
+        [Query] int take = 25,
+        [Query] LogSeverity minLevel = LogSeverity.Information,
+        [Query] LogSourceFilter source = LogSourceFilter.All,
+        [Query] string? search = null,
+        CancellationToken ct = default);
 
-    public const int MaxErrorReportsPerPage = 500;
+    public const int MaxLogEntriesPerPage = 500;
+
+    /// <summary>Log entries older than this are removed.</summary>
+    public const int LogRetentionDays = 90;
 
     /// <summary>
     /// Gives a mod group to another user, or makes it unclaimed again (null user) so it goes to its F95 uploader on

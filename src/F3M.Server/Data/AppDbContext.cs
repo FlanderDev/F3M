@@ -19,6 +19,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ModGeneratedPath> ModGeneratedPaths => Set<ModGeneratedPath>();
     public DbSet<ModOptionalGroup> ModOptionalGroups => Set<ModOptionalGroup>();
     public DbSet<F95PendingVerification> F95PendingVerifications => Set<F95PendingVerification>();
+    // No longer written: browser errors go to the site log (Logging/LogStore). Kept so the schema matches the migration.
     public DbSet<Telemetry.ErrorReport> TelemetryErrorReports => Set<Telemetry.ErrorReport>();
 
     // NOTE: Users are now accessed via the inherited `Users` DbSet<AppUser> from
