@@ -1,4 +1,5 @@
 using F3M.Server.Data;
+using F3M.Server.Logging;
 using F3M.Server.Models;
 using F3M.Server.Services;
 using F3M.Server.Services.Import;
@@ -44,10 +45,19 @@ builder.Services.AddDataProtection()
 var connectionString = $"Data Source={Path.Combine(databaseDirectory, $"{Configuration.AppName}.db")}";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
+// The site log (admin page): its own database, written in the background. Created before anything can log.
+var logConnectionString = $"Data Source={Path.Combine(databaseDirectory, "Log.db")}";
+var logStore = new LogStore(logConnectionString);
+logStore.EnsureCreated();
+builder.Services.AddSingleton(logStore);
+builder.Services.AddHostedService(sp => sp.GetRequiredService<LogStore>());
+builder.Services.AddDbContext<LogDbContext>(options => options.UseSqlite(logConnectionString));
+builder.Logging.Services.AddSingleton<ILoggerProvider, DatabaseLoggerProvider>();
+
 builder.Services
     .AddIdentityCore<AppUser>(options =>
     {
-        options.Password.RequiredLength = 8;
+        options.Password.RequiredLength = Configuration.PasswordMinLength;
         options.Password.RequireNonAlphanumeric = false;
         options.Password.RequireUppercase = false;
         options.User.RequireUniqueEmail = false; // F95-linked accounts have no email.
@@ -105,6 +115,9 @@ builder.Services.AddValidation();
 var app = builder.Build();
 
 #region Endpoints
+// Sign-ins and sign-outs in the site log.
+const string AccountLogCategory = "F3M.Server.Account";
+
 #region Common Redirects
 app.MapGet("/login", () => Results.Redirect(Paths.Login));
 #endregion
@@ -115,30 +128,44 @@ app.MapPost("/login", async (
     LoginDto login,
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
-    ModOwnershipService ownership) =>
+    ModOwnershipService ownership,
+    ILoggerFactory loggerFactory) =>
 {
+    var logger = loggerFactory.CreateLogger(AccountLogCategory);
     var user = await userManager.FindByNameAsync(login.UsernameOrEmail)
                ?? await userManager.FindByEmailAsync(login.UsernameOrEmail);
 
     if (user is null)
+    {
+        // Not the name that was typed: people put their password in the wrong box.
+        logger.LogInformation("Sign-in failed: no such account.");
         return Results.Unauthorized();
+    }
 
     var result = await signInManager.CheckPasswordSignInAsync(user, login.Password, lockoutOnFailure: true);
     if (result.IsLockedOut)
+    {
+        logger.LogWarning("Sign-in refused for {Username}: the account is locked after too many wrong passwords.", user.UserName);
         return Results.StatusCode(StatusCodes.Status429TooManyRequests); // The login page explains the wait.
+    }
     if (!result.Succeeded)
+    {
+        logger.LogInformation("Sign-in failed for {Username}: wrong password.", user.UserName);
         return Results.Unauthorized();
+    }
 
     await signInManager.SignInAsync(user, isPersistent: true);
+    logger.LogInformation("{Username} signed in.", user.UserName);
 
     // Mods imported for this user's F95 account since the last sign-in become theirs.
     await ownership.ClaimAllAsync(user);
     return Results.Ok();
 });
 
-app.MapPost("/logout", async (SignInManager<AppUser> signInManager) =>
+app.MapPost("/logout", async (SignInManager<AppUser> signInManager, ClaimsPrincipal principal, ILoggerFactory loggerFactory) =>
 {
     await signInManager.SignOutAsync();
+    loggerFactory.CreateLogger(AccountLogCategory).LogInformation("{Username} signed out.", principal.Identity?.Name);
     return Results.Ok();
 }).RequireAuthorization();
 

@@ -23,7 +23,8 @@ namespace F3M.Server.Controllers;
 /// JSON-only. A controller can freely mix generated-base overrides with its own additional
 /// actions like this; it doesn't have to be all-or-nothing.
 /// </summary>
-public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadService uploader) : ModsApiControllerBase
+public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadService uploader, ILogger<ModsController> logger)
+    : ModsApiControllerBase
 {
     public override async Task<ActionResult<ModListResult>> GetMods(
         int page, int pageSize, string? search, string? category, SortBy sort, CancellationToken ct)
@@ -104,11 +105,12 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
         }
         catch (UnauthorizedAccessException)
         {
-            return Forbid();
+            return Refused("edit", $"mod {id}");
         }
         catch (InvalidDataException ex)
         {
             // Invalid optional groups or preview image; the message says what to fix.
+            logger.LogInformation("Editing mod {ModId} was rejected: {Problem}", id, ex.Message);
             return BadRequest(ex.Message);
         }
     }
@@ -126,7 +128,7 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
         }
         catch (UnauthorizedAccessException)
         {
-            return Forbid();
+            return Refused("delete", $"mod {id}");
         }
         catch (InvalidOperationException ex)
         {
@@ -163,8 +165,15 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
         }
         catch (UnauthorizedAccessException)
         {
-            return Forbid();
+            return Refused("delete", $"mod group {groupId}");
         }
+    }
+
+    /// <summary>The site only offers these actions to the owner and admins, so a refusal means a hand-made request.</summary>
+    private ForbidResult Refused(string action, string target)
+    {
+        logger.LogWarning("Refused to {Action} {Target}: it isn't theirs.", action, target);
+        return Forbid();
     }
 
     // ── Upload: new mod OR new version ────────────────────────────────────────
@@ -205,11 +214,14 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
 
         var result = await uploader.UploadAsync(dto, uploadFiles, previewImage, owner, ct: ct);
         if (result.Forbidden)
-            return Forbid();
+            return Refused("upload a new version to", $"mod group {dto.ModGroupId}");
         if (result.Unconfirmed is { } unconfirmed)
             return UnprocessableEntity(new UploadWarningsResult { Warnings = [.. unconfirmed] });
         if (result.Mod is not { } uploaded)
+        {
+            logger.LogInformation("Upload of {Name} was rejected: {Problem}", dto.Name, result.Error);
             return BadRequest(result.Error);
+        }
 
         if (result.Warnings.Count > 0)
             Response.Headers["X-F3M-Warnings"] = Uri.EscapeDataString(string.Join('\n', result.Warnings));

@@ -69,12 +69,22 @@
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold small" for="link-password">Choose a password</label>
-                    <input id="link-password" type="password" class="form-control f3m-input"
-                           placeholder="At least 8 characters" autocomplete="new-password"
+                    <input id="link-password" type="password"
+                           class="form-control f3m-input @(PasswordTooLong ? "is-invalid" : string.Empty)"
+                           placeholder="At least @Configuration.PasswordMinLength characters" autocomplete="new-password"
                            @bind="password" @bind:event="oninput" />
-                    <div class="form-text @(password.Length >= 8 ? "text-success" : "f3m-auth-sub")">
-                        <i class="bi @(password.Length >= 8 ? "bi-check-circle" : "bi-circle") me-1"></i>At least 8 characters
-                    </div>
+                    @if (PasswordTooLong)
+                    {
+                        <div class="invalid-feedback">
+                            The password can be at most @Configuration.PasswordMaxLength characters long (this one has @password.Length).
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-text @(PasswordLongEnough ? "text-success" : "f3m-auth-sub")">
+                            <i class="bi @(PasswordLongEnough ? "bi-check-circle" : "bi-circle") me-1"></i>At least @Configuration.PasswordMinLength characters
+                        </div>
+                    }
                 </div>
 
                 <div class="mb-4">
