@@ -93,19 +93,43 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
     // ── Public API ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Fetches the target user's profile wall and returns the (PostId, Text) of every
-    /// top-level profile post authored by them. The caller checks these for the verification GUID.
+    /// Fetches the target user's profile page and returns every post and comment on it, with its author, plus what
+    /// the caller needs to explain a miss. The caller decides which posts count and looks for the code in them.
     /// </summary>
-    public async Task<List<(long PostId, string Text)>> GetProfilePostsAsync(
+    public async Task<F95ProfilePage> GetProfilePageAsync(
         string targetUsername,
         string targetUserId,
         CancellationToken ct = default)
     {
         await EnsureLoggedInAsync(ct);
 
-        var (html, finalUri) = await FetchWithReloginAsync($"members/{targetUsername}.{targetUserId}/", ct);
+        var relativeUrl = $"members/{targetUsername}.{targetUserId}/";
+        var (html, finalUri) = await FetchWithReloginAsync(relativeUrl, ct);
+
+        // A session F95zone has dropped can still get the page, just as a guest, who may not see the posts.
+        if (!IsSignedIn(html))
+        {
+            _logger.LogWarning("The profile page of {Username} came back signed out; signing in again.", targetUsername);
+            await ForceReloginAsync(ct);
+            (html, finalUri) = await FetchWithReloginAsync(relativeUrl, ct);
+        }
+
         EnsureProfileIs(html, finalUri, targetUsername, targetUserId);
-        return ParseProfilePosts(html, targetUsername);
+        return ParseProfilePage(html, finalUri);
+    }
+
+    private async Task ForceReloginAsync(CancellationToken ct)
+    {
+        _isLoggedIn = false;
+        await EnsureLoggedInAsync(ct);
+    }
+
+    /// <summary>XenForo marks pages for signed-in visitors with &lt;html data-logged-in="true"&gt;.</summary>
+    private static bool IsSignedIn(string html)
+    {
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+        return doc.DocumentNode.SelectSingleNode("//html")?.GetAttributeValue("data-logged-in", null) == "true";
     }
 
     /// <summary>
@@ -213,59 +237,50 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
     // ── Profile Wall Parsing ──────────────────────────────────────────────────
 
     /// <summary>
-    /// Parses top-level profile posts (the user's profile posts, excluding
-    /// comments on that post) from a rendered member profile page, filtered to those authored by
-    /// <paramref name="targetUsername"/>.
+    /// Reads every profile post and comment from a rendered member profile page, with its author's user id and name.
     ///
     /// F95zone's markup (checked against a live profile page, 2026-10):
-    ///   &lt;article class="message message--simple js-inlineModContainer" id="js-profilePost-{id}" data-author="{username}"&gt;
-    ///     ... &lt;article class="message-body"&gt;...text...&lt;/article&gt; ...
-    ///     (comments inside: &lt;div class="comment" id="js-profilePostComment-{id}"&gt;)
+    ///   &lt;article class="message ..." id="js-profilePost-{id}" data-author="{name}"&gt;
+    ///     ... &lt;a class="avatar" data-user-id="{author id}"&gt; ... &lt;article class="message-body"&gt;text&lt;/article&gt; ...
     ///   &lt;/article&gt;
-    /// Matched by id on any element, so a change of tag (it used to be assumed a div) doesn't break it.
+    ///   &lt;div class="comment" id="js-profilePostComment-{id}" data-author="{name}"&gt;
+    ///     ... &lt;a class="avatar" data-user-id="{author id}"&gt; ... &lt;article class="comment-body"&gt;text&lt;/article&gt; ...
+    ///   &lt;/div&gt;
+    /// Matched by id on any element and by class words, so a change of tag doesn't break it. XenForo's usual
+    /// &lt;div class="bbWrapper"&gt; is taken first in case F95zone adds it back.
     /// </summary>
-    private List<(long PostId, string Text)> ParseProfilePosts(string html, string targetUsername)
+    private static F95ProfilePage ParseProfilePage(string html, Uri? finalUri)
     {
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
 
-        // Top-level posts use id="js-profilePost-{id}"; comments use the
-        // "js-profilePostComment-{id}" prefix, so explicitly exclude those.
-        var postNodes = doc.DocumentNode.SelectNodes(
-            "//*[starts-with(@id, 'js-profilePost-') and not(starts-with(@id, 'js-profilePostComment-'))]");
-
-        if (postNodes is null)
+        var posts = new List<F95ProfilePost>();
+        var nodes = doc.DocumentNode.SelectNodes("//*[starts-with(@id, 'js-profilePost-') or starts-with(@id, 'js-profilePostComment-')]");
+        foreach (var node in nodes ?? Enumerable.Empty<HtmlNode>())
         {
-            _logger.LogWarning("No profile post nodes found on member profile page for {Username}.", targetUsername);
-            return [];
-        }
-
-        var results = new List<(long, string)>();
-
-        foreach (var node in postNodes)
-        {
-            var author = node.GetAttributeValue("data-author", null);
-            if (!string.Equals(author, targetUsername, StringComparison.OrdinalIgnoreCase))
+            var id = node.GetAttributeValue("id", string.Empty);
+            var isComment = id.StartsWith("js-profilePostComment-", StringComparison.Ordinal);
+            if (!long.TryParse(id[(isComment ? "js-profilePostComment-" : "js-profilePost-").Length..], out var postId))
                 continue;
 
-            var idAttr = node.GetAttributeValue("id", string.Empty);
-            var idPart = idAttr.Replace("js-profilePost-", string.Empty);
-            if (!long.TryParse(idPart, out var postId))
-                continue;
+            // The first user link inside is the author's avatar; reactions and the like come later.
+            var authorId = node.SelectSingleNode(".//*[@data-user-id]")?.GetAttributeValue("data-user-id", null);
+            var bodyNode = node.SelectSingleNode(".//*[contains(concat(' ', normalize-space(@class), ' '), ' bbWrapper ')]")
+                           ?? node.SelectSingleNode(".//*[contains(concat(' ', normalize-space(@class), ' '), ' message-body ')]")
+                           ?? node.SelectSingleNode(".//*[contains(concat(' ', normalize-space(@class), ' '), ' comment-body ')]");
 
-            // The text sits directly in <article class="message-body"> (comments have their own, further down);
-            // XenForo's usual <div class="bbWrapper"> is taken first in case F95zone adds it back.
-            var bodyNode = node.SelectSingleNode(".//div[contains(@class,'bbWrapper')]")
-                           ?? node.SelectSingleNode(".//*[contains(concat(' ', normalize-space(@class), ' '), ' message-body ')]");
-
-            var text = bodyNode?.InnerText?.Trim();
-            if (!string.IsNullOrEmpty(text))
-                results.Add((postId, text));
+            posts.Add(new F95ProfilePost(
+                postId,
+                isComment,
+                authorId,
+                WebUtility.HtmlDecode(node.GetAttributeValue("data-author", string.Empty)),
+                WebUtility.HtmlDecode(bodyNode?.InnerText ?? string.Empty).Trim()));
         }
 
-        return results;
+        var title = WebUtility.HtmlDecode(doc.DocumentNode.SelectSingleNode("//title")?.InnerText ?? string.Empty).Trim();
+        var pageText = WebUtility.HtmlDecode(doc.DocumentNode.SelectSingleNode("//body")?.InnerText ?? string.Empty);
+        return new F95ProfilePage(finalUri, title, IsSignedIn(html), html.Length, posts, pageText);
     }
-
     // ── Token / Session Helpers ───────────────────────────────────────────────
 
     private async Task RefreshXfTokenAsync(CancellationToken ct)
@@ -293,18 +308,26 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
     /// <summary>The page's HTML and the address it was served from, after redirects.</summary>
     private async Task<(string Html, Uri? FinalUri)> FetchWithReloginAsync(string relativeUrl, CancellationToken ct)
     {
-        var response = await _httpClient.GetAsync(relativeUrl, ct);
+        var response = await _httpClient.SendAsync(FreshRequest(relativeUrl), ct);
 
         if (IsRedirectToLogin(response) || response.StatusCode == HttpStatusCode.Forbidden)
         {
             _logger.LogWarning("Session expired — re-logging in.");
-            _isLoggedIn = false;
-            await EnsureLoggedInAsync(ct);
-            response = await _httpClient.GetAsync(relativeUrl, ct);
+            await ForceReloginAsync(ct);
+            response = await _httpClient.SendAsync(FreshRequest(relativeUrl), ct);
         }
 
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadAsStringAsync(ct), response.RequestMessage?.RequestUri);
+    }
+
+    /// <summary>A GET that asks every cache on the way for the current page: a post made a moment ago must be on it.</summary>
+    private static HttpRequestMessage FreshRequest(string relativeUrl)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, relativeUrl);
+        request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+        request.Headers.Pragma.ParseAdd("no-cache");
+        return request;
     }
 
     private static bool IsRedirectToLogin(HttpResponseMessage response)
@@ -327,3 +350,9 @@ public sealed class ProfileMismatchException(string actualName, string actualId)
     public string ActualName { get; } = actualName;
     public string ActualId { get; } = actualId;
 }
+
+/// <summary>A profile post, or a comment on one (<see cref="IsComment"/>), as read from a member profile page.</summary>
+public sealed record F95ProfilePost(long Id, bool IsComment, string? AuthorId, string AuthorName, string Text);
+
+/// <summary>What the bot saw on a member profile page: the posts, and enough about the page to explain a miss.</summary>
+public sealed record F95ProfilePage(Uri? FinalUri, string Title, bool SignedIn, int HtmlLength, List<F95ProfilePost> Posts, string PageText);

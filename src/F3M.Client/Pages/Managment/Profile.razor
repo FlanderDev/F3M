@@ -1,6 +1,7 @@
 @page "/profile"
 @attribute [Authorize]
 @inject IProfileApi Api
+@inject NavigationManager Navigation
 
 <PageTitle>F3M - Profile</PageTitle>
 
@@ -29,6 +30,22 @@
     }
     else if (profile is not null)
     {
+        @if (welcome is not null)
+        {
+            <!-- Just signed up or signed in through F95zone verification -->
+            <div class="alert alert-success d-flex gap-3 align-items-start mb-4" role="status">
+                <i class="bi bi-check-circle-fill fs-4"></i>
+                <div class="flex-grow-1 small">
+                    <div class="fw-bold fs-6 mb-1">
+                        @(welcome == WelcomeNew ? $"Welcome, {profile.Username}! Your account is ready." : $"Welcome back, {profile.Username}! Your new password is set.")
+                    </div>
+                    <div>Next time, sign in with the username <strong>@profile.Username</strong> and the password you just chose.</div>
+                    <div>You can delete the code post from your F95zone profile now.</div>
+                </div>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="DismissWelcome"></button>
+            </div>
+        }
+
         <!-- Account details -->
         <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
             <h5 class="fw-bold mb-3">Account</h5>
