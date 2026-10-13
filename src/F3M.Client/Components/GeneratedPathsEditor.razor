@@ -45,11 +45,8 @@
                 }
             </div>
             <div class="col-md-5">
-                <select class="form-select f3m-select" value="@entry.Kind.ToString()" @onchange="e => KindChanged(entry, e)">
-                    <option value="Generated">Generated</option>
-                    <option value="Cache">Cache</option>
-                    <option value="UserData">User data</option>
-                </select>
+                <SelectMenu TValue="GeneratedPathKind" Value="entry.Kind" ValueChanged="kind => KindChanged(entry, kind)"
+                            Items="Enum.GetValues<GeneratedPathKind>()" Text="KindText" AriaLabel="Kind of file" />
                 <div class="small text-muted mt-1">@KindHint(entry.Kind)</div>
             </div>
             <div class="col-md-1 text-end">

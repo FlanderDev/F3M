@@ -50,14 +50,13 @@ public partial class GeneratedPathsEditor
         await OnEntriesChanged.InvokeAsync();
     }
 
-    private async Task KindChanged(GeneratedPathDto entry, ChangeEventArgs e)
+    private async Task KindChanged(GeneratedPathDto entry, GeneratedPathKind kind)
     {
-        if (Enum.TryParse<GeneratedPathKind>(e.Value?.ToString(), out var kind))
-        {
-            entry.Kind = kind;
-            await OnEntriesChanged.InvokeAsync();
-        }
+        entry.Kind = kind;
+        await OnEntriesChanged.InvokeAsync();
     }
+
+    private static string KindText(GeneratedPathKind kind) => kind == GeneratedPathKind.UserData ? "User data" : kind.ToString();
 
     private string TestResult
     {

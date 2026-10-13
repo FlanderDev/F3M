@@ -26,6 +26,7 @@ public class F95LinkService(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     ModOwnershipService ownership,
+    IHttpContextAccessor httpContextAccessor,
     ILogger<F95LinkService> logger) : IF95LinkApi
 {
     private static readonly TimeSpan ExpiryWindow = TimeSpan.FromHours(24);
@@ -51,9 +52,14 @@ public class F95LinkService(
             };
 
         // A new account is named exactly like the F95 profile. If another F3M account already has that name, an admin
-        // has to sort it out; no code is issued, so the user doesn't post one for nothing.
-        var existingUser = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.F95UserId == f95UserId, ct);
+        // has to sort it out; no code is issued, so the user doesn't post one for nothing. An account that is already
+        // linked to this profile (found by id, so renames don't matter), or the signed-in account, needs no new name.
+        var existingUser = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.F95UserId == f95UserId, ct)
+                           ?? await UnlinkedSignedInUserAsync();
         if (existingUser is null && await IsUsernameTakenAsync(f95Username, ct))
+        {
+            logger.LogWarning("Refused to start F95 verification for {Username} ({UserId}): the name belongs to an account " +
+                              "that isn't linked to this profile.", f95Username, f95UserId);
             return new LinkF95StartResponse
             {
                 Success = false,
@@ -61,6 +67,7 @@ public class F95LinkService(
                 F95Username = f95Username,
                 Error = $"The name {f95Username} is already used by another F3M account, so your account can't be created automatically."
             };
+        }
 
         // Other pending verifications for this F95 user are left alone: anyone can start one for any profile, so
         // cancelling them here would let a stranger interrupt the real owner. Each one is bound to its own token.
@@ -162,8 +169,9 @@ public class F95LinkService(
 
         var postId = match.Id;
 
-        // GUID matched — find or create the F3M account.
-        var user = await db.Users.FirstOrDefaultAsync(u => u.F95UserId == f95UserId, ct);
+        // GUID matched — find or create the F3M account: the one linked to this profile, else the signed-in one.
+        var user = await db.Users.FirstOrDefaultAsync(u => u.F95UserId == f95UserId, ct)
+                   ?? await UnlinkedSignedInUserAsync();
 
         // Record which post matched, for audit purposes.
         verification.ProfilePostId = postId;
@@ -205,21 +213,29 @@ public class F95LinkService(
         }
         else
         {
-            // Returning user re-linking — reset their password via Identity's own flow
-            // (remove + re-add, since we don't have their old password to hand to
-            // ChangePasswordAsync — proof of F95 ownership stands in for that here).
-            if (await userManager.HasPasswordAsync(user))
-                await userManager.RemovePasswordAsync(user);
+            var linkedNow = user.F95UserId is null;
+            user.F95UserId = f95UserId;
+            user.F95Username = verification.F95Username; // Follows renames on F95zone.
 
-            var addPasswordResult = await userManager.AddPasswordAsync(user, request.Password);
-            if (!addPasswordResult.Succeeded)
+            // Returning user: proof of F95 ownership stands in for the forgotten password. A reset token checks the new
+            // password before anything changes, so a refused one leaves the old password in place.
+            var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+            var resetResult = await userManager.ResetPasswordAsync(user, resetToken, request.Password);
+            if (!resetResult.Succeeded)
                 return new LinkF95PollResponse
                 {
                     Status = VerificationState.Error,
-                    Message = string.Join(" ", addPasswordResult.Errors.Select(e => e.Description))
+                    Message = string.Join(" ", resetResult.Errors.Select(e => e.Description))
                 };
 
-            logger.LogInformation("Existing F3M account '{Username}' re-linked via F95 and password updated.", user.UserName);
+            // Whoever forgot their password has often locked the account with wrong guesses; the new one works at once.
+            await userManager.SetLockoutEndDateAsync(user, null);
+            await userManager.ResetAccessFailedCountAsync(user);
+
+            if (linkedNow)
+                logger.LogInformation("F3M account '{Username}' linked to F95 user {F95UserId} and its password set.", user.UserName, f95UserId);
+            else
+                logger.LogInformation("Existing F3M account '{Username}' re-linked via F95 and password updated.", user.UserName);
         }
 
         verification.Status = F95VerificationStatus.Verified;
@@ -250,6 +266,19 @@ public class F95LinkService(
             Username = user.UserName,
             IsNewUser = isNewUser
         };
+    }
+
+    /// <summary>
+    /// The signed-in account when it has no F95zone profile yet (the admin account, say). Verifying then links that
+    /// account instead of creating a new one under the F95 name, which may even be the account's own name.
+    /// </summary>
+    private async Task<AppUser?> UnlinkedSignedInUserAsync()
+    {
+        if (httpContextAccessor.HttpContext?.User is not { Identity.IsAuthenticated: true } principal)
+            return null;
+
+        var user = await userManager.GetUserAsync(principal);
+        return user is { F95UserId: null } ? user : null;
     }
 
     private static string HashToken(string token) =>

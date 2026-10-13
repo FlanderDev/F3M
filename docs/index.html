@@ -6,7 +6,9 @@
     <title>F3M Mod Manager</title>
     <meta name="description" content="F3M finds, installs and switches mods for Secret Flasher Manaka. Download the free desktop app for Windows and Linux." />
     <meta name="theme-color" content="#0d0e10" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffc107'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial,sans-serif' font-weight='900' font-size='26' text-anchor='middle' fill='%23000'%3EF3M%3C/text%3E%3C/svg%3E" />
+    <link rel="icon" href="favicon.ico" sizes="48x48" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 
     <!-- Link previews on Discord, F95zone and other sites. -->
     <meta property="og:type" content="website" />
@@ -24,6 +26,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <style>
+        /* Syne's digits are small and odd next to its capitals, so headings take theirs from DM Sans (the same file
+           the stylesheet above loads for body text). Should the URL ever stop working, headings fall back to Syne's. */
+        @font-face {
+            font-family: 'F3M Figures';
+            font-style: normal;
+            font-weight: 100 1000;
+            font-display: swap;
+            src: url(https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHQ.woff2) format('woff2');
+            unicode-range: U+0030-0039;
+        }
+
         /* Same palette and fonts as the F3M website and desktop app. */
         :root {
             --bg: #0d0e10;
@@ -35,7 +48,7 @@
             --text: #e2e4e8;
             --muted: #8b919c;
             --radius: 10px;
-            --font-h: 'Syne', sans-serif;
+            --font-h: 'F3M Figures', 'Syne', sans-serif;
             --font-b: 'DM Sans', sans-serif;
         }
 

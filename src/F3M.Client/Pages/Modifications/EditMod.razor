@@ -69,12 +69,7 @@
                     </div>
                     <div class="col-8">
                         <label class="form-label fw-semibold small">Category</label>
-                        <InputSelect class="form-select f3m-select" @bind-Value="dto.Category">
-                            @foreach (var cat in Categories)
-                            {
-                                <option value="@cat">@cat</option>
-                            }
-                        </InputSelect>
+                        <SelectMenu TValue="string" @bind-Value="dto.Category" Items="Categories" AriaLabel="Category" />
                     </div>
                 </div>
 

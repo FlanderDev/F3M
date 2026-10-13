@@ -3,7 +3,7 @@
 @using FlanderDev.RouteGen.Abstractions
 @attribute [GeneratedPathName("/Mod/upload/{GroupId:int}", "UploadForGroup")]
 @attribute [Authorize]
-@inject HttpClient Http
+@inject IJSRuntime JS
 @inject IModsApi ModsApi
 @inject NavigationManager Nav
 
@@ -67,12 +67,9 @@
                     </div>
                     <div class="col-8">
                         <label class="form-label fw-semibold small">Category</label>
-                        <InputSelect class="form-select f3m-select" @bind-Value="dto.Category" @bind-Value:after="() => categoryChosen = true" disabled="@IsNewVersion">
-                            @foreach (var cat in Categories)
-                            {
-                                <option value="@cat">@cat</option>
-                            }
-                        </InputSelect>
+                        @* Until one is chosen the server takes the category from the files' type. *@
+                        <SelectMenu TValue="string" @bind-Value="dto.Category" @bind-Value:after="() => categoryChosen = true"
+                                    Items="Categories" Disabled="IsNewVersion" Placeholder="From the files' type" AriaLabel="Category" />
                     </div>
                 </div>
 
@@ -137,9 +134,17 @@
                 <!-- Progress bar -->
                 @if (uploading)
                 {
-                    <div class="progress mb-3" style="height:4px;">
-                        <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated"
-                             style="width:@(progress)%"></div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>@UploadStatus</span>
+                            <span class="fw-semibold">@UploadPercent%</span>
+                        </div>
+                        <div class="progress" style="height:8px;" role="progressbar" aria-label="Upload progress"
+                             aria-valuenow="@UploadPercent" aria-valuemin="0" aria-valuemax="100">
+                            <!-- Striped while nothing is moving: preparing the files, or the server checking them. -->
+                            <div class="progress-bar bg-warning @(uploadTotal == 0 || uploadSent >= uploadTotal ? "progress-bar-striped progress-bar-animated" : string.Empty)"
+                                 style="width:@(uploadTotal == 0 ? 100 : UploadPercent)%"></div>
+                        </div>
                     </div>
                 }
 
