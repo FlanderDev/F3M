@@ -4,12 +4,7 @@ The real community mods from F95zone, imported into F3M as **unclaimed** mods. E
 
 The import runs on the server, from an admin page: **Admin Panel → F95zone import** (`/admin/import`). Everything it needs is in one file, the **import plan**:
 
-| Path | What it is |
-|---|---|
-| `src/F3M.Server/Import/import-plan.json` | **The import plan.** Every mod to import, with its versions, files, owner and dependencies, plus the mods that are left out and why. It ships inside the server. It lives in the server project because only `src/` goes into the Docker build. |
-| `import/f95-mod-list.json` | The community list the plan was built from: post #3,706 of the Custom Missions thread, one entry per mod with a stable `key`. It is kept as a reference; the server doesn't read it. |
-| `import/IMPORT-REPORT.md` | The mods that are not imported, and files that were left out of imported ones. Written by the old scripts. |
-| `import/tools/` | The old Python scripts (see [the end of this file](#the-old-python-scripts)). |
+`import-plan.json` (next to this file) lists every mod to import, with its versions, files, owner and dependencies, plus the mods that are left out and why. It ships inside the server. It lives in the server project because only `src/` goes into the Docker build.
 
 ## Importing from the admin page
 
@@ -23,7 +18,7 @@ Sign in with an admin account and open **Admin Panel → F95zone import**. Each 
 2. **Import the mods.**
    - This imports everything that is not fully on the site: dependencies first, missing versions only, oldest version first, each with the date it appeared on F95zone.
    - Each version goes through the same checks, file inspection and catalog publishing as the upload form.
-   - A mod counts as imported when a mod with the same name and author credit exists, so mods imported earlier with the scripts are recognised.
+   - A mod counts as imported when a mod with the same name and author credit exists.
 3. **Review the held-back mods.**
    - The server checks each file against its type (`ModTemplates`): readmes in the game folder, a mission folder without `.code` files, BepInEx itself bundled, and so on.
    - A mod with warnings is **held back**: nothing is stored, and it's listed with its warnings.
@@ -114,33 +109,7 @@ Sign in with an admin account and open **Admin Panel → F95zone import**. Each 
 
 - If the F95 user in `f95Owner` already has an F3M account (linked F95 id), the mod is theirs right away.
 - Otherwise it is **unclaimed**:
-  - It goes to them the next time they sign in (F95 verification or password). Matching is by F95 user id, never by name.
+  - It goes to them the next time they sign in. Matching is by F95 user id, never by name.
   - The mod page shows "Imported from F95zone · not yet claimed" with a link to the original post, and a "This is mine" button.
 - Once theirs, they can edit it, upload new versions, or remove the whole mod.
 - Admins can give any mod to another user, or make it unclaimed again, from the "Owner (admin)" box on the mod page.
-
-## The old Python scripts
-
-`import/tools/` holds the scripts that did the import before the admin page existed. They are kept for now, but they don't read the import plan. They work from their own sources:
-- `plan.py`: which attachments belong to which mod;
-- `posters.json` and `posts.json`: who posted each post, and when.
-
-The import plan was generated from those files, and **edits to the plan don't reach the scripts**.
-
-```bash
-python -I tools/download.py                                   # into modFiles/ (not in git, about 110 MB)
-python -I tools/build_manifests.py                            # modFiles/<key>/import.json and IMPORT-REPORT.md (needs 7-Zip)
-python -I tools/upload.py --server http://localhost:62445     # sign in as an admin and upload through api/import/upload
-```
-
-**`upload.py` options:**
-
-| Option | What it does |
-|---|---|
-| `--user <admin>` | Signs in as another admin. The password comes from `F3M_IMPORT_PASSWORD`, or is asked for. The default is the debug admin `F3M` that Debug builds create. |
-| `--only key1,key2` | Uploads just those mods. Their dependencies must already be on the server. |
-| `--accept-warnings` | Stores held-back mods too. |
-| `--insecure` | Accepts the HTTPS development certificate. |
-| `--dry-run` | Shows what would be sent, without signing in. |
-
-Held-back mods are listed in `UPLOAD-WARNINGS.md`.

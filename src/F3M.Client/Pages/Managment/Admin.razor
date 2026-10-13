@@ -13,6 +13,24 @@
         <p class="small mb-0">Manage users, permissions and the mod catalog.</p>
     </div>
 
+    <!-- Site setup -->
+    <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div style="max-width:620px;">
+                <h2 class="fs-5 fw-bold mb-2">
+                    <i class="bi bi-ui-checks text-warning me-2"></i>Site setup
+                </h2>
+                <p class="small mb-0">
+                    A checklist of what a new site still needs, the F95zone bot account for account linking, and the
+                    import of the frameworks.
+                </p>
+            </div>
+            <a class="btn btn-outline-warning fw-semibold" href="/admin/setup">
+                <i class="bi bi-arrow-right me-1"></i>Open setup
+            </a>
+        </div>
+    </div>
+
     <!-- F95zone import -->
     <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -206,6 +224,72 @@
 
         <p class="small mt-3">@users.Count total user@(users.Count != 1 ? "s" : string.Empty)</p>
     }
+
+    <!-- Error reports sent by the website -->
+    <div class="f3m-surface rounded-3 border p-4 mt-4" style="border-color:var(--f3m-border);">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <h2 class="fs-5 fw-bold mb-0">
+                <i class="bi bi-bug-fill text-warning me-2"></i>Recent errors
+                @if (errorTotal > 0)
+                {
+                    <span class="badge bg-secondary ms-1 align-middle">@errorTotal</span>
+                }
+            </h2>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ReloadErrors" disabled="@loadingErrors">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+        </div>
+        <p class="small mb-3">
+            Errors the website ran into in visitors' browsers, newest first. Server errors are in the server log.
+        </p>
+
+        @if (errorsError is not null)
+        {
+            <div class="alert alert-danger small mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i>@errorsError</div>
+        }
+
+        @if (errors.Count == 0 && !loadingErrors && errorsError is null)
+        {
+            <div class="small f3m-import-muted">No errors reported.</div>
+        }
+
+        @foreach (var report in errors)
+        {
+            <details class="f3m-error-report">
+                <summary>
+                    <span class="f3m-error-time">@report.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</span>
+                    <span class="f3m-error-message">@(string.IsNullOrWhiteSpace(report.Message) ? "(no message)" : report.Message)</span>
+                </summary>
+                <div class="small mt-2">
+                    @if (!string.IsNullOrWhiteSpace(report.Source))
+                    {
+                        <div><span class="f3m-import-muted">Source:</span> @report.Source</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(report.TargetSite))
+                    {
+                        <div class="text-break"><span class="f3m-import-muted">Method:</span> @report.TargetSite</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(report.StackTrace))
+                    {
+                        <pre class="f3m-error-stack">@report.StackTrace</pre>
+                    }
+                </div>
+            </details>
+        }
+
+        @if (loadingErrors)
+        {
+            <div class="small f3m-import-muted mt-2"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
+        }
+        else if (errors.Count < errorTotal)
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <span class="small f3m-import-muted">Showing @errors.Count of @errorTotal.</span>
+                <button class="btn btn-sm btn-outline-warning" @onclick="LoadMoreErrors">Load @Math.Min(ErrorPageSize, errorTotal - errors.Count) more</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="LoadAllErrors">Load all</button>
+            </div>
+        }
+    </div>
 </div>
 
 <!-- Delete confirm modal (CSS-only, no JS modal needed) -->
@@ -216,7 +300,7 @@
             <h5 class="fw-black mb-2">Delete user?</h5>
             <p class="small mb-1">
                 This will permanently delete <strong>@deleteTarget.Username</strong>'s account.
-                Their mods will remain but will be unowned.
+                Their mods stay on the site, unclaimed: they go to their F95zone uploader on that user's next sign-in, or you assign them on the mod page.
             </p>
             @if (actionError is not null)
             {

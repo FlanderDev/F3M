@@ -1,5 +1,6 @@
 using F3M.Server.Data;
 using F3M.Server.Models;
+using F3M.Server.Services.Setup;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -21,6 +22,7 @@ namespace F3M.Server.Services;
 public class F95LinkService(
     AppDbContext db,
     F95Service f95,
+    F95BotSettings botSettings,
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     ModOwnershipService ownership,
@@ -32,6 +34,14 @@ public class F95LinkService(
     {
         if (string.IsNullOrWhiteSpace(request.ProfileUrl))
             return new LinkF95StartResponse { Success = false, Error = "Profile URL is required." };
+
+        // Without a bot account nobody could check the posted code; say so before the user posts one.
+        if (!botSettings.IsConfigured)
+            return new LinkF95StartResponse
+            {
+                Success = false,
+                Error = "Linking F95zone profiles isn't set up on this site yet. Please try again later or contact an admin."
+            };
 
         if (!F95Profile.TryParse(request.ProfileUrl, out var f95Username, out var f95UserId))
             return new LinkF95StartResponse
@@ -117,6 +127,18 @@ public class F95LinkService(
         try
         {
             posts = await f95.GetProfilePostsAsync(verification.F95Username, f95UserId, ct);
+        }
+        catch (ProfileMismatchException ex)
+        {
+            logger.LogWarning("Verification {Id}: {Url} leads to {Name}.{UserId}.", verification.Id,
+                F95Profile.Url(verification.F95Username, f95UserId), ex.ActualName, ex.ActualId);
+            verification.Status = F95VerificationStatus.Cancelled;
+            await db.SaveChangesAsync(ct);
+            return new LinkF95PollResponse
+            {
+                Status = VerificationState.Error,
+                Message = "That profile address doesn't match the F95zone account it opens. Copy the address from your own profile page and start again."
+            };
         }
         catch (Exception ex)
         {

@@ -16,8 +16,7 @@ namespace F3M.Server.Services.Import;
 ///
 /// Everything lives in Storage/Import: the plan in use (a copy of the one shipped in Import/import-plan.json, or one
 /// an admin uploaded), the downloads (files/&lt;mod key&gt;/&lt;version&gt;/&lt;file&gt;) and state.json with what went
-/// wrong last per mod. Which versions are imported is read from the database (same name and author), so mods imported
-/// with import/tools/upload.py count too.
+/// wrong last per mod. Which versions are imported is read from the database (same name and author).
 ///
 /// Downloaded files are never run or extracted: the import only lists archives, like the upload form does.
 /// </summary>
@@ -81,19 +80,7 @@ public sealed class F95ImportService(
     public Task<ImportJobDto> StartDownloadAsync(CancellationToken ct = default)
     {
         var currentPlan = RequirePlan();
-        var work = new List<DownloadItem>();
-        foreach (var mod in currentPlan.Mods)
-        {
-            foreach (var version in mod.Versions)
-            {
-                foreach (var file in version.Files.Where(f => !IsDownloaded(FilePath(mod, version, f))))
-                    work.Add(new DownloadItem(mod, file.Url, FilePath(mod, version, file), file.Member, file.ArchiveRoot));
-            }
-
-            if (mod.Preview is { } preview && !IsDownloaded(PreviewPath(mod)))
-                work.Add(new DownloadItem(mod, preview, PreviewPath(mod), null, null));
-        }
-
+        var work = DownloadWork(currentPlan.Mods);
         return Task.FromResult(Start(ImportJobKind.Download, work.Count, "Every file is on the server already.",
             token => RunDownloadAsync(work, token)));
     }
@@ -115,6 +102,39 @@ public sealed class F95ImportService(
 
         return Start(ImportJobKind.Import, work.Count, "Every mod is imported already.",
             token => RunImportAsync(currentPlan, work, accepted, token));
+    }
+
+    public async Task<ImportJobDto> StartFrameworksAsync(CancellationToken ct = default)
+    {
+        var currentPlan = RequirePlan();
+        var frameworks = currentPlan.Frameworks();
+        if (frameworks.Count == 0)
+            throw new InvalidOperationException("The import plan has none of the frameworks.");
+
+        var imported = await ImportedVersionsAsync(currentPlan, ct);
+        var mods = frameworks.Where(m => m.Versions.Any(v => !IsImported(imported, m, v.Version))).ToList();
+        var downloads = DownloadWork(mods);
+
+        return Start(ImportJobKind.Frameworks, downloads.Count + mods.Count, "Every framework is imported already.", async token =>
+        {
+            string? downloaded = null;
+            if (downloads.Count > 0)
+            {
+                await RunDownloadAsync(downloads, token);
+                lock (gate)
+                    downloaded = job.Summary;
+            }
+
+            if (token.IsCancellationRequested)
+                return;
+
+            await RunImportAsync(currentPlan, mods, new HashSet<string>(StringComparer.OrdinalIgnoreCase), token);
+            if (downloaded is not null)
+            {
+                lock (gate)
+                    job.Summary = $"{downloaded.TrimEnd('.')}; {job.Summary}";
+            }
+        });
     }
 
     public Task CancelAsync(CancellationToken ct = default)
@@ -176,6 +196,10 @@ public sealed class F95ImportService(
         }
     }
 
+    /// <summary>The names of the frameworks the plan can import (setup page); empty while the plan is unusable.</summary>
+    public IReadOnlySet<string> FrameworkNamesInPlan() =>
+        new HashSet<string>(LoadPlan().Plan?.Frameworks().Select(m => m.Name) ?? [], StringComparer.OrdinalIgnoreCase);
+
     // ── Steps ─────────────────────────────────────────────────────────────
 
     private ImportJobDto Start(ImportJobKind kind, int total, string nothingToDo, Func<CancellationToken, Task> run)
@@ -193,7 +217,12 @@ public sealed class F95ImportService(
             job = new ImportJobDto { Kind = kind, Running = true, Total = total, StartedAt = now };
             cancel = CancellationTokenSource.CreateLinkedTokenSource(lifetime.ApplicationStopping);
             var token = cancel.Token;
-            AddLog(kind == ImportJobKind.Download ? $"Download started: {total} files." : $"Import started: {total} mods.");
+            AddLog(kind switch
+            {
+                ImportJobKind.Download => $"Download started: {total} files.",
+                ImportJobKind.Frameworks => $"Framework import started: {total} files and mods.",
+                _ => $"Import started: {total} mods.",
+            });
 
             _ = Task.Run(async () =>
             {
@@ -456,6 +485,25 @@ public sealed class F95ImportService(
     }
 
     // ── Downloads ─────────────────────────────────────────────────────────
+
+    /// <summary>The files and previews of these mods that are not on the server yet.</summary>
+    private static List<DownloadItem> DownloadWork(IEnumerable<PlanMod> mods)
+    {
+        var work = new List<DownloadItem>();
+        foreach (var mod in mods)
+        {
+            foreach (var version in mod.Versions)
+            {
+                foreach (var file in version.Files.Where(f => !IsDownloaded(FilePath(mod, version, f))))
+                    work.Add(new DownloadItem(mod, file.Url, FilePath(mod, version, file), file.Member, file.ArchiveRoot));
+            }
+
+            if (mod.Preview is { } preview && !IsDownloaded(PreviewPath(mod)))
+                work.Add(new DownloadItem(mod, preview, PreviewPath(mod), null, null));
+        }
+
+        return work;
+    }
 
     private sealed record DownloadItem(PlanMod Mod, string Url, string Target, string? Member, string? ArchiveRoot);
 

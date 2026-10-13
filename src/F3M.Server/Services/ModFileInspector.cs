@@ -166,10 +166,9 @@ public static class ModFileInspector
                 if (!seenTargets.Add(to))
                     throw new InvalidDataException($"The archive contains '{to}' more than once.");
 
-                var (sha256, size) = HashEntry(entry);
+                // The cap applies while reading: one entry alone may claim to be tiny and expand to terabytes.
+                var (sha256, size) = HashEntry(entry, MaxExtractedBytes - extracted);
                 extracted += size;
-                if (extracted > MaxExtractedBytes)
-                    throw new InvalidDataException("The archive expands to more than 2 GB.");
 
                 entries.Add(new InspectedEntry(from, to, size, sha256, ClassifyKind(to)));
             }
@@ -178,8 +177,11 @@ public static class ModFileInspector
         }
     }
 
-    /// <summary>Streams one archive entry through SHA-256, counting the bytes actually read rather than trusting the header.</summary>
-    private static (string Sha256, long Size) HashEntry(IArchiveEntry entry)
+    /// <summary>
+    /// Streams one archive entry through SHA-256, counting the bytes actually read rather than trusting the header.
+    /// Stops with an error as soon as more than <paramref name="budget"/> bytes come out.
+    /// </summary>
+    private static (string Sha256, long Size) HashEntry(IArchiveEntry entry, long budget)
     {
         using var source = entry.OpenEntryStream();
         using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -191,6 +193,8 @@ public static class ModFileInspector
         {
             hasher.AppendData(buffer, 0, read);
             total += read;
+            if (total > budget)
+                throw new InvalidDataException("The archive expands to more than 2 GB.");
         }
 
         return (Convert.ToHexString(hasher.GetHashAndReset()).ToLowerInvariant(), total);

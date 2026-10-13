@@ -27,6 +27,9 @@ public partial class OptionalGroupsEditor
     [Parameter, EditorRequired]
     public HashSet<string> Dismissed { get; set; } = [];
 
+    /// <summary>False where no install preview is shown to mark files in (the edit page).</summary>
+    [Parameter] public bool HasPreview { get; set; } = true;
+
     /// <summary>Raised after any change so the parent can re-render.</summary>
     [Parameter] public EventCallback OnChanged { get; set; }
 

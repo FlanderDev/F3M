@@ -297,6 +297,21 @@ a {
     gap: 6px;
 }
 
+/* Next to the author on the mod page: registered on F3M, or not yet (unclaimed import). */
+.f3m-author-verified,
+.f3m-author-unregistered {
+    margin-left: .3rem;
+    cursor: help;
+}
+
+.f3m-author-verified {
+    color: #0dcaf0;
+}
+
+.f3m-author-unregistered {
+    color: #9ca3af;
+}
+
 .f3m-profile-link {
     display: inline-flex;
     align-items: center;
@@ -646,7 +661,11 @@ a {
 }
 
 /* ── Footer ─────────────────────────────────────────────── */
+/* Stays at the bottom of the window while the page scrolls, like the navbar at the top. Below the modals (1050+). */
 .f3m-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1020;
     background: var(--f3m-surface);
     border-top: 1px solid var(--f3m-border);
 }
@@ -1552,6 +1571,83 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
             width: 100%;
         }
 }
+
+/* ── Admin: error reports ───────────────────────────────── */
+.f3m-error-report {
+    border-top: 1px solid var(--f3m-border);
+    padding: .5rem 0;
+}
+
+    .f3m-error-report > summary {
+        cursor: pointer;
+        display: flex;
+        gap: .75rem;
+        align-items: baseline;
+        list-style: none;
+    }
+
+    .f3m-error-report > summary::-webkit-details-marker {
+        display: none;
+    }
+
+.f3m-error-time {
+    flex-shrink: 0;
+    font-size: .78rem;
+    color: #9ca3af;
+    font-variant-numeric: tabular-nums;
+}
+
+.f3m-error-message {
+    min-width: 0;
+    font-size: .875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.f3m-error-report[open] .f3m-error-message {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.f3m-error-stack {
+    max-height: 320px;
+    overflow: auto;
+    margin: .5rem 0 0;
+    padding: .5rem .75rem;
+    background: var(--f3m-surface-2);
+    border-radius: 6px;
+    font-size: .72rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+    .f3m-error-report > summary {
+        flex-direction: column;
+        gap: .1rem;
+    }
+}
+
+/* ── Admin: site setup ─────────────────────────────────── */
+.f3m-setup-check {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    padding: .65rem 0;
+}
+
+    .f3m-setup-check + .f3m-setup-check {
+        border-top: 1px solid var(--f3m-border);
+    }
+
+.f3m-setup-table {
+    --bs-table-bg: transparent;
+}
+
+    .f3m-setup-table td:first-child {
+        white-space: nowrap;
+    }
 
 /* ── Optional files: upload form, preview, mod page ─────── */
 /* Bootstrap's muted grey is unreadable on the dark surface; these editors explain a lot in it. */

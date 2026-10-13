@@ -96,6 +96,12 @@ public class Mod : IId, IName
     /// Empty unless the caller specifically asked for it to be resolved.
     /// </summary>
     public List<Mod> Dependencies { get; set; } = [];
+
+    /// <summary>
+    /// Game-relative paths this version ships, from its files' entries. NOT persisted (see AppDbContext.Ignore); filled
+    /// by ModsService.GetMod so the edit page can show what the optional groups cover.
+    /// </summary>
+    public List<string> ShippedPaths { get; set; } = [];
 }
 
 // ── ModFile ───────────────────────────────────────────────────────────────────

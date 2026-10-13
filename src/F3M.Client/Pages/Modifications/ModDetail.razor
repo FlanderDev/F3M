@@ -328,6 +328,16 @@ else
                 <h1 class="fw-black fs-2 mb-1">@selectedVersion.Name</h1>
                 <p class="small mb-2">
                     by <span class="fw-semibold">@selectedVersion.Author</span>
+                    @if (owner is not null)
+                    {
+                        <i class="bi bi-patch-check-fill f3m-author-verified" tabindex="0" role="img"
+                           title="Registered on F3M as @owner.Username" aria-label="Registered on F3M as @owner.Username"></i>
+                    }
+                    else if (group is not null)
+                    {
+                        <i class="bi bi-x-circle-fill f3m-author-unregistered" tabindex="0" role="img"
+                           title="@UnregisteredHint" aria-label="@UnregisteredHint"></i>
+                    }
                     &nbsp;·&nbsp; @selectedVersion.UploadedAt.ToString("MMM d, yyyy")
                 </p>
                 @* The author line is a credit (it can name several people); these go to the uploader's accounts. *@

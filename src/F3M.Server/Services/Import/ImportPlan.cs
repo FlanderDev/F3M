@@ -9,7 +9,7 @@ namespace F3M.Server.Services.Import;
 /// <summary>
 /// What the F95zone import downloads and imports: Import/import-plan.json (shipped with the server), or a replacement
 /// an admin uploaded. Built from the community mod list and the hand-made decisions about each post's attachments;
-/// import/README.md describes every field.
+/// Import/README.md describes every field.
 /// </summary>
 public sealed class ImportPlan
 {
@@ -146,6 +146,32 @@ public sealed class ImportPlan
         foreach (var mod in Mods)
             Visit(mod);
         return ordered;
+    }
+
+    /// <summary>
+    /// The frameworks in the plan: mods named like a <see cref="ModTemplate.RequiredModName"/>, with the mods they depend
+    /// on, dependencies first.
+    /// </summary>
+    public List<PlanMod> Frameworks()
+    {
+        var names = new HashSet<string>(ModTemplates.Frameworks().Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
+        var byKey = Mods.ToDictionary(m => m.Key, StringComparer.OrdinalIgnoreCase);
+        var needed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(PlanMod mod)
+        {
+            if (!needed.Add(mod.Key))
+                return;
+            foreach (var dependency in mod.Dependencies)
+            {
+                if (byKey.TryGetValue(dependency, out var other))
+                    Add(other);
+            }
+        }
+
+        foreach (var mod in Mods.Where(m => names.Contains(m.Name)))
+            Add(mod);
+        return [.. InDependencyOrder().Where(m => needed.Contains(m.Key))];
     }
 
     private string? FindCycle()

@@ -20,6 +20,12 @@ public sealed class AppSettings
 
     /// <summary>Look for a newer F3M Desktop on GitHub at every start. Installing always waits for a click.</summary>
     public bool CheckAppUpdatesOnStartup { get; set; } = true;
+
+    /// <summary>
+    /// Sites (origins, e.g. https://f3m.example) whose f3m:// links the user trusts: they act without asking again.
+    /// Added when the user says yes the first time; removed in Settings.
+    /// </summary>
+    public List<string> TrustedSites { get; set; } = [];
 }
 
 /// <summary>A local profile: a named set of mod groups, with optional local version pins. Never sent to the server.</summary>

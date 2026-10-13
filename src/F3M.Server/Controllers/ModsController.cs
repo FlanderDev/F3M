@@ -106,6 +106,11 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
         {
             return Forbid();
         }
+        catch (InvalidDataException ex)
+        {
+            // Invalid optional groups or preview image; the message says what to fix.
+            return BadRequest(ex.Message);
+        }
     }
 
     public override async Task<IActionResult> Delete(int id, CancellationToken ct)

@@ -1,6 +1,7 @@
 using F3M.Server.Data;
 using F3M.Server.Helpers;
 using F3M.Server.Models;
+using F3M.Server.Services.Setup;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Models;
@@ -22,6 +23,7 @@ public class AdminService(
     IHttpContextAccessor httpContextAccessor,
     CatalogService catalog,
     ModOwnershipService ownership,
+    AdminAccount adminAccount,
     ILogger<AdminService> logger) : IAdminApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
@@ -75,6 +77,9 @@ public class AdminService(
                    ?? throw new KeyNotFoundException($"No user with id {id} was found.");
 
         var isAdmin = await userManager.IsInRoleAsync(user, AppRoles.Admin);
+        if (isAdmin && adminAccount.Is(user.UserName))
+            throw new InvalidOperationException(SettingsAdmin(user));
+
         var roleResult = isAdmin
             ? await userManager.RemoveFromRoleAsync(user, AppRoles.Admin)
             : await userManager.AddToRoleAsync(user, AppRoles.Admin);
@@ -109,6 +114,15 @@ public class AdminService(
         var user = await userManager.FindByIdAsync(id.ToString())
                    ?? throw new KeyNotFoundException($"No user with id {id} was found.");
 
+        if (adminAccount.Is(user.UserName))
+            throw new InvalidOperationException(SettingsAdmin(user));
+
+        // Their mods must not stay with an account that no longer exists: only admins could manage them then. Unclaimed,
+        // they go back to their F95 uploader (if recorded) on that user's next sign-in, or an admin assigns them.
+        var ownedGroups = await db.ModGroups.Where(g => g.OwnerId == user.Id).Select(g => g.Id).ToListAsync(ct);
+        foreach (var groupId in ownedGroups)
+            await ownership.AssignAsync(groupId, null, ct);
+
         var deleteResult = await userManager.DeleteAsync(user);
         if (!deleteResult.Succeeded)
             throw new InvalidOperationException(string.Join(" ", deleteResult.Errors.Select(e => e.Description)));
@@ -116,10 +130,28 @@ public class AdminService(
         logger.LogInformation("Admin {Caller} deleted user {Username}", callerId, user.UserName);
     }
 
+    private static string SettingsAdmin(AppUser user) =>
+        $"{user.UserName} is the admin account from the server settings (F3M_ADMIN_USERNAME). Change it there first.";
+
     public async Task<CatalogRebuildResult> RebuildCatalogAsync(CancellationToken ct = default)
     {
         logger.LogInformation("Admin {Caller} started a catalog rebuild", userManager.GetUserId(CurrentPrincipal));
         return await catalog.RebuildAllAsync(ct);
+    }
+
+    public async Task<ErrorReportPage> GetErrorReportsAsync(int skip = 0, int take = 25, CancellationToken ct = default)
+    {
+        skip = Math.Max(0, skip);
+        take = Math.Clamp(take, 1, IAdminApi.MaxErrorReportsPerPage);
+
+        // Ids grow with every report, so they order by arrival even when two share a timestamp.
+        var items = await db.TelemetryErrorReports.AsNoTracking()
+            .OrderByDescending(r => r.Id)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(ct);
+
+        return new ErrorReportPage { Items = items, Total = await db.TelemetryErrorReports.CountAsync(ct) };
     }
 
     public async Task<ModGroup> AssignModOwnerAsync(int groupId, AssignModOwnerDto dto, CancellationToken ct = default)

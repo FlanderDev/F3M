@@ -9,7 +9,7 @@ namespace F3M.Server.Controllers;
 /// <summary>
 /// Debug-build helper for uploading a mod without signing in. Only reachable from the local network.
 /// Uploads go through <see cref="ModUploadService"/>, so they get the same checks, file inspection and catalog entries
-/// as the upload form. Bulk imports with their F95 uploader use the admin-only ImportController instead.
+/// as the upload form. Bulk imports with their F95 uploader use the admin import page instead.
 /// </summary>
 [ApiController]
 public sealed class DebugController(ModUploadService uploader) : ControllerBase

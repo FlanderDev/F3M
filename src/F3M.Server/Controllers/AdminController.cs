@@ -70,6 +70,9 @@ public class AdminController(IAdminApi adminApi) : AdminApiControllerBase
         }
     }
 
+    public override async Task<ActionResult<ErrorReportPage>> GetErrorReportsAsync(int skip, int take, CancellationToken ct)
+        => Ok(await adminApi.GetErrorReportsAsync(skip, take, ct));
+
     public override async Task<ActionResult<CatalogRebuildResult>> RebuildCatalogAsync(CancellationToken ct)
     {
         try

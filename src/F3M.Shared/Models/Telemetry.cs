@@ -24,3 +24,12 @@ public sealed class Telemetry
         };
     }
 }
+
+/// <summary>One page of the stored error reports, newest first (admin page).</summary>
+public sealed class ErrorReportPage
+{
+    public List<Telemetry.ErrorReport> Items { get; set; } = [];
+
+    /// <summary>How many reports are stored in all.</summary>
+    public int Total { get; set; }
+}

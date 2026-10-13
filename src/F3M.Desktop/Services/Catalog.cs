@@ -74,11 +74,28 @@ public sealed class Catalog(AppServices app)
 
     public IndexGroup? Group(int groupId) => Index?.Groups.FirstOrDefault(g => g.GroupId == groupId);
 
-    /// <summary>The version document for one version. Cached after the first verified download; versions never change.</summary>
-    public async Task<VersionDocument> GetVersionAsync(int groupId, int versionId, CancellationToken ct)
+    /// <summary>
+    /// The version document for one version, cached after the first verified download. A version's files never change,
+    /// but its owner can edit the rest (name, requirements, optional groups); <paramref name="refresh"/> fetches the
+    /// current document first and only falls back to the cached one when the server can't be reached.
+    /// </summary>
+    public async Task<VersionDocument> GetVersionAsync(int groupId, int versionId, CancellationToken ct, bool refresh = false)
     {
         var path = app.Paths.CatalogFile($"mods/{groupId}/{versionId}.json");
         if (_keys.Count == 0) await RefreshKeysAsync(ct);
+        if (refresh)
+        {
+            try
+            {
+                return await DownloadVersionAsync(groupId, versionId, path, ct);
+            }
+            catch (Exception ex) when (File.Exists(path)
+                                       && (ex is HttpRequestException || ex is TaskCanceledException && !ct.IsCancellationRequested))
+            {
+                AppLog.Info($"Using the cached document {groupId}/{versionId}: {ex.Message}");
+            }
+        }
+
         if (File.Exists(path))
         {
             try
@@ -92,6 +109,11 @@ public sealed class Catalog(AppServices app)
             }
         }
 
+        return await DownloadVersionAsync(groupId, versionId, path, ct);
+    }
+
+    private async Task<VersionDocument> DownloadVersionAsync(int groupId, int versionId, string path, CancellationToken ct)
+    {
         var envelope = await FetchJsonAsync<SignedEnvelope>($"catalog/mods/{groupId}/{versionId}.json", ct)
                        ?? throw new UserException($"Version {versionId} of mod {groupId} is not in the catalog.");
         var document = Verify<VersionDocument>(envelope);
@@ -123,7 +145,8 @@ public sealed class Catalog(AppServices app)
                 ? pinned
                 : group?.LatestVersionId ?? throw new UserException($"Mod {groupId} has no approved version yet.");
 
-            var document = await GetVersionAsync(groupId, versionId, ct);
+            // Fresh, so edits of the owner (requirements, optional groups) reach the game folder.
+            var document = await GetVersionAsync(groupId, versionId, ct, refresh: true);
             result[groupId] = document;
 
             foreach (var dependency in document.Dependencies)

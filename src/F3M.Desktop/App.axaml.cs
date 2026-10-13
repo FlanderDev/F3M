@@ -231,6 +231,12 @@ public partial class App : Application
 
     private static async Task StartupAsync(AppServices services, MainViewModel shell, string? link)
     {
+#if !DEBUG
+        // Links from the website open this app, also after an install, a move or a factory reset. Debug builds leave the
+        // registration alone, so a development run doesn't take links over from the installed app (Settings still can).
+        _ = Task.Run(() => ProtocolRegistration.EnsureRegistered(Program.LaunchPath));
+#endif
+
         // An interrupted deploy (crash or power loss) is undone before anything reads the game folder.
         try
         {

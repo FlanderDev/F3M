@@ -338,8 +338,23 @@
         <Border Classes="card">
           <StackPanel Spacing="8">
             <TextBlock Text="Links and diagnostics" FontWeight="SemiBold" />
-            <TextBlock Classes="muted" Text="Lets buttons on the website, such as Use this setup, open this app. Do it once, and again if you move the app." TextWrapping="Wrap" />
+            <TextBlock Classes="muted" Text="Lets buttons on the website, such as Use this setup, open this app. F3M Desktop registers its f3m:// links every time it starts; register them here if another program took them over since." TextWrapping="Wrap" />
             <Button Content="Register f3m:// links" Command="{Binding RegisterLinksCommand}" HorizontalAlignment="Left" />
+            <TextBlock Text="Trusted sites" FontWeight="SemiBold" Margin="0,6,0,0" />
+            <TextBlock Classes="muted" TextWrapping="Wrap"
+                       Text="Links from these sites act without asking. The first link from any other site asks whether you trust it." />
+            <TextBlock Classes="muted" Text="None yet." IsVisible="{Binding !HasTrustedSites}" />
+            <ItemsControl ItemsSource="{Binding TrustedSites}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:TrustedSiteRow">
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                    <TextBlock Text="{Binding Site}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="1" Content="Revoke" Command="{Binding RevokeCommand}" Margin="8,0,0,0"
+                            ToolTip.Tip="Takes the trust back at once: the next link from this site asks again." />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
             <StackPanel Orientation="Horizontal" Spacing="4">
               <TextBlock Classes="muted" Text="Data folder:" />
               <TextBlock FontSize="12" Text="{Binding DataFolder}" v:Links.Target="{Binding DataFolder}" TextWrapping="Wrap" />

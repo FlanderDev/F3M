@@ -41,6 +41,19 @@ public class ModEditDto
     /// <summary>ModGroup IDs (logical mods) this version depends on. Replaces the full set —
     /// send everything that should remain, not just additions/removals.</summary>
     public List<int> DependencyGroupIds { get; set; } = [];
+
+    /// <summary>The version's optional groups, replacing the current ones; null leaves them as they are.</summary>
+    public List<OptionalGroupDto>? OptionalGroups { get; set; }
+
+    /// <summary>A new preview image, base64; null keeps the current one. Same types and size limit as on upload.</summary>
+    public string? PreviewImageBase64 { get; set; }
+
+    /// <summary>The new image's file name, for its extension.</summary>
+    [MaxLength(255)]
+    public string? PreviewImageFileName { get; set; }
+
+    /// <summary>Removes the preview image (ignored when a new one is given).</summary>
+    public bool RemovePreviewImage { get; set; }
 }
 
 // ── F95zone account linking DTOs ──────────────────────────────────────────────

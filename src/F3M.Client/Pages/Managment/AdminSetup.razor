@@ -1,0 +1,235 @@
+@page "/admin/setup"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject ISetupApi Api
+@inject IImportApi ImportApi
+
+<PageTitle>F3M - Site setup</PageTitle>
+
+<div class="container py-5" style="max-width:900px;">
+    <div class="mb-4">
+        <a href="/admin" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Admin Panel</a>
+        <h1 class="fw-black mb-1 fs-2 mt-2">
+            <i class="bi bi-ui-checks text-warning me-2"></i>Site setup
+        </h1>
+        <p class="small mb-0">
+            What a new site still needs, and the settings an admin can change here. The server's own settings
+            (port, proxy, storage, signing-key password) stay in its environment variables.
+        </p>
+    </div>
+
+    @if (actionError is not null)
+    {
+        <div class="alert alert-danger small">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@actionError
+        </div>
+    }
+
+    @if (status is null)
+    {
+        @if (loadError is not null)
+        {
+            <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>@loadError</div>
+        }
+        else
+        {
+            <div class="placeholder-glow">
+                @for (int i = 0; i < 3; i++)
+                {
+                    <div class="placeholder w-100 mb-3" style="height:110px;border-radius:8px;"></div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        var bot = status.Bot;
+
+        <!-- Checklist -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="fs-5 fw-bold mb-0"><i class="bi bi-list-check text-warning me-2"></i>Checklist</h2>
+                <span class="small f3m-import-muted">@status.Checks.Count(c => c.State == SetupCheckState.Done) of @status.Checks.Count done</span>
+            </div>
+            @foreach (var check in status.Checks)
+            {
+                <div class="f3m-setup-check">
+                    <i class="bi @Icon(check.State) fs-5"></i>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="fw-semibold">@check.Title</div>
+                        <div class="small f3m-import-muted text-break">@check.Detail</div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Admin account -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <h2 class="fs-5 fw-bold mb-2"><i class="bi bi-person-badge text-warning me-2"></i>Admin account</h2>
+            <p class="small mb-2">
+                The server makes sure this account exists and is an admin at every start. An existing account with the
+                name, for example one linked to F95zone, simply becomes admin. It can't be demoted or deleted here.
+            </p>
+            <div class="table-responsive">
+                <table class="table table-sm table-dark small mb-0 f3m-setup-table">
+                    <tbody>
+                        <tr><td><code>F3M_ADMIN_USERNAME</code></td><td>The account's user name.</td></tr>
+                        <tr><td><code>F3M_ADMIN_PASSWORD</code></td><td>Its password when the account is created. An existing password is left alone.</td></tr>
+                        <tr><td><code>F3M_ADMIN_PASSWORD_OVERWRITE</code></td><td><code>true</code> resets the password to <code>F3M_ADMIN_PASSWORD</code> at every start, e.g. after it was lost. Default <code>false</code>.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="small f3m-import-muted mt-2 mb-0">
+                Without Docker Compose they are called <code>Admin__UserName</code>, <code>Admin__Password</code> and
+                <code>Admin__OverwritePassword</code>.
+            </p>
+        </div>
+
+        <!-- Bot account -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="fs-5 fw-bold mb-0"><i class="bi bi-robot text-warning me-2"></i>F95zone bot account</h2>
+                <span class="badge @SourceBadge(bot.Source)">@SourceLabel(bot.Source)</span>
+            </div>
+            <p class="small mb-3">
+                Accounts are created by posting a code on an F95zone profile; this account signs in to F95zone to read
+                it. Use a separate F95zone account for it. Saved here, it replaces the <code>F95Bot__*</code> settings;
+                its password is stored encrypted and never shown again.
+            </p>
+
+            <div class="row g-2">
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold mb-1" for="bot-url">F95zone address</label>
+                    <input id="bot-url" class="form-control form-control-sm f3m-input" placeholder="https://f95zone.to" @bind="form.BaseUrl" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold mb-1" for="bot-id">User ID <span class="f3m-import-muted fw-normal">(optional)</span></label>
+                    <input id="bot-id" class="form-control form-control-sm f3m-input" placeholder="12345" inputmode="numeric" @bind="form.UserId" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold mb-1" for="bot-user">User name</label>
+                    <input id="bot-user" class="form-control form-control-sm f3m-input" autocomplete="off" @bind="form.Username" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold mb-1" for="bot-password">Password</label>
+                    <input id="bot-password" type="password" class="form-control form-control-sm f3m-input" autocomplete="new-password"
+                           placeholder="@(bot.Source == BotSettingsSource.Site ? "Unchanged" : string.Empty)" @bind="form.Password" />
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button class="btn btn-sm btn-warning fw-semibold" @onclick="SaveBot" disabled="@busy">
+                    <i class="bi bi-floppy me-1"></i>Save
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="TestBot" disabled="@(busy || bot.Source == BotSettingsSource.None)">
+                    @if (testing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-plug me-1"></i>
+                    }
+                    Test login
+                </button>
+                @if (bot.Source == BotSettingsSource.Site)
+                {
+                    <button class="btn btn-sm btn-outline-danger" @onclick="RemoveBot" disabled="@busy">
+                        <i class="bi bi-trash me-1"></i>@(bot.EnvironmentConfigured ? "Use the F95Bot settings again" : "Remove")
+                    </button>
+                }
+            </div>
+
+            @if (bot.LastTest is { } test)
+            {
+                <div class="small mt-2 @(test.Success ? "text-success" : "text-danger") text-break">
+                    <i class="bi @(test.Success ? "bi-check-circle" : "bi-x-circle") me-1"></i>@test.Message
+                    <span class="f3m-import-muted">(@test.At.ToLocalTime().ToString("HH:mm:ss"))</span>
+                </div>
+            }
+            @if (botMessage is not null)
+            {
+                <div class="small mt-2 text-success"><i class="bi bi-check-circle me-1"></i>@botMessage</div>
+            }
+        </div>
+
+        <!-- Frameworks -->
+        <div class="f3m-surface rounded-3 border p-4 mb-4" style="border-color:var(--f3m-border);">
+            <h2 class="fs-5 fw-bold mb-2"><i class="bi bi-boxes text-warning me-2"></i>Frameworks</h2>
+            <p class="small mb-3">
+                The mods that mod types need. The upload form names them as requirements, so players get them too.
+                The import downloads them from F95zone and imports them as unclaimed mods, like the
+                <a href="/admin/import">F95zone import</a> does, without the other community mods.
+            </p>
+
+            @foreach (var framework in status.Frameworks)
+            {
+                <div class="f3m-setup-check">
+                    <i class="bi @(framework.ModId is null ? "bi-circle text-secondary" : "bi-check-circle-fill text-success") fs-5"></i>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="fw-semibold">
+                            @if (framework.ModId is { } modId)
+                            {
+                                <a href="/mod/@modId" class="text-decoration-none">@framework.Name</a>
+                            }
+                            else
+                            {
+                                @framework.Name
+                            }
+                        </div>
+                        <div class="small f3m-import-muted">
+                            Needed by @string.Join(", ", framework.NeededBy).
+                            @if (framework.ModId is null && !framework.InPlan)
+                            {
+                                <span class="text-warning"> Not in the import plan; upload it yourself.</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <button class="btn btn-sm btn-warning fw-semibold" @onclick="ImportFrameworks" disabled="@(busy || JobRunning || MissingInPlan == 0)">
+                    <i class="bi bi-box-arrow-in-down me-1"></i>
+                    @(MissingInPlan > 0 ? $"Import {MissingInPlan} framework{(MissingInPlan == 1 ? string.Empty : "s")}" : "Nothing to import")
+                </button>
+                @if (JobRunning && job?.Kind != ImportJobKind.Frameworks)
+                {
+                    <span class="small f3m-import-muted">Another import step is running; see the <a href="/admin/import">F95zone import</a>.</span>
+                }
+            </div>
+
+            @if (job is { Kind: ImportJobKind.Frameworks } frameworksJob)
+            {
+                <div class="f3m-import-progress mt-3">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span class="fw-semibold">
+                            Framework import
+                            @if (frameworksJob.Running)
+                            {
+                                <span>: @frameworksJob.Done of @frameworksJob.Total</span>
+                            }
+                        </span>
+                    </div>
+                    @if (frameworksJob.Running || frameworksJob.Total > 0)
+                    {
+                        <div class="progress" style="height:8px;" role="progressbar" aria-valuenow="@Percent(frameworksJob)" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar bg-warning @(frameworksJob.Running ? "progress-bar-striped progress-bar-animated" : string.Empty)"
+                                 style="width:@(Percent(frameworksJob))%"></div>
+                        </div>
+                    }
+                    @if (frameworksJob.Running && frameworksJob.Current is not null)
+                    {
+                        <div class="small mt-1 text-truncate f3m-import-muted">@frameworksJob.Current</div>
+                    }
+                    @if (!frameworksJob.Running && frameworksJob.Summary is not null)
+                    {
+                        <div class="small mt-1">
+                            @frameworksJob.Summary
+                            <a href="/admin/import" class="ms-1">Details</a>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>

@@ -1,3 +1,5 @@
+using F3M.Server.Services.Setup;
+using F3M.Shared.Models;
 using HtmlAgilityPack;
 using System.Net;
 using System.Text.Json;
@@ -6,55 +8,86 @@ namespace F3M.Server.Services;
 
 /// <summary>
 /// Handles all direct HTTP communication with F95zone (XenForo 2).
-/// Registered as singleton so the login cookie jar is reused across requests.
+/// Registered as singleton so the login cookie jar is reused across requests. The bot account comes from
+/// <see cref="F95BotSettings"/>; when it changes there, the next request signs in again with the new one.
 /// </summary>
-public sealed class F95Service : IDisposable
+public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logger) : IDisposable
 {
-    private sealed class F95BotConfig
-    {
-        public required string BaseUrl { get; init; }
-        public required string Username { get; init; }
-        public required string Password { get; init; }
+    private readonly ILogger<F95Service> _logger = logger;
 
-        /// <summary>Numeric user ID of the bot account (visible in its profile URL).</summary>
-        public required string UserId { get; init; }
-    }
-
-
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<F95Service> _logger;
-    private readonly F95BotConfig _config;
+    // Replaced when the bot account changes. Null until the first request.
+    private HttpClient _httpClient = null!;
+    private F95BotConfig _config = null!;
+    private int _configVersion = -1;
 
     private string? _xfToken;
     private readonly SemaphoreSlim _loginLock = new(1, 1);
     private bool _isLoggedIn;
 
-    public F95Service(IConfiguration configuration, ILogger<F95Service> logger)
+    /// <summary>Signs in again with the bot account in use, for the setup page's "Test login".</summary>
+    public async Task<BotTestResultDto> TestLoginAsync(CancellationToken ct = default)
     {
-        _logger = logger;
-        _config = configuration.GetSection("F95Bot").Get<F95BotConfig>()
-            ?? throw new InvalidOperationException("F95Bot configuration section is missing.");
+        await _loginLock.WaitAsync(ct);
+        try
+        {
+            _configVersion = -1; // a fresh session, so the test really signs in
+            _isLoggedIn = false;
+            UseCurrentAccount();
+            await LoginAsync(ct);
+            return new BotTestResultDto { Success = true, At = DateTime.UtcNow, Message = $"Signed in to {_config.BaseUrl} as {_config.Username}." };
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "The F95zone bot test login failed.");
+            var message = ex.Message.Length > 300 ? ex.Message[..300] + "…" : ex.Message;
+            return new BotTestResultDto { Success = false, At = DateTime.UtcNow, Message = message };
+        }
+        finally
+        {
+            _loginLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Starts a new session (cookie jar) when the bot account in use changed since the last sign-in. Throws
+    /// <see cref="InvalidOperationException"/> when no complete account is set up. Call under <see cref="_loginLock"/>.
+    /// </summary>
+    private void UseCurrentAccount()
+    {
+        var version = settings.Version;
+        if (version == _configVersion)
+            return;
+
+        var (config, _) = settings.Current();
+        if (!config.IsComplete)
+            throw new InvalidOperationException("No F95zone bot account is set up. An admin can add one on the setup page.");
 
         // A manually created handler with a persistent CookieContainer is required —
         // IHttpClientFactory rotates handlers and discards cookies between requests.
-        var cookieContainer = new CookieContainer();
         var handler = new HttpClientHandler
         {
-            CookieContainer = cookieContainer,
+            CookieContainer = new CookieContainer(),
             AllowAutoRedirect = true,
             UseCookies = true
         };
 
-        _httpClient = new HttpClient(handler)
+        var client = new HttpClient(handler)
         {
-            BaseAddress = new Uri(_config.BaseUrl.TrimEnd('/') + "/")
+            BaseAddress = new Uri(config.BaseUrl.TrimEnd('/') + "/")
         };
 
-        _httpClient.DefaultRequestHeaders.Add(
+        client.DefaultRequestHeaders.Add(
             "User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-        _httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+        client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+
+        _httpClient?.Dispose();
+        _httpClient = client;
+        _config = config;
+        _configVersion = version;
+        _isLoggedIn = false;
+        _xfToken = null;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -70,19 +103,49 @@ public sealed class F95Service : IDisposable
     {
         await EnsureLoggedInAsync(ct);
 
-        var html = await FetchWithReloginAsync($"members/{targetUsername}.{targetUserId}/", ct);
+        var (html, finalUri) = await FetchWithReloginAsync($"members/{targetUsername}.{targetUserId}/", ct);
+        EnsureProfileIs(html, finalUri, targetUsername, targetUserId);
         return ParseProfilePosts(html, targetUsername);
+    }
+
+    /// <summary>
+    /// F95zone finds a profile by its number alone and redirects to its real address. A URL that pairs someone's
+    /// number with another name would otherwise show that someone's profile, where posts by the named user (left on
+    /// their wall) would pass as proof: the account of the profile's owner would be taken over. So the page must be
+    /// the profile of exactly this name and number, by the address it ended on and by its canonical link.
+    /// </summary>
+    /// <exception cref="ProfileMismatchException">The page belongs to another name or number.</exception>
+    private static void EnsureProfileIs(string html, Uri? finalUri, string username, string userId)
+    {
+        var addresses = new List<string>();
+        if (finalUri is not null)
+            addresses.Add(finalUri.AbsoluteUri);
+
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+        if (doc.DocumentNode.SelectSingleNode("//link[@rel='canonical']")?.GetAttributeValue("href", null) is { Length: > 0 } canonical)
+            addresses.Add(WebUtility.HtmlDecode(canonical));
+
+        foreach (var address in addresses)
+        {
+            if (F3M.Shared.Helpers.F95Profile.TryParse(address, out var name, out var id)
+                && (!string.Equals(name, username, StringComparison.OrdinalIgnoreCase) || id != userId))
+            {
+                throw new ProfileMismatchException(name, id);
+            }
+        }
     }
 
     // ── Login & Session ───────────────────────────────────────────────────────
 
     private async Task EnsureLoggedInAsync(CancellationToken ct)
     {
-        if (_isLoggedIn) return;
+        if (_isLoggedIn && settings.Version == _configVersion) return;
 
         await _loginLock.WaitAsync(ct);
         try
         {
+            UseCurrentAccount();
             if (_isLoggedIn) return;
             await LoginAsync(ct);
         }
@@ -116,12 +179,25 @@ public sealed class F95Service : IDisposable
 
         var body = await response.Content.ReadAsStringAsync(ct);
 
-        using var doc = JsonDocument.Parse(body);
-        if (!doc.RootElement.TryGetProperty("status", out var statusEl) ||
-            statusEl.GetString() != "ok")
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(body);
+        }
+        catch (JsonException)
         {
             throw new InvalidOperationException(
-                $"F95zone login failed. Response: {body}");
+                $"F95zone login failed: the site answered with HTTP {(int)response.StatusCode} instead of a sign-in result.");
+        }
+
+        using (doc)
+        {
+            if (!doc.RootElement.TryGetProperty("status", out var statusEl) ||
+                statusEl.GetString() != "ok")
+            {
+                throw new InvalidOperationException(
+                    $"F95zone login failed. Response: {body}");
+            }
         }
 
         // Refresh the CSRF token from the home page after a successful login.
@@ -214,7 +290,8 @@ public sealed class F95Service : IDisposable
         return input?.GetAttributeValue("value", null);
     }
 
-    private async Task<string> FetchWithReloginAsync(string relativeUrl, CancellationToken ct)
+    /// <summary>The page's HTML and the address it was served from, after redirects.</summary>
+    private async Task<(string Html, Uri? FinalUri)> FetchWithReloginAsync(string relativeUrl, CancellationToken ct)
     {
         var response = await _httpClient.GetAsync(relativeUrl, ct);
 
@@ -227,7 +304,7 @@ public sealed class F95Service : IDisposable
         }
 
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsStringAsync(ct);
+        return (await response.Content.ReadAsStringAsync(ct), response.RequestMessage?.RequestUri);
     }
 
     private static bool IsRedirectToLogin(HttpResponseMessage response)
@@ -236,9 +313,17 @@ public sealed class F95Service : IDisposable
 
     public void Dispose()
     {
-        _httpClient.Dispose();
+        _httpClient?.Dispose();
         _loginLock.Dispose();
     }
 
     #endregion
+}
+
+/// <summary>The profile page F95zone showed belongs to another name or number than the URL that was entered.</summary>
+public sealed class ProfileMismatchException(string actualName, string actualId)
+    : Exception($"The profile address leads to {actualName}.{actualId}.")
+{
+    public string ActualName { get; } = actualName;
+    public string ActualId { get; } = actualId;
 }
