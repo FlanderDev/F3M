@@ -214,7 +214,7 @@ public partial class Upload
     protected override async Task OnInitializedAsync()
     {
         // The default categories first, then any other the site already uses; each once.
-        Categories = [.. Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()).Distinct(StringComparer.OrdinalIgnoreCase)];
+        Categories = [.. F3M.Shared.Helpers.Categories.OthersLast(Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()))];
 
         if (GroupId is not int groupId)
             return;

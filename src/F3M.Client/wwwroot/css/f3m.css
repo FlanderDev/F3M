@@ -2,6 +2,17 @@
    F3M — Mod Manager  |  Dark Theme
    ========================================================= */
 
+/* Syne's digits are small and odd next to its capitals, so headings take theirs from DM Sans (the same file
+   index.html already loads for body text). Should the URL ever stop working, headings fall back to Syne's digits. */
+@font-face {
+    font-family: 'F3M Figures';
+    font-style: normal;
+    font-weight: 100 1000;
+    font-display: swap;
+    src: url(https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHQ.woff2) format('woff2');
+    unicode-range: U+0030-0039;
+}
+
 :root {
     --f3m-bg: #0d0e10;
     --f3m-surface: #17191c;
@@ -12,7 +23,7 @@
     --f3m-text: #e2e4e8;
     --f3m-muted: #6b7280;
     --f3m-radius: 10px;
-    --f3m-font-h: 'Syne', sans-serif;
+    --f3m-font-h: 'F3M Figures', 'Syne', sans-serif;
     --f3m-font-b: 'DM Sans', sans-serif;
     --tr: .18s ease;
 }
@@ -258,7 +269,8 @@ a {
     padding-top: 8px;
 }
 
-    .mod-card-meta i {
+    /* The spans' icons only: the desktop button's icon has no text beside it and stays centred. */
+    .mod-card-meta > span i {
         color: var(--f3m-amber);
         margin-right: 3px;
     }
@@ -272,7 +284,15 @@ a {
     padding: 1px 7px;
     font-size: .75rem;
     line-height: 1.4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
+
+    /* Bootstrap Icons sit their glyphs a little low for running text; alone in the button that's off-centre. */
+    .f3m-desktop-btn i::before {
+        vertical-align: 0;
+    }
 
 .f3m-desktop-missing {
     font-size: .7rem;
@@ -287,6 +307,19 @@ a {
 
     .f3m-desktop-missing a {
         color: var(--f3m-amber);
+    }
+
+/* ── Mod page: the two download buttons ─────────────────── */
+/* Side by side and equally wide while both labels fit; one above the other when the column is too narrow
+   (a flex item can't shrink below its unwrapped button text, so the row wraps instead of the text spilling). */
+.f3m-download-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+    .f3m-download-choices > * {
+        flex: 1 1 0;
     }
 
 /* ── Mod page: the uploader's profiles ──────────────────── */
@@ -1002,29 +1035,44 @@ a {
         margin-right: 3px;
     }
 
-/* ── Detail: version dropdown ───────────────────────────── */
-.f3m-version-dropdown {
+/* ── Dropdown menus (the version picker, SelectMenu) ────── */
+.f3m-dropdown-menu {
     background: var(--f3m-surface) !important;
     border: 1px solid var(--f3m-border) !important;
     border-radius: 8px;
-    min-width: 220px;
+    max-height: 60vh;
+    overflow-y: auto;
 }
 
-    .f3m-version-dropdown .dropdown-item {
+    .f3m-dropdown-menu .dropdown-item {
         color: var(--f3m-text);
         padding: .5rem .9rem;
         font-size: .85rem;
         transition: background var(--tr);
     }
 
-        .f3m-version-dropdown .dropdown-item:hover {
+        .f3m-dropdown-menu .dropdown-item:hover, .f3m-dropdown-menu .dropdown-item:focus {
             background: var(--f3m-surface-2);
+            color: var(--f3m-text);
         }
 
-        .f3m-version-dropdown .dropdown-item.active {
+        .f3m-dropdown-menu .dropdown-item.active {
             background: var(--f3m-amber-dim) !important;
             color: var(--f3m-amber) !important;
         }
+
+.f3m-version-dropdown {
+    min-width: 220px;
+}
+
+/* SelectMenu's button looks like the form fields; the arrow is the light one, for the dark background. */
+.f3m-select-menu .form-select {
+    background-color: var(--f3m-surface-2) !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right .75rem center !important;
+    background-size: 16px 12px !important;
+}
 
 /* ── Detail: version history timeline ───────────────────── */
 .f3m-version-history {

@@ -136,12 +136,13 @@ public partial class ModsService(
     public async Task<List<string>> GetCategories(CancellationToken ct = default)
     {
         // Category of each group = category of its latest version
-        return await db.Mods
+        var categories = await db.Mods
             .Where(m => m.IsApproved && m.IsLatestVersion)
             .Select(m => m.Category)
             .Distinct()
             .OrderBy(c => c)
-            .ToListAsync(ct)!;
+            .ToListAsync(ct);
+        return Categories.OthersLast(categories);
     }
 
     public async Task<Stream> DownloadFile(int id, int fileId, CancellationToken ct = default)

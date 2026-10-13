@@ -50,21 +50,12 @@
                 </div>
             </div>
             <div class="col-6 col-md-3">
-                <select class="form-select f3m-select" @bind="selectedCategory" @bind:after="LoadMods">
-                    <option selected value="@CategoryAll">@CategoryAll</option>
-                    @foreach (var cat in categories)
-                    {
-                        <option value="@cat">@cat</option>
-                    }
-                </select>
+                <SelectMenu TValue="string" @bind-Value="selectedCategory" @bind-Value:after="LoadMods"
+                            Items="CategoryOptions" AriaLabel="Category" />
             </div>
             <div class="col-6 col-md-3">
-                <select class="form-select f3m-select" @bind="sortBy" @bind:after="LoadMods">
-                    @foreach (var option in Enum.GetValues<SortBy>())
-                    {
-                        <option value="@option">@option</option>
-                    }
-                </select>
+                <SelectMenu TValue="SortBy" @bind-Value="sortBy" @bind-Value:after="LoadMods"
+                            Items="Enum.GetValues<SortBy>()" Text="SortText" AriaLabel="Sort by" />
             </div>
             <div class="col-auto">
                 <button class="btn btn-outline-secondary" @onclick="ClearFilters" title="Clear filters">

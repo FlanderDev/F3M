@@ -118,13 +118,13 @@ else
                     }
 
                     @* The desktop app is the main way to get a mod (it installs it); the browser download is the fallback. *@
-                    <div class="row g-2">
-                        <div class="col-6">
+                    <div class="f3m-download-choices">
+                        <div>
                             <DesktopDownloadButton GroupId="@selectedVersion.ModGroupId"
                                                    VersionId="@(selectedVersion.Id == allVersions[0].Id ? null : selectedVersion.Id)"
                                                    Label="F3M Desktop" />
                         </div>
-                        <div class="col-6">
+                        <div>
                             @if (selectedVersion.Files.Count > 1)
                             {
                                 <button class="btn btn-outline-warning fw-semibold w-100 text-nowrap"
@@ -297,7 +297,7 @@ else
                                     type="button" data-bs-toggle="dropdown">
                                 v@(selectedVersion.Version)
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-dark f3m-version-dropdown">
+                            <ul class="dropdown-menu f3m-dropdown-menu f3m-version-dropdown">
                                 @foreach (var ver in allVersions)
                                 {
                                     var v = ver;
