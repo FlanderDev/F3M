@@ -123,10 +123,10 @@ public class F95LinkService(
             };
         }
 
-        List<(long PostId, string Text)> posts;
+        F95ProfilePage page;
         try
         {
-            posts = await f95.GetProfilePostsAsync(verification.F95Username, f95UserId, ct);
+            page = await f95.GetProfilePageAsync(verification.F95Username, f95UserId, ct);
         }
         catch (ProfileMismatchException ex)
         {
@@ -151,15 +151,16 @@ public class F95LinkService(
             };
         }
 
-        var (postId, text) = posts.FirstOrDefault(p =>
-            p.Text.Contains(verification.VerificationGuid, StringComparison.OrdinalIgnoreCase));
+        // Only what the profile's owner wrote counts: anyone can post on someone's wall, and the code is public once
+        // posted. The author is matched by user id, which, unlike the name, is the same in the URL and on the page.
+        var code = CodeDigits(verification.VerificationGuid);
+        var ownPosts = page.Posts.Where(p => p.AuthorId == f95UserId).ToList();
+        var match = ownPosts.FirstOrDefault(p => CodeDigits(p.Text).Contains(code, StringComparison.Ordinal));
 
-        if (text is null)
-            return new LinkF95PollResponse
-            {
-                Status = VerificationState.Pending,
-                Message = "Post not found yet. Make sure you posted the code on your own profile wall."
-            };
+        if (match is null)
+            return CodeNotFound(verification, page, ownPosts, code);
+
+        var postId = match.Id;
 
         // GUID matched — find or create the F3M account.
         var user = await db.Users.FirstOrDefaultAsync(u => u.F95UserId == f95UserId, ct);
@@ -253,6 +254,74 @@ public class F95LinkService(
 
     private static string HashToken(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    /// <summary>
+    /// The hex digits of a text, upper case, everything else dropped. The code then still matches when it was posted
+    /// in lower case, without its dashes, broken over lines, with invisible characters (zero-width spaces from copying)
+    /// or wrapped in other text. Chance matches are no concern: the code is 32 random hex digits.
+    /// </summary>
+    private static string CodeDigits(string text) =>
+        string.Concat(text.Where(char.IsAsciiHexDigit).Select(char.ToUpperInvariant));
+
+    /// <summary>The code wasn't found: logs everything that explains why (a warning), and tells the user what fits.</summary>
+    private LinkF95PollResponse CodeNotFound(F95PendingVerification verification, F95ProfilePage page, List<F95ProfilePost> ownPosts, string code)
+    {
+        var byOthers = page.Posts.Where(p => p.AuthorId != verification.F95UserId && CodeDigits(p.Text).Contains(code, StringComparison.Ordinal)).ToList();
+        var elsewhereOnPage = CodeDigits(page.PageText).Contains(code, StringComparison.Ordinal);
+
+        string reason, message;
+        if (byOthers.Count > 0)
+        {
+            var other = byOthers[0];
+            reason = $"the code is in {(other.IsComment ? "comment" : "post")} {other.Id} by another account, {other.AuthorName} ({other.AuthorId ?? "no id"})";
+            message = $"The code is on your profile, but it was posted from another F95zone account ({other.AuthorName}). " +
+                      $"Post it yourself, signed in to F95zone as {verification.F95Username}.";
+        }
+        else if (elsewhereOnPage)
+        {
+            reason = "the code is on the page, but not in any post the bot could read (has the page layout changed?)";
+            message = DefaultPendingMessage;
+        }
+        else if (!page.SignedIn)
+        {
+            reason = "the bot saw the page signed out, even after signing in again";
+            message = "F95zone didn't let the checker see your profile just now. Please try again in a minute.";
+        }
+        else if (page.Posts.Count == 0)
+        {
+            reason = "the page shows no profile posts at all (profile private, posts hidden, or the page layout changed)";
+            message = "Your profile posts couldn't be read. If your F95zone privacy settings hide your profile, let members see it, then try again.";
+        }
+        else
+        {
+            reason = ownPosts.Count == 0
+                ? "none of the posts on the page are by the profile's owner"
+                : "none of the owner's posts contain the code (not posted yet, still awaiting approval, or cut short)";
+            message = DefaultPendingMessage;
+        }
+
+        var posts = page.Posts.Count == 0
+            ? "  (none)"
+            : string.Join('\n', page.Posts.Take(15).Select(p =>
+                $"  {(p.IsComment ? "comment" : "post")} {p.Id} by {p.AuthorName} ({p.AuthorId ?? "no id"}): {Excerpt(p.Text)}"));
+
+        logger.LogWarning(
+            "Verification {Id} for {Username} ({UserId}): the code wasn't found, {Reason}.\n" +
+            "Page: {Url} (\"{Title}\", {Length} characters, signed in: {SignedIn}), {PostCount} posts and comments, {OwnCount} by the owner:\n{Posts}",
+            verification.Id, verification.F95Username, verification.F95UserId, reason,
+            page.FinalUri, page.Title, page.HtmlLength, page.SignedIn, page.Posts.Count, ownPosts.Count, posts);
+
+        return new LinkF95PollResponse { Status = VerificationState.Pending, Message = message };
+    }
+
+    private const string DefaultPendingMessage =
+        "No post with the code yet. Check that you posted it on your own profile and that it contains the whole code, then try again. It can take a minute to show up.";
+
+    private static string Excerpt(string text)
+    {
+        var line = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return line.Length > 80 ? line[..80] + "…" : line.Length == 0 ? "(no text)" : line;
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     /// <summary>Case-insensitive, like sign-in: "Name" and "name" are the same account name.</summary>

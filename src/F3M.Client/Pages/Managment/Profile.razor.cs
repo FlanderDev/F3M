@@ -2,6 +2,7 @@ using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
+using Microsoft.AspNetCore.Components;
 
 namespace F3M.Client.Pages.Managment;
 
@@ -16,6 +17,27 @@ public partial class Profile
     private bool changingPassword;
     private string? passwordError;
     private string? passwordSuccess;
+
+    // Set by the account-link page after a successful verification: "new" (account created) or "back" (signed in).
+    private const string WelcomeNew = "new";
+    private const string WelcomeBack = "back";
+
+    [SupplyParameterFromQuery(Name = "welcome")]
+    public string? WelcomeQuery { get; set; }
+
+    private string? welcome;
+
+    protected override void OnParametersSet()
+    {
+        welcome = WelcomeQuery is WelcomeNew or WelcomeBack ? WelcomeQuery : null;
+    }
+
+    /// <summary>Hides the note and drops it from the address, so a reload or a bookmark doesn't bring it back.</summary>
+    private void DismissWelcome()
+    {
+        welcome = null;
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter("welcome", (string?)null), replace: true);
+    }
 
     protected override async Task OnInitializedAsync()
     {
