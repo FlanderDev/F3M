@@ -217,14 +217,12 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
     /// comments on that post) from a rendered member profile page, filtered to those authored by
     /// <paramref name="targetUsername"/>.
     ///
-    /// NOTE: This assumes XenForo 2's default markup:
-    ///   &lt;div class="message ... js-profilePost-{id}" data-author="{username}"&gt;
-    ///     &lt;article class="message-body"&gt;
-    ///       &lt;div class="bbWrapper"&gt;...text...&lt;/div&gt;
-    ///     &lt;/article&gt;
-    ///   &lt;/div&gt;
-    /// This has NOT been verified against a live page capture yet — if matching keeps coming
-    /// back empty, inspect an actual profile page's HTML and adjust the selectors below.
+    /// F95zone's markup (checked against a live profile page, 2026-10):
+    ///   &lt;article class="message message--simple js-inlineModContainer" id="js-profilePost-{id}" data-author="{username}"&gt;
+    ///     ... &lt;article class="message-body"&gt;...text...&lt;/article&gt; ...
+    ///     (comments inside: &lt;div class="comment" id="js-profilePostComment-{id}"&gt;)
+    ///   &lt;/article&gt;
+    /// Matched by id on any element, so a change of tag (it used to be assumed a div) doesn't break it.
     /// </summary>
     private List<(long PostId, string Text)> ParseProfilePosts(string html, string targetUsername)
     {
@@ -234,7 +232,7 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
         // Top-level posts use id="js-profilePost-{id}"; comments use the
         // "js-profilePostComment-{id}" prefix, so explicitly exclude those.
         var postNodes = doc.DocumentNode.SelectNodes(
-            "//div[starts-with(@id, 'js-profilePost-') and not(starts-with(@id, 'js-profilePostComment-'))]");
+            "//*[starts-with(@id, 'js-profilePost-') and not(starts-with(@id, 'js-profilePostComment-'))]");
 
         if (postNodes is null)
         {
@@ -255,8 +253,10 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
             if (!long.TryParse(idPart, out var postId))
                 continue;
 
-            // Content is inside <div class="bbWrapper"> within the message body.
-            var bodyNode = node.SelectSingleNode(".//div[contains(@class,'bbWrapper')]");
+            // The text sits directly in <article class="message-body"> (comments have their own, further down);
+            // XenForo's usual <div class="bbWrapper"> is taken first in case F95zone adds it back.
+            var bodyNode = node.SelectSingleNode(".//div[contains(@class,'bbWrapper')]")
+                           ?? node.SelectSingleNode(".//*[contains(concat(' ', normalize-space(@class), ' '), ' message-body ')]");
 
             var text = bodyNode?.InnerText?.Trim();
             if (!string.IsNullOrEmpty(text))
