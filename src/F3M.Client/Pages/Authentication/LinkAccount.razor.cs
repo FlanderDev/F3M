@@ -2,8 +2,10 @@ using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
+using FlanderDev.RouteGen.Abstractions;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
+using System.Net;
 
 namespace F3M.Client.Pages.Authentication;
 
@@ -34,7 +36,9 @@ public partial class LinkAccount
     /// <summary>The server refused this name as taken; the live preview must not promise it.</summary>
     private bool NameRefused => refusedName is not null && UrlParsed && string.Equals(parsedName, refusedName, StringComparison.OrdinalIgnoreCase);
     private bool PasswordMismatch => !string.IsNullOrEmpty(confirmPassword) && password != confirmPassword;
-    private bool CanStart => UrlParsed && password.Length >= 8 && password == confirmPassword;
+    private bool PasswordLongEnough => password.Length >= Configuration.PasswordMinLength;
+    private bool PasswordTooLong => password.Length > Configuration.PasswordMaxLength;
+    private bool CanStart => UrlParsed && PasswordLongEnough && !PasswordTooLong && password == confirmPassword;
 
     private string StepClass(Step s) => s == step ? "active" : s < step ? "done" : string.Empty;
 
@@ -116,6 +120,11 @@ public partial class LinkAccount
                     error = result.Message ?? "Something went wrong. Please try again.";
                     break;
             }
+        }
+        catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.BadRequest)
+        {
+            // Only the password and this browser's token are sent, and the token comes from the server.
+            error = $"The server didn't accept the password. It must be {Configuration.PasswordMinLength} to {Configuration.PasswordMaxLength} characters long.";
         }
         catch (Exception)
         {

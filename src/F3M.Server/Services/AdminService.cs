@@ -1,5 +1,6 @@
 using F3M.Server.Data;
 using F3M.Server.Helpers;
+using F3M.Server.Logging;
 using F3M.Server.Models;
 using F3M.Server.Services.Setup;
 using F3M.Shared;
@@ -19,6 +20,7 @@ namespace F3M.Server.Services;
 /// </summary>
 public class AdminService(
     AppDbContext db,
+    LogDbContext log,
     UserManager<AppUser> userManager,
     IHttpContextAccessor httpContextAccessor,
     CatalogService catalog,
@@ -139,19 +141,29 @@ public class AdminService(
         return await catalog.RebuildAllAsync(ct);
     }
 
-    public async Task<ErrorReportPage> GetErrorReportsAsync(int skip = 0, int take = 25, CancellationToken ct = default)
+    public async Task<LogPage> GetLogAsync(int skip = 0, int take = 25, LogSeverity minLevel = LogSeverity.Information,
+        LogSourceFilter source = LogSourceFilter.All, string? search = null, CancellationToken ct = default)
     {
         skip = Math.Max(0, skip);
-        take = Math.Clamp(take, 1, IAdminApi.MaxErrorReportsPerPage);
+        take = Math.Clamp(take, 1, IAdminApi.MaxLogEntriesPerPage);
 
-        // Ids grow with every report, so they order by arrival even when two share a timestamp.
-        var items = await db.TelemetryErrorReports.AsNoTracking()
-            .OrderByDescending(r => r.Id)
-            .Skip(skip)
-            .Take(take)
-            .ToListAsync(ct);
+        var query = log.Entries.AsNoTracking().Where(e => e.Level >= minLevel);
+        if (source == LogSourceFilter.Server)
+            query = query.Where(e => e.Source == LogSource.Server);
+        else if (source == LogSourceFilter.Browser)
+            query = query.Where(e => e.Source == LogSource.Browser);
 
-        return new ErrorReportPage { Items = items, Total = await db.TelemetryErrorReports.CountAsync(ct) };
+        if (search?.Trim() is { Length: > 0 } text)
+        {
+            var pattern = $"%{text.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%";
+            query = query.Where(e => EF.Functions.Like(e.Message, pattern, "\\")
+                                     || (e.Category != null && EF.Functions.Like(e.Category, pattern, "\\"))
+                                     || (e.UserName != null && EF.Functions.Like(e.UserName, pattern, "\\")));
+        }
+
+        // Ids grow with every entry, so they order by arrival even when two share a timestamp.
+        var items = await query.OrderByDescending(e => e.Id).Skip(skip).Take(take).ToListAsync(ct);
+        return new LogPage { Items = items, Total = await query.CountAsync(ct) };
     }
 
     public async Task<ModGroup> AssignModOwnerAsync(int groupId, AssignModOwnerDto dto, CancellationToken ct = default)

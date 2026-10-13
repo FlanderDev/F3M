@@ -94,7 +94,9 @@ public class LinkF95StartResponse
 /// <summary>Sent by the client when polling for a GUID reply.</summary>
 public class LinkF95PollRequest
 {
-    [Required, MinLength(8), MaxLength(100)]
+    [Required]
+    [MinLength(Configuration.PasswordMinLength, ErrorMessage = "The password must be at least {1} characters long.")]
+    [MaxLength(Configuration.PasswordMaxLength, ErrorMessage = "The password can be at most {1} characters long.")]
     public string Password { get; set; } = string.Empty;
 
     /// <summary>The <see cref="LinkF95StartResponse.ClientToken"/> from the start of this verification.</summary>

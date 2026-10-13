@@ -18,12 +18,18 @@ public partial class Admin
     private CatalogRebuildResult? rebuildResult;
     private string? rebuildError;
 
-    // Error reports: the first page loads with the page, more on request.
-    private const int ErrorPageSize = 25;
-    private readonly List<Telemetry.ErrorReport> errors = [];
-    private int errorTotal;
-    private bool loadingErrors;
-    private string? errorsError;
+    // The site log: the first page loads with the page, more on request.
+    private const int LogPageSize = 25;
+    private readonly List<LogEntry> logEntries = [];
+    private int logTotal;
+    private bool loadingLog;
+    private string? logError;
+    private LogSeverity logMinLevel = LogSeverity.Information;
+    private LogSourceFilter logSource = LogSourceFilter.All;
+    private string logSearch = string.Empty;
+
+    // Bumped by every reload, so a slower earlier load can't add its entries to the new list.
+    private int logGeneration;
 
     private IEnumerable<AdminUserDto> Filtered => string.IsNullOrWhiteSpace(search)
         ? users
@@ -43,54 +49,95 @@ public partial class Admin
         }
         finally { loading = false; }
 
-        await ReloadErrors();
+        await ReloadLog();
     }
 
-    private async Task ReloadErrors()
+    private async Task ReloadLog()
     {
-        errors.Clear();
-        errorTotal = 0;
-        await LoadErrorsAsync(ErrorPageSize);
+        logGeneration++;
+        logEntries.Clear();
+        logTotal = 0;
+        await LoadLogAsync(LogPageSize);
     }
 
-    private Task LoadMoreErrors() => LoadErrorsAsync(ErrorPageSize);
-
-    /// <summary>The rest, page by page; new reports arriving meanwhile only raise the total.</summary>
-    private Task LoadAllErrors() => LoadErrorsAsync(int.MaxValue);
-
-    private async Task LoadErrorsAsync(int count)
+    private Task OnLogMinLevelChanged(LogSeverity level)
     {
-        loadingErrors = true;
-        errorsError = null;
+        logMinLevel = level;
+        return ReloadLog();
+    }
+
+    private Task OnLogSourceChanged(LogSourceFilter source)
+    {
+        logSource = source;
+        return ReloadLog();
+    }
+
+    private async Task OnLogSearchKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await ReloadLog();
+    }
+
+    private Task LoadMoreLog() => LoadLogAsync(LogPageSize);
+
+    /// <summary>The rest, page by page; new entries arriving meanwhile only raise the total.</summary>
+    private Task LoadAllLog() => LoadLogAsync(int.MaxValue);
+
+    private async Task LoadLogAsync(int count)
+    {
+        var generation = logGeneration;
+        loadingLog = true;
+        logError = null;
         try
         {
             var wanted = count;
             do
             {
-                var take = Math.Min(wanted, IAdminApi.MaxErrorReportsPerPage);
-                var page = await Api.GetErrorReportsAsync(errors.Count, take);
-                errorTotal = page.Total;
+                var take = Math.Min(wanted, IAdminApi.MaxLogEntriesPerPage);
+                var page = await Api.GetLogAsync(logEntries.Count, take, logMinLevel, logSource, logSearch.Trim());
+                if (generation != logGeneration)
+                    return; // The filter changed meanwhile; the new load owns the list.
+                logTotal = page.Total;
 
-                // Reports that arrived since the last page push older ones down; skip any already shown.
-                var known = errors.Select(e => e.Id).ToHashSet();
-                errors.AddRange(page.Items.Where(e => known.Add(e.Id)));
+                // Entries that arrived since the last page push older ones down; skip any already shown.
+                var known = logEntries.Select(e => e.Id).ToHashSet();
+                logEntries.AddRange(page.Items.Where(e => known.Add(e.Id)));
                 wanted -= take;
 
                 if (page.Items.Count < take)
                     break;
                 StateHasChanged();
             }
-            while (wanted > 0 && errors.Count < errorTotal);
+            while (wanted > 0 && logEntries.Count < logTotal);
         }
         catch (Exception ex)
         {
-            errorsError = DescribeError(ex);
+            if (generation == logGeneration)
+                logError = DescribeError(ex);
         }
         finally
         {
-            loadingErrors = false;
+            if (generation == logGeneration)
+                loadingLog = false;
         }
     }
+
+    private static string LevelBadge(LogSeverity level) => level switch
+    {
+        LogSeverity.Critical or LogSeverity.Error => "bg-danger",
+        LogSeverity.Warning => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    private static string LevelName(LogSeverity level) => level switch
+    {
+        LogSeverity.Information => "Info",
+        _ => level.ToString()
+    };
+
+    /// <summary>"F3M.Server.Services.ModsService" → "ModsService"; the full name is in the tooltip.</summary>
+    private static string ShortCategory(string? category) =>
+        category is { Length: > 0 } ? category[(category.LastIndexOf('.') + 1)..] : string.Empty;
 
     private async Task ToggleAdmin(AdminUserDto user)
     {

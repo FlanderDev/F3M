@@ -42,6 +42,8 @@ public sealed class ModOwnershipService(AppDbContext db, ILogger<ModOwnershipSer
             return new ClaimModResult(false, "Your account is not linked to F95zone. Sign in through F95zone to claim mods you uploaded there.");
         if (group.F95OwnerUserId != user.F95UserId)
         {
+            logger.LogWarning("{User} tried to claim mod group {GroupId}, which was posted on F95zone by another account ({F95Owner}).",
+                user.UserName, group.Id, group.F95OwnerName ?? group.F95OwnerUserId);
             var uploader = group.F95OwnerName is { Length: > 0 } name ? $"by {name} " : string.Empty;
             return new ClaimModResult(false,
                 $"This mod was posted on F95zone {uploader}from a different account than yours. If it is yours, please contact an admin.");

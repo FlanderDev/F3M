@@ -25,7 +25,9 @@ public class ChangePasswordDto
     [Required]
     public string CurrentPassword { get; set; } = string.Empty;
 
-    [Required, MinLength(8), MaxLength(100)]
+    [Required]
+    [MinLength(Configuration.PasswordMinLength, ErrorMessage = "The password must be at least {1} characters long.")]
+    [MaxLength(Configuration.PasswordMaxLength, ErrorMessage = "The password can be at most {1} characters long.")]
     public string NewPassword { get; set; } = string.Empty;
 
     [Required, Compare(nameof(NewPassword), ErrorMessage = "Passwords do not match.")]
