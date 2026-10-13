@@ -106,7 +106,6 @@ F3M/
 │   ├── F3M.Desktop/        # Avalonia desktop mod manager (Windows/Linux)
 │   ├── F3M.sln
 │   └── global.json         # .NET SDK pin
-├── import/                 # Community import: docs, the community mod list, the old Python scripts (see import/README.md)
 ├── docs/                   # Project site (GitHub Pages)
 ├── .github/workflows/      # Release builds: server, Windows installer (Velopack), Linux AppImage
 ├── Dockerfile              # Multi-stage Alpine build of the server
@@ -133,9 +132,7 @@ F3M/
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- Optional:
-  - [Docker](https://www.docker.com/) for container builds;
-  - Python 3 and [7-Zip](https://www.7-zip.org/) for the old import scripts (the admin page needs neither).
+- Optional: [Docker](https://www.docker.com/) for container builds.
 
 ### Run the website locally
 
@@ -187,7 +184,7 @@ Sign in as the local admin and open the import page in the **Admin Panel** (`/ad
 2. **Import the mods:** dependencies first, as unclaimed mods that go to their original uploaders when they sign in.
 3. **Review the held-back mods:** tick the ones whose warnings are fine, then import them.
 
-See [import/README.md](import/README.md) for every field of the plan, how imported mods are owned, and the old Python scripts that do the same from the command line.
+See [src/F3M.Server/Import/README.md](src/F3M.Server/Import/README.md) for every field of the plan and how imported mods are owned.
 
 ## Hosting your own server
 
@@ -259,7 +256,7 @@ Day-to-day work happens on `develop` and feature branches.
 
 | Document | What's in it |
 |---|---|
-| [import/README.md](import/README.md) | Importing community mods: the admin page, the import plan and its fields (optional groups included), ownership of imported mods |
+| [src/F3M.Server/Import/README.md](src/F3M.Server/Import/README.md) | Importing community mods: the admin page, the import plan and its fields (optional groups included), ownership of imported mods |
 | [Project site](https://flanderdev.github.io/F3M/) | Player guide, FAQ and downloads |
 
 ## Contributing

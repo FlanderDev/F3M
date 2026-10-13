@@ -16,8 +16,7 @@ namespace F3M.Server.Services.Import;
 ///
 /// Everything lives in Storage/Import: the plan in use (a copy of the one shipped in Import/import-plan.json, or one
 /// an admin uploaded), the downloads (files/&lt;mod key&gt;/&lt;version&gt;/&lt;file&gt;) and state.json with what went
-/// wrong last per mod. Which versions are imported is read from the database (same name and author), so mods imported
-/// with import/tools/upload.py count too.
+/// wrong last per mod. Which versions are imported is read from the database (same name and author).
 ///
 /// Downloaded files are never run or extracted: the import only lists archives, like the upload form does.
 /// </summary>

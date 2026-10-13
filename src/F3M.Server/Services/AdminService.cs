@@ -117,6 +117,12 @@ public class AdminService(
         if (adminAccount.Is(user.UserName))
             throw new InvalidOperationException(SettingsAdmin(user));
 
+        // Their mods must not stay with an account that no longer exists: only admins could manage them then. Unclaimed,
+        // they go back to their F95 uploader (if recorded) on that user's next sign-in, or an admin assigns them.
+        var ownedGroups = await db.ModGroups.Where(g => g.OwnerId == user.Id).Select(g => g.Id).ToListAsync(ct);
+        foreach (var groupId in ownedGroups)
+            await ownership.AssignAsync(groupId, null, ct);
+
         var deleteResult = await userManager.DeleteAsync(user);
         if (!deleteResult.Succeeded)
             throw new InvalidOperationException(string.Join(" ", deleteResult.Errors.Select(e => e.Description)));
@@ -131,6 +137,21 @@ public class AdminService(
     {
         logger.LogInformation("Admin {Caller} started a catalog rebuild", userManager.GetUserId(CurrentPrincipal));
         return await catalog.RebuildAllAsync(ct);
+    }
+
+    public async Task<ErrorReportPage> GetErrorReportsAsync(int skip = 0, int take = 25, CancellationToken ct = default)
+    {
+        skip = Math.Max(0, skip);
+        take = Math.Clamp(take, 1, IAdminApi.MaxErrorReportsPerPage);
+
+        // Ids grow with every report, so they order by arrival even when two share a timestamp.
+        var items = await db.TelemetryErrorReports.AsNoTracking()
+            .OrderByDescending(r => r.Id)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(ct);
+
+        return new ErrorReportPage { Items = items, Total = await db.TelemetryErrorReports.CountAsync(ct) };
     }
 
     public async Task<ModGroup> AssignModOwnerAsync(int groupId, AssignModOwnerDto dto, CancellationToken ct = default)

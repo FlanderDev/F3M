@@ -103,8 +103,37 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
     {
         await EnsureLoggedInAsync(ct);
 
-        var html = await FetchWithReloginAsync($"members/{targetUsername}.{targetUserId}/", ct);
+        var (html, finalUri) = await FetchWithReloginAsync($"members/{targetUsername}.{targetUserId}/", ct);
+        EnsureProfileIs(html, finalUri, targetUsername, targetUserId);
         return ParseProfilePosts(html, targetUsername);
+    }
+
+    /// <summary>
+    /// F95zone finds a profile by its number alone and redirects to its real address. A URL that pairs someone's
+    /// number with another name would otherwise show that someone's profile, where posts by the named user (left on
+    /// their wall) would pass as proof: the account of the profile's owner would be taken over. So the page must be
+    /// the profile of exactly this name and number, by the address it ended on and by its canonical link.
+    /// </summary>
+    /// <exception cref="ProfileMismatchException">The page belongs to another name or number.</exception>
+    private static void EnsureProfileIs(string html, Uri? finalUri, string username, string userId)
+    {
+        var addresses = new List<string>();
+        if (finalUri is not null)
+            addresses.Add(finalUri.AbsoluteUri);
+
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+        if (doc.DocumentNode.SelectSingleNode("//link[@rel='canonical']")?.GetAttributeValue("href", null) is { Length: > 0 } canonical)
+            addresses.Add(WebUtility.HtmlDecode(canonical));
+
+        foreach (var address in addresses)
+        {
+            if (F3M.Shared.Helpers.F95Profile.TryParse(address, out var name, out var id)
+                && (!string.Equals(name, username, StringComparison.OrdinalIgnoreCase) || id != userId))
+            {
+                throw new ProfileMismatchException(name, id);
+            }
+        }
     }
 
     // ── Login & Session ───────────────────────────────────────────────────────
@@ -261,7 +290,8 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
         return input?.GetAttributeValue("value", null);
     }
 
-    private async Task<string> FetchWithReloginAsync(string relativeUrl, CancellationToken ct)
+    /// <summary>The page's HTML and the address it was served from, after redirects.</summary>
+    private async Task<(string Html, Uri? FinalUri)> FetchWithReloginAsync(string relativeUrl, CancellationToken ct)
     {
         var response = await _httpClient.GetAsync(relativeUrl, ct);
 
@@ -274,7 +304,7 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
         }
 
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsStringAsync(ct);
+        return (await response.Content.ReadAsStringAsync(ct), response.RequestMessage?.RequestUri);
     }
 
     private static bool IsRedirectToLogin(HttpResponseMessage response)
@@ -288,4 +318,12 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
     }
 
     #endregion
+}
+
+/// <summary>The profile page F95zone showed belongs to another name or number than the URL that was entered.</summary>
+public sealed class ProfileMismatchException(string actualName, string actualId)
+    : Exception($"The profile address leads to {actualName}.{actualId}.")
+{
+    public string ActualName { get; } = actualName;
+    public string ActualId { get; } = actualId;
 }

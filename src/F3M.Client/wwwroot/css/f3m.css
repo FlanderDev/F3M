@@ -1572,6 +1572,63 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
         }
 }
 
+/* ── Admin: error reports ───────────────────────────────── */
+.f3m-error-report {
+    border-top: 1px solid var(--f3m-border);
+    padding: .5rem 0;
+}
+
+    .f3m-error-report > summary {
+        cursor: pointer;
+        display: flex;
+        gap: .75rem;
+        align-items: baseline;
+        list-style: none;
+    }
+
+    .f3m-error-report > summary::-webkit-details-marker {
+        display: none;
+    }
+
+.f3m-error-time {
+    flex-shrink: 0;
+    font-size: .78rem;
+    color: #9ca3af;
+    font-variant-numeric: tabular-nums;
+}
+
+.f3m-error-message {
+    min-width: 0;
+    font-size: .875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.f3m-error-report[open] .f3m-error-message {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.f3m-error-stack {
+    max-height: 320px;
+    overflow: auto;
+    margin: .5rem 0 0;
+    padding: .5rem .75rem;
+    background: var(--f3m-surface-2);
+    border-radius: 6px;
+    font-size: .72rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+    .f3m-error-report > summary {
+        flex-direction: column;
+        gap: .1rem;
+    }
+}
+
 /* ── Admin: site setup ─────────────────────────────────── */
 .f3m-setup-check {
     display: flex;

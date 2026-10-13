@@ -9,9 +9,9 @@ namespace F3M.Server.Services;
 public sealed record ImportedMod(int GroupId, IReadOnlyList<string> Versions);
 
 /// <summary>
-/// Stores mods published elsewhere (F95zone) under the account of the user who posted them. Used by the import endpoint
-/// for import/tools/upload.py (ImportController) and by the import admin page (F95ImportService); both go through
-/// <see cref="ModUploadService"/>, so imports get the same checks, file inspection and catalog entries as the upload form.
+/// Stores mods published elsewhere (F95zone) under the account of the user who posted them. Used by the import admin
+/// page (F95ImportService); it goes through <see cref="ModUploadService"/>, so imports get the same checks, file
+/// inspection and catalog entries as the upload form.
 ///
 /// An imported mod belongs to the F95zone user who posted it: to their account if they already have one, otherwise
 /// it stays unclaimed (<see cref="ModGroup.UnclaimedOwnerId"/>) until they sign in through F95.

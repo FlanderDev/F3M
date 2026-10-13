@@ -18,6 +18,13 @@ public partial class Admin
     private CatalogRebuildResult? rebuildResult;
     private string? rebuildError;
 
+    // Error reports: the first page loads with the page, more on request.
+    private const int ErrorPageSize = 25;
+    private readonly List<Telemetry.ErrorReport> errors = [];
+    private int errorTotal;
+    private bool loadingErrors;
+    private string? errorsError;
+
     private IEnumerable<AdminUserDto> Filtered => string.IsNullOrWhiteSpace(search)
         ? users
         : users.Where(u =>
@@ -35,6 +42,54 @@ public partial class Admin
             loadError = DescribeError(ex);
         }
         finally { loading = false; }
+
+        await ReloadErrors();
+    }
+
+    private async Task ReloadErrors()
+    {
+        errors.Clear();
+        errorTotal = 0;
+        await LoadErrorsAsync(ErrorPageSize);
+    }
+
+    private Task LoadMoreErrors() => LoadErrorsAsync(ErrorPageSize);
+
+    /// <summary>The rest, page by page; new reports arriving meanwhile only raise the total.</summary>
+    private Task LoadAllErrors() => LoadErrorsAsync(int.MaxValue);
+
+    private async Task LoadErrorsAsync(int count)
+    {
+        loadingErrors = true;
+        errorsError = null;
+        try
+        {
+            var wanted = count;
+            do
+            {
+                var take = Math.Min(wanted, IAdminApi.MaxErrorReportsPerPage);
+                var page = await Api.GetErrorReportsAsync(errors.Count, take);
+                errorTotal = page.Total;
+
+                // Reports that arrived since the last page push older ones down; skip any already shown.
+                var known = errors.Select(e => e.Id).ToHashSet();
+                errors.AddRange(page.Items.Where(e => known.Add(e.Id)));
+                wanted -= take;
+
+                if (page.Items.Count < take)
+                    break;
+                StateHasChanged();
+            }
+            while (wanted > 0 && errors.Count < errorTotal);
+        }
+        catch (Exception ex)
+        {
+            errorsError = DescribeError(ex);
+        }
+        finally
+        {
+            loadingErrors = false;
+        }
     }
 
     private async Task ToggleAdmin(AdminUserDto user)
