@@ -67,8 +67,9 @@ public class ProfileService(
 
     public async Task<PublicProfileDto> GetPublicProfileAsync(string username, CancellationToken ct = default)
     {
-        var user = await userManager.FindByNameAsync(username)
-                   ?? throw new KeyNotFoundException($"No user named '{username}' was found.");
+        var user = await userManager.FindByNameAsync(username);
+        if (user is null)
+            return await GetAuthorWithoutAccountAsync(username, ct);
 
         var groupIds = db.ModGroups.Where(g => g.OwnerId == user.Id).Select(g => g.Id);
 
@@ -89,6 +90,31 @@ public class ProfileService(
         {
             Username = user.UserName ?? username,
             RegisteredAt = user.RegisteredAt,
+            ModCount = mods.Count,
+            Mods = mods
+        };
+    }
+
+    /// <summary>
+    /// Mod cards link every author name to a profile, but authors of imported mods have no account until they claim
+    /// them. Their page lists the mods published under the name instead of ending in "not found".
+    /// </summary>
+    private async Task<PublicProfileDto> GetAuthorWithoutAccountAsync(string author, CancellationToken ct)
+    {
+        var name = author.Trim().ToLower();
+        var mods = await db.Mods
+            .Where(m => m.IsApproved && m.IsLatestVersion && m.Author.ToLower() == name)
+            .Include(m => m.Files)
+            .OrderByDescending(m => m.UploadedAt)
+            .ToListAsync(ct);
+
+        if (mods.Count == 0)
+            throw new KeyNotFoundException($"No user or author named '{author}' was found.");
+
+        return new PublicProfileDto
+        {
+            Username = mods[0].Author,
+            HasAccount = false,
             ModCount = mods.Count,
             Mods = mods
         };

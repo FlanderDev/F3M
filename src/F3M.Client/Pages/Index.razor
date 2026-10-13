@@ -49,16 +49,17 @@
                            @onkeyup="OnSearchKeyUp" />
                 </div>
             </div>
-            <div class="col-6 col-md-3">
+            @* The two menus share the row with the clear button at every width, so it never wraps onto a row of its own. *@
+            <div class="col col-md-3">
                 <SelectMenu TValue="string" @bind-Value="selectedCategory" @bind-Value:after="LoadMods"
                             Items="CategoryOptions" AriaLabel="Category" />
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col col-md-3">
                 <SelectMenu TValue="SortBy" @bind-Value="sortBy" @bind-Value:after="LoadMods"
                             Items="Enum.GetValues<SortBy>()" Text="SortText" AriaLabel="Sort by" />
             </div>
             <div class="col-auto">
-                <button class="btn btn-outline-secondary" @onclick="ClearFilters" title="Clear filters">
+                <button class="btn btn-outline-secondary" @onclick="ClearFilters" title="Clear filters" aria-label="Clear filters">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>

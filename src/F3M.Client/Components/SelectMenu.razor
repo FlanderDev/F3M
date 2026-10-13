@@ -4,8 +4,15 @@
 
 <div class="dropdown f3m-select-menu">
     <button type="button" class="form-select f3m-select text-start text-truncate" data-bs-toggle="dropdown"
-            aria-expanded="false" aria-label="@AriaLabel">
-        @TextOf(Value)
+            aria-expanded="false" aria-label="@AriaLabel" disabled="@Disabled">
+        @if (Placeholder is not null && !Items.Contains(Value))
+        {
+            <span class="f3m-select-placeholder">@Placeholder</span>
+        }
+        else
+        {
+            @TextOf(Value)
+        }
     </button>
     <ul class="dropdown-menu f3m-dropdown-menu w-100">
         @foreach (var item in Items)
@@ -31,6 +38,11 @@
     [Parameter] public Func<TValue, string>? Text { get; set; }
 
     [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Shown while the value is none of the items.</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    [Parameter] public bool Disabled { get; set; }
 
     private string TextOf(TValue value) => Text?.Invoke(value) ?? value?.ToString() ?? string.Empty;
 

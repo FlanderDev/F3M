@@ -17,7 +17,7 @@
     {
         <div class="f3m-empty text-center py-5">
             <i class="bi bi-person-x display-4 opacity-50 d-block mb-2"></i>
-            <p class="mb-0">No user named "@Username" was found.</p>
+            <p class="mb-0">No user or mod author named "@Username" was found.</p>
         </div>
     }
     else if (loadError is not null)
@@ -35,13 +35,20 @@
             <div>
                 <h1 class="fw-black mb-0 fs-2">@profile.Username</h1>
                 <p class="small mb-0" style="color:var(--f3m-muted)">
-                    Member since @profile.RegisteredAt.ToString("MMM d, yyyy")
+                    @if (profile.HasAccount)
+                    {
+                        <span>Member since @profile.RegisteredAt.ToString("MMM d, yyyy")</span>
+                    }
+                    else
+                    {
+                        <span>Not on F3M yet. These mods were imported from F95zone under this name.</span>
+                    }
                 </p>
             </div>
         </div>
 
         <div class="mb-2 d-flex align-items-center justify-content-between">
-            <h5 class="fw-bold mb-0">Uploads</h5>
+            <h5 class="fw-bold mb-0">@(profile.HasAccount ? "Uploads" : "Mods")</h5>
             <span class="badge bg-secondary">@profile.ModCount</span>
         </div>
         @if (profile.Mods.Count == 0)

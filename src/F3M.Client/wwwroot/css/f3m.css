@@ -49,6 +49,11 @@ h1, h2, h3, h4, h5, h6 {
     font-family: var(--f3m-font-h);
 }
 
+/* App.razor moves focus to the page title after each navigation (for screen readers); it isn't something to click. */
+h1:focus {
+    outline: none;
+}
+
 a {
     color: var(--f3m-amber);
     text-decoration: none;
@@ -288,6 +293,14 @@ a {
     align-items: center;
     justify-content: center;
 }
+
+    /* On touch screens: large enough to hit with a finger. */
+    @media (pointer: coarse) {
+        .f3m-desktop-btn {
+            min-width: 40px;
+            min-height: 32px;
+        }
+    }
 
     /* Bootstrap Icons sit their glyphs a little low for running text; alone in the button that's off-centre. */
     .f3m-desktop-btn i::before {
@@ -703,6 +716,13 @@ a {
     border-top: 1px solid var(--f3m-border);
 }
 
+/* On a phone the links wrap to three lines, too much to keep on screen all the time: the footer ends the page there. */
+@media (max-width: 767.98px) {
+    .f3m-footer {
+        position: static;
+    }
+}
+
 /* ── Bootstrap overrides ────────────────────────────────── */
 .btn-warning {
     background: var(--f3m-amber);
@@ -820,6 +840,32 @@ a {
     color: #6ecf97;
     border-radius: 8px;
 }
+
+.alert-warning {
+    background: var(--f3m-amber-dim);
+    border-color: rgba(255,193,7,.25);
+    color: #ffd666;
+    border-radius: 8px;
+}
+
+.alert-info {
+    background: rgba(13,202,240,.08);
+    border-color: rgba(13,202,240,.25);
+    color: #7fd8ec;
+    border-radius: 8px;
+}
+
+.alert-secondary {
+    background: var(--f3m-surface-2);
+    border-color: var(--f3m-border);
+    color: var(--f3m-text);
+    border-radius: 8px;
+}
+
+    /* Links and bold text take the box's colour instead of Bootstrap's darker shade for light boxes. */
+    .alert-warning .alert-link, .alert-info .alert-link, .alert-secondary .alert-link {
+        color: inherit;
+    }
 
 .progress {
     background: var(--f3m-surface-2);
@@ -1063,6 +1109,10 @@ a {
 
 .f3m-version-dropdown {
     min-width: 220px;
+}
+
+.f3m-select-placeholder {
+    color: var(--f3m-muted);
 }
 
 /* SelectMenu's button looks like the form fields; the arrow is the light one, for the dark background. */

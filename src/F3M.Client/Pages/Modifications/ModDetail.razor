@@ -84,6 +84,7 @@ else
                                         </div>
                                     </div>
                                     <button class="btn btn-sm btn-outline-warning flex-shrink-0"
+                                            title="Download @f.OriginalName" aria-label="Download @f.OriginalName"
                                             @onclick:stopPropagation="true"
                                             @onclick="() => DownloadFile(selectedVersion.Id, f)"
                                             disabled="@(downloadingFileId == f.Id)">
@@ -285,7 +286,8 @@ else
             </div>
 
             <!-- Middle col: info -->
-            <div class="col-lg-5">
+            @* Phones show the name and description first, above the image and the downloads. *@
+            <div class="col-lg-5 order-first order-lg-0">
                 <div class="d-flex gap-2 mb-2 flex-wrap align-items-center">
                     <span class="mod-card-category" style="position:static;font-size:.72rem;">@selectedVersion.Category</span>
 
