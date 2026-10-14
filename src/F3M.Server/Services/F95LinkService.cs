@@ -1,6 +1,7 @@
 using F3M.Server.Data;
 using F3M.Server.Models;
 using F3M.Server.Services.Setup;
+using F3M.Server.Statistics;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -27,6 +28,7 @@ public class F95LinkService(
     SignInManager<AppUser> signInManager,
     ModOwnershipService ownership,
     IHttpContextAccessor httpContextAccessor,
+    StatsRecorder stats,
     ILogger<F95LinkService> logger) : IF95LinkApi
 {
     private static readonly TimeSpan ExpiryWindow = TimeSpan.FromHours(24);
@@ -256,6 +258,7 @@ public class F95LinkService(
         // Issue the auth cookie — this endpoint is itself a login (or registration) path, just
         // proven via F95 ownership instead of a password the client already knows.
         await signInManager.SignInAsync(user, isPersistent: true);
+        stats.Count(StatsRecorder.Metrics.SignInF95);
 
         return new LinkF95PollResponse
         {

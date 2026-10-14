@@ -22,6 +22,15 @@
     --f3m-amber-dim: rgba(255,193,7,.1);
     --f3m-text: #e2e4e8;
     --f3m-muted: #6b7280;
+    /* Charts (statistics page): two series take blue and orange, validated against the dark surface for colour-blind
+       readers too; status colours only mark states and always come with a label. */
+    --f3m-series-1: #3987e5;
+    --f3m-series-2: #d95926;
+    --f3m-status-good: #0ca30c;
+    --f3m-status-warning: #fab219;
+    --f3m-status-serious: #ec835a;
+    --f3m-status-critical: #d03b3b;
+    --f3m-status-neutral: #6b7280;
     --f3m-radius: 10px;
     --f3m-font-h: 'F3M Figures', 'Syne', sans-serif;
     --f3m-font-b: 'DM Sans', sans-serif;
@@ -1864,4 +1873,208 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
 .f3m-optional-hint {
     font-size: .7rem;
     color: #9ca3af;
+}
+
+/* ── Statistics page (admin): tiles and charts ───────────── */
+.f3m-stat-tile {
+    background: var(--f3m-surface);
+    border: 1px solid var(--f3m-border);
+    border-radius: var(--f3m-radius);
+    padding: .9rem 1rem;
+}
+
+.f3m-stat-tile-label {
+    font-size: .78rem;
+    color: #8b919c;
+}
+
+/* Proportional figures for the big number; the body font, like the rest of the numbers on the page. */
+.f3m-stat-tile-value {
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: .15rem 0;
+}
+
+.f3m-stat-tile-note, .f3m-stat-tile-delta {
+    font-size: .75rem;
+    color: #8b919c;
+}
+
+    .f3m-stat-tile-delta.good {
+        color: #3fbf5f;
+    }
+
+    .f3m-stat-tile-delta.bad {
+        color: #f28b8b;
+    }
+
+.f3m-chart-muted, .f3m-chart-empty-text {
+    color: #8b919c;
+}
+
+.f3m-chart-card h2 {
+    font-family: var(--f3m-font-b);
+}
+
+.f3m-chart {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+    .f3m-chart svg {
+        display: block;
+        max-width: 100%;
+    }
+
+.f3m-chart-grid {
+    stroke: rgba(255,255,255,.07);
+    stroke-width: 1;
+}
+
+.f3m-chart-axis {
+    stroke: rgba(255,255,255,.18);
+    stroke-width: 1;
+}
+
+.f3m-chart-crosshair {
+    stroke: rgba(255,255,255,.3);
+    stroke-width: 1;
+}
+
+/* The 2px ring in the surface colour keeps the dot readable where it sits on the line. */
+.f3m-chart-dot {
+    stroke: var(--f3m-surface);
+    stroke-width: 2;
+}
+
+.f3m-chart-tick {
+    fill: #8b919c;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.f3m-chart-empty {
+    fill: #8b919c;
+    font-size: 12px;
+}
+
+.f3m-chart-tooltip {
+    position: absolute;
+    top: 4px;
+    transform: translateX(-50%);
+    min-width: 150px;
+    padding: .45rem .6rem;
+    background: var(--f3m-surface-2);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    font-size: .75rem;
+    pointer-events: none;
+    z-index: 2;
+}
+
+    .f3m-chart-tooltip .border-top {
+        border-color: rgba(255,255,255,.12) !important;
+    }
+
+.f3m-chart-tooltip-total {
+    color: #8b919c;
+}
+
+.f3m-chart-swatch {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+.f3m-legend li {
+    color: var(--f3m-text);
+}
+
+.f3m-barlist-row {
+    display: grid;
+    grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+    align-items: center;
+    gap: .75rem;
+    padding: .3rem 0;
+    font-size: .82rem;
+}
+
+    .f3m-barlist-row:hover {
+        background: rgba(255,255,255,.03);
+    }
+
+.f3m-barlist-label a {
+    color: var(--f3m-text);
+    text-decoration: none;
+}
+
+    .f3m-barlist-label a:hover {
+        color: var(--f3m-amber);
+    }
+
+.f3m-barlist-track {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+/* Thin bar, square at the baseline and rounded at its end. */
+.f3m-barlist-bar {
+    display: block;
+    flex: 0 0 auto;
+    min-width: 2px;
+    height: 10px;
+    border-radius: 0 4px 4px 0;
+}
+
+.f3m-barlist-value {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.f3m-sharebar {
+    display: flex;
+    gap: 2px;
+    height: 14px;
+}
+
+.f3m-sharebar-part {
+    min-width: 3px;
+}
+
+    .f3m-sharebar-part:first-child {
+        border-radius: 4px 0 0 4px;
+    }
+
+    .f3m-sharebar-part:last-child {
+        border-radius: 0 4px 4px 0;
+    }
+
+    .f3m-sharebar-part:only-child {
+        border-radius: 4px;
+    }
+
+.f3m-sharebar-legend li {
+    padding: .2rem 0;
+}
+
+.f3m-num-table td, .f3m-num-table th {
+    font-size: .8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.f3m-chart-table {
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+/* While a new period loads, the old numbers stay but fade. */
+.f3m-stats-reloading {
+    opacity: .55;
+    transition: opacity .2s;
 }

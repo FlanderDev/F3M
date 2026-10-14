@@ -1,0 +1,34 @@
+@* Named counts as a ranked table (search terms): text data reads better in a table than as bars. *@
+
+@if (Items.Count == 0)
+{
+    <p class="small f3m-chart-empty-text mb-0">@EmptyText</p>
+}
+else
+{
+    <table class="table table-dark table-sm mb-0 f3m-num-table">
+        <thead>
+            <tr>
+                <th scope="col" style="width:2.5rem;">#</th>
+                <th scope="col">@Header</th>
+                <th scope="col" class="text-end">Times</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Items.Count; i++)
+            {
+                <tr>
+                    <td class="f3m-chart-muted">@(i + 1)</td>
+                    <td class="text-break">@Items[i].Name</td>
+                    <td class="text-end">@Items[i].Count.ToString("N0")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<NamedCount> Items { get; set; } = [];
+    [Parameter] public string Header { get; set; } = "Name";
+    [Parameter] public string EmptyText { get; set; } = "Nothing yet.";
+}

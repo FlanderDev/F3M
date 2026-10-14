@@ -4,6 +4,7 @@ using F3M.Server.Models;
 using F3M.Server.Services;
 using F3M.Server.Services.Import;
 using F3M.Server.Services.Setup;
+using F3M.Server.Statistics;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -54,6 +55,14 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<LogStore>());
 builder.Services.AddDbContext<LogDbContext>(options => options.UseSqlite(logConnectionString));
 builder.Logging.Services.AddSingleton<ILoggerProvider, DatabaseLoggerProvider>();
 
+// Counted events for the statistics page (admin): also their own database, written in the background.
+var statsConnectionString = $"Data Source={Path.Combine(databaseDirectory, "Stats.db")}";
+var statsRecorder = new StatsRecorder(statsConnectionString);
+statsRecorder.EnsureCreated();
+builder.Services.AddSingleton(statsRecorder);
+builder.Services.AddHostedService(sp => sp.GetRequiredService<StatsRecorder>());
+builder.Services.AddDbContext<StatsDbContext>(options => options.UseSqlite(statsConnectionString));
+
 builder.Services
     .AddIdentityCore<AppUser>(options =>
     {
@@ -81,6 +90,7 @@ builder.Services.AddScoped<ISetupApi, SetupService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IProfileApi, ProfileService>();
 builder.Services.AddScoped<IAdminApi, AdminService>();
+builder.Services.AddScoped<IStatsApi, StatsService>();
 builder.Services.AddScoped<IF95LinkApi, F95LinkService>();
 builder.Services.AddScoped<IModsApi, ModsService>();
 builder.Services.AddScoped<ModUploadService>();
@@ -129,6 +139,7 @@ app.MapPost("/login", async (
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     ModOwnershipService ownership,
+    StatsRecorder stats,
     ILoggerFactory loggerFactory) =>
 {
     var logger = loggerFactory.CreateLogger(AccountLogCategory);
@@ -156,6 +167,7 @@ app.MapPost("/login", async (
 
     await signInManager.SignInAsync(user, isPersistent: true);
     logger.LogInformation("{Username} signed in.", user.UserName);
+    stats.Count(StatsRecorder.Metrics.SignInPassword);
 
     // Mods imported for this user's F95 account since the last sign-in become theirs.
     await ownership.ClaimAllAsync(user);
@@ -254,6 +266,11 @@ app.UseStaticFiles(new StaticFileOptions
     {
         context.Context.Response.Headers.CacheControl = "public, max-age=60";
         context.Context.Response.Headers.XContentTypeOptions = "nosniff";
+
+        // The desktop app reads the index when it starts and when it looks for updates: a rough measure of how many
+        // apps are in use, and which versions.
+        if (context.File.Name == "index.json" && DesktopClient.Version(context.Context.Request) is { } version)
+            context.Context.RequestServices.GetRequiredService<StatsRecorder>().Count(StatsRecorder.Metrics.DesktopSync, version);
     }
 });
 

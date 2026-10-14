@@ -1,6 +1,7 @@
 using F3M.Server.Data;
 using F3M.Server.Helpers;
 using F3M.Server.Services;
+using F3M.Server.Statistics;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -23,7 +24,7 @@ namespace F3M.Server.Controllers;
 /// JSON-only. A controller can freely mix generated-base overrides with its own additional
 /// actions like this; it doesn't have to be all-or-nothing.
 /// </summary>
-public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadService uploader, ILogger<ModsController> logger)
+public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadService uploader, StatsRecorder stats, ILogger<ModsController> logger)
     : ModsApiControllerBase
 {
     public override async Task<ActionResult<ModListResult>> GetMods(
@@ -78,6 +79,11 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
             // original file name. Cheap, indexed PK lookup.
             var fileName = await db.ModFiles.Where(f => f.Id == fileId).Select(f => f.OriginalName).FirstOrDefaultAsync(ct)
                             ?? "download";
+
+            // Per day and mod for the statistics page, apart for the desktop app and the browser.
+            var groupId = await db.Mods.Where(m => m.Id == id).Select(m => m.ModGroupId).FirstOrDefaultAsync(ct);
+            stats.Count(DesktopClient.Version(Request) is null ? StatsRecorder.Metrics.DownloadBrowser : StatsRecorder.Metrics.DownloadDesktop,
+                groupId.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
             // Hand the open FileStream to the framework instead of copying it into memory first
             // (that used to cost two full copies of the file per download, up to 1 GB for a 512 MB mod).

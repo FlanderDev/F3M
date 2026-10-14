@@ -1,0 +1,154 @@
+@* Columns over time, stacked when there are several series. Thin columns with a rounded top, 2px gaps between columns
+   and between stacked parts, hairline grid, and a tooltip for the column under the pointer. *@
+@inherits MeasuredChart
+
+@{ var g = Layout(); }
+<div class="f3m-chart" @ref="Container" style="height:@(ChartMath.Px(Height))px;" @onmouseleave="() => hover = null">
+    <svg width="@Width" height="@Height" viewBox="0 0 @Width @Height" role="img" aria-label="@AriaLabel">
+        @foreach (var tick in g.Ticks)
+        {
+            <line x1="@ChartMath.Px(g.Left)" x2="@ChartMath.Px(Width - RightPad)" y1="@ChartMath.Px(tick.Y)" y2="@ChartMath.Px(tick.Y)" class="f3m-chart-grid" />
+            <g><text x="@ChartMath.Px(g.Left - 6)" y="@ChartMath.Px(tick.Y + 4)" text-anchor="end" class="f3m-chart-tick">@tick.Label</text></g>
+        }
+        <line x1="@ChartMath.Px(g.Left)" x2="@ChartMath.Px(Width - RightPad)" y1="@ChartMath.Px(g.Baseline)" y2="@ChartMath.Px(g.Baseline)" class="f3m-chart-axis" />
+
+        @foreach (var column in g.Columns)
+        {
+            <g opacity="@(hover is null || hover == column.Index ? "1" : "0.45")">
+                @foreach (var part in column.Parts)
+                {
+                    <path d="@part.Path" fill="@part.Color" />
+                }
+            </g>
+            @if (column.ShowLabel)
+            {
+                <g><text x="@ChartMath.Px(column.Center)" y="@ChartMath.Px(Height - 6)" text-anchor="@column.Anchor" class="f3m-chart-tick">@ShortLabels[column.Index]</text></g>
+            }
+        }
+
+        @* Hit areas: the whole height of each column's band, wider than the column itself. *@
+        @foreach (var column in g.Columns)
+        {
+            var index = column.Index;
+            <rect x="@ChartMath.Px(column.BandLeft)" y="@ChartMath.Px(TopPad)" width="@ChartMath.Px(g.Band)" height="@ChartMath.Px(g.Baseline - TopPad)"
+                  fill="transparent" @onmouseenter="() => hover = index" @onclick="() => hover = index" />
+        }
+
+        @if (g.Empty)
+        {
+            <g><text x="@ChartMath.Px((g.Left + Width) / 2)" y="@ChartMath.Px(g.Baseline / 2)" text-anchor="middle" class="f3m-chart-empty">Nothing counted in this period</text></g>
+        }
+    </svg>
+
+    @if (hover is int i && i < Labels.Count)
+    {
+        var column = g.Columns[i];
+        <div class="f3m-chart-tooltip" style="left:@(ChartMath.Px(Math.Clamp(column.Center, 70, Width - 70)))px;">
+            <div class="fw-semibold mb-1">@Labels[i]</div>
+            @foreach (var series in Series)
+            {
+                <div class="d-flex align-items-center gap-2">
+                    <span class="f3m-chart-swatch" style="background:@series.Color"></span>
+                    <span class="flex-grow-1">@series.Name</span>
+                    <span class="fw-semibold">@Format(series.Values[i])</span>
+                </div>
+            }
+            @if (Series.Count > 1)
+            {
+                <div class="d-flex justify-content-between border-top mt-1 pt-1 f3m-chart-tooltip-total">
+                    <span>Total</span><span class="fw-semibold">@Format(Series.Sum(s => s.Values[i]))</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Full labels, for the tooltip ("Mon, Oct 14").</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<string> Labels { get; set; } = [];
+
+    /// <summary>Short labels under the axis ("Oct 14"); only as many as fit are shown.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<string> ShortLabels { get; set; } = [];
+
+    [Parameter, EditorRequired] public IReadOnlyList<ChartSeries> Series { get; set; } = [];
+    [Parameter] public double Height { get; set; } = 200;
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public Func<double, string>? ValueFormat { get; set; }
+
+    private const double TopPad = 10;
+    private const double BottomPad = 24;
+    private const double RightPad = 4;
+    private const double Gap = 2;
+    private const double MaxColumn = 24;
+    private const double Radius = 4;
+
+    private int? hover;
+
+    private string Format(double value) => ValueFormat?.Invoke(value) ?? value.ToString("N0");
+
+    private sealed record Tick(double Y, string Label);
+    private sealed record Part(string Path, string Color);
+    private sealed record Column(int Index, double BandLeft, double Center, List<Part> Parts, bool ShowLabel, string Anchor);
+    private sealed record Geometry(double Left, double Baseline, double Band, List<Tick> Ticks, List<Column> Columns, bool Empty);
+
+    private Geometry Layout()
+    {
+        var count = Labels.Count;
+        var totals = Enumerable.Range(0, count).Select(i => Series.Sum(s => i < s.Values.Count ? s.Values[i] : 0)).ToList();
+        var (top, step) = ChartMath.NiceScale(totals.DefaultIfEmpty(0).Max());
+
+        var tickLabels = new List<(double Value, string Label)>();
+        for (var value = 0d; value <= top + step / 2; value += step)
+            tickLabels.Add((value, ChartMath.Compact(value)));
+
+        // Room for the longest value label on the left.
+        double left = 10 + tickLabels.Max(t => t.Label.Length) * 7;
+        var baseline = Height - BottomPad;
+        var plot = baseline - TopPad;
+        double Y(double value) => baseline - value / top * plot;
+
+        var ticks = tickLabels.Select(t => new Tick(Y(t.Value), t.Label)).ToList();
+        var band = count == 0 ? 0 : (Width - RightPad - left) / count;
+        var width = Math.Clamp(band - Gap, 1, MaxColumn);
+
+        // As many axis labels as fit, evenly spread (about one per 70px).
+        var every = Math.Max(1, (int)Math.Ceiling(count / Math.Max(1, (Width - left) / 70)));
+
+        var columns = new List<Column>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var bandLeft = left + i * band;
+            var center = bandLeft + band / 2;
+            var x = center - width / 2;
+            var parts = new List<Part>();
+            var bottom = baseline;
+            var visible = Series.Select((s, n) => (s, n)).Where(p => i < p.s.Values.Count && p.s.Values[i] > 0).ToList();
+            for (var k = 0; k < visible.Count; k++)
+            {
+                var (series, _) = visible[k];
+                var height = series.Values[i] / top * plot;
+                var partBottom = k == 0 ? bottom : bottom - Gap;
+                var partTop = Math.Min(partBottom - 1, bottom - height);
+                var rounded = k == visible.Count - 1;
+                parts.Add(new Part(PartPath(x, width, partTop, partBottom, rounded), series.Color));
+                bottom = partTop;
+            }
+
+            var showLabel = i % every == 0;
+            var anchor = i == 0 && center - 30 < left ? "start" : i == count - 1 && center + 30 > Width ? "end" : "middle";
+            columns.Add(new Column(i, bandLeft, center, parts, showLabel, anchor));
+        }
+
+        return new Geometry(left, baseline, band, ticks, columns, totals.All(t => t <= 0));
+    }
+
+    /// <summary>A column part; the topmost one gets the 4px rounded top, the baseline stays square.</summary>
+    private static string PartPath(double x, double width, double top, double bottom, bool rounded)
+    {
+        var r = rounded ? Math.Min(Radius, Math.Min(width / 2, bottom - top)) : 0;
+        string P(double v) => ChartMath.Px(v);
+        return r <= 0
+            ? $"M{P(x)} {P(bottom)} V{P(top)} H{P(x + width)} V{P(bottom)} Z"
+            : $"M{P(x)} {P(bottom)} V{P(top + r)} Q{P(x)} {P(top)} {P(x + r)} {P(top)} H{P(x + width - r)} Q{P(x + width)} {P(top)} {P(x + width)} {P(top + r)} V{P(bottom)} Z";
+    }
+}
