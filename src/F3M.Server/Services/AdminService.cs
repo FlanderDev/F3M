@@ -56,7 +56,8 @@ public class AdminService(
             {
                 Id = u.Id,
                 Username = u.UserName ?? string.Empty,
-                Email = u.Email ?? string.Empty,
+                F95UserId = u.F95UserId,
+                F95Username = u.F95Username,
                 IsAdmin = roles.Contains(AppRoles.Admin),
                 Roles = roles,
                 RegisteredAt = u.RegisteredAt,
@@ -97,7 +98,8 @@ public class AdminService(
         {
             Id = user.Id,
             Username = user.UserName ?? string.Empty,
-            Email = user.Email ?? string.Empty,
+            F95UserId = user.F95UserId,
+            F95Username = user.F95Username,
             IsAdmin = isAdmin,
             Roles = [.. roles],
             RegisteredAt = user.RegisteredAt,

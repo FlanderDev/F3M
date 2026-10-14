@@ -35,7 +35,7 @@ public partial class Admin
         ? users
         : users.Where(u =>
             u.Username.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-            u.Email.Contains(search, StringComparison.OrdinalIgnoreCase));
+            (u.F95Username?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()
     {

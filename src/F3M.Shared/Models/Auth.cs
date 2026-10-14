@@ -16,7 +16,11 @@ public class AdminUserDto
 {
     public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
+
+    /// <summary>The linked F95zone profile; null for an account without one (the admin account from the settings).</summary>
+    public string? F95UserId { get; set; }
+    public string? F95Username { get; set; }
+
     public bool IsAdmin { get; set; }
     public List<string> Roles { get; set; } = [];
     public DateTime RegisteredAt { get; set; }

@@ -147,7 +147,7 @@
                 <thead>
                     <tr>
                         <th>User</th>
-                        <th>Email</th>
+                        <th>F95zone</th>
                         <th class="text-center">Mods</th>
                         <th>Registered</th>
                         <th class="text-center">Role</th>
@@ -167,7 +167,19 @@
                                     <a href="@Paths.PublicProfile(u.Username)" class="fw-semibold small text-decoration-none">@u.Username</a>
                                 </div>
                             </td>
-                            <td class="small align-middle">@u.Email</td>
+                            <td class="small align-middle">
+                                @if (u.F95UserId is { } f95UserId)
+                                {
+                                    <a href="@F95Profile.LinkFor(u.F95Username, f95UserId)" target="_blank" rel="noopener noreferrer"
+                                       class="btn btn-sm btn-outline-warning text-nowrap" title="Open @(u.F95Username ?? u.Username)'s F95zone profile in a new tab">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>@(u.F95Username ?? "Profile")
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="fst-italic" style="color:var(--f3m-muted)">Not linked</span>
+                                }
+                            </td>
                             <td class="text-center align-middle">
                                 <span class="badge bg-secondary">@u.ModCount</span>
                             </td>
