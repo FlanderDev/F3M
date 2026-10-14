@@ -1,0 +1,40 @@
+@* Part of a whole as one bar: segments separated by 2px gaps, with a legend that names each part (icon, label, count
+   and share), so no part depends on its colour alone. *@
+
+@{ var total = Items.Sum(i => i.Value); }
+@if (total <= 0)
+{
+    <p class="small f3m-chart-empty-text mb-0">@EmptyText</p>
+}
+else
+{
+    <div class="f3m-sharebar mb-3" role="img" aria-label="@string.Join(", ", Items.Select(i => $"{i.Label} {i.Value:N0}"))">
+        @foreach (var item in Items.Where(i => i.Value > 0))
+        {
+            <span class="f3m-sharebar-part" style="flex-grow:@(ChartMath.Px(item.Value)); background:@item.Color;"
+                  title="@item.Label: @item.Value.ToString("N0") (@Percent(item.Value, total))"></span>
+        }
+    </div>
+    <ul class="list-unstyled mb-0 f3m-sharebar-legend">
+        @foreach (var item in Items)
+        {
+            <li class="d-flex align-items-center gap-2 small">
+                <span class="f3m-chart-swatch" style="background:@item.Color"></span>
+                @if (item.Icon is not null)
+                {
+                    <i class="bi @item.Icon"></i>
+                }
+                <span class="flex-grow-1">@item.Label</span>
+                <span class="fw-semibold">@item.Value.ToString("N0")</span>
+                <span class="f3m-chart-muted text-end" style="min-width:3.2rem;">@Percent(item.Value, total)</span>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ChartItem> Items { get; set; } = [];
+    [Parameter] public string EmptyText { get; set; } = "Nothing yet.";
+
+    private static string Percent(double value, double total) => total > 0 ? $"{value / total:P0}" : "–";
+}

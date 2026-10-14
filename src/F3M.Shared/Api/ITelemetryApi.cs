@@ -13,4 +13,12 @@ public partial interface ITelemetryApi
 {
     [Post("error")]
     Task ReportError([Body] Telemetry.ErrorReport errorReport, CancellationToken ct = default);
+
+    /// <summary>Counts a page load (and the visitor, once per day) for the statistics page.</summary>
+    [Post("visit")]
+    Task ReportVisit([Body] VisitReport visit, CancellationToken ct = default);
+
+    /// <summary>Counts a search, and whether it found anything, for the statistics page.</summary>
+    [Post("search")]
+    Task ReportSearch([Body] SearchReport search, CancellationToken ct = default);
 }

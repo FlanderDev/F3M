@@ -23,7 +23,7 @@ public static class Configuration
     public const string AppName = nameof(F3M);
 
     /// <summary>The public website and server. The desktop app's default server address.</summary>
-    public const string PublicSiteUrl = "https://f3m.flandus.de";
+    public const string PublicSiteUrl = "https://f3m.flander.dev";
 
     /// <summary>Where users reach an admin: FlanderDev's F95zone profile.</summary>
     public const string AdminContactUrl = "https://f95zone.to/members/flanderdev.2601924/";

@@ -1,0 +1,131 @@
+@* A trend over time: 2px lines, a light wash under a single series, and a crosshair with a tooltip for the point
+   under the pointer. *@
+@inherits MeasuredChart
+
+@{ var g = Layout(); }
+<div class="f3m-chart" @ref="Container" style="height:@(ChartMath.Px(Height))px;" @onmouseleave="() => hover = null">
+    <svg width="@Width" height="@Height" viewBox="0 0 @Width @Height" role="img" aria-label="@AriaLabel">
+        @foreach (var tick in g.Ticks)
+        {
+            <line x1="@ChartMath.Px(g.Left)" x2="@ChartMath.Px(Width - RightPad)" y1="@ChartMath.Px(tick.Y)" y2="@ChartMath.Px(tick.Y)" class="f3m-chart-grid" />
+            <g><text x="@ChartMath.Px(g.Left - 6)" y="@ChartMath.Px(tick.Y + 4)" text-anchor="end" class="f3m-chart-tick">@tick.Label</text></g>
+        }
+        <line x1="@ChartMath.Px(g.Left)" x2="@ChartMath.Px(Width - RightPad)" y1="@ChartMath.Px(g.Baseline)" y2="@ChartMath.Px(g.Baseline)" class="f3m-chart-axis" />
+
+        @foreach (var label in g.AxisLabels)
+        {
+            <g><text x="@ChartMath.Px(label.X)" y="@ChartMath.Px(Height - 6)" text-anchor="@label.Anchor" class="f3m-chart-tick">@label.Text</text></g>
+        }
+
+        @foreach (var line in g.Lines)
+        {
+            @if (line.Area is not null)
+            {
+                <path d="@line.Area" fill="@line.Color" fill-opacity="0.1" />
+            }
+            <path d="@line.Path" fill="none" stroke="@line.Color" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        }
+
+        @if (hover is int h && h < g.Xs.Count)
+        {
+            <line x1="@ChartMath.Px(g.Xs[h])" x2="@ChartMath.Px(g.Xs[h])" y1="@ChartMath.Px(TopPad)" y2="@ChartMath.Px(g.Baseline)" class="f3m-chart-crosshair" />
+            @foreach (var line in g.Lines)
+            {
+                <circle cx="@ChartMath.Px(g.Xs[h])" cy="@ChartMath.Px(line.Ys[h])" r="4" fill="@line.Color" class="f3m-chart-dot" />
+            }
+        }
+
+        @for (var i = 0; i < g.Xs.Count; i++)
+        {
+            var index = i;
+            var half = g.Step / 2;
+            <rect x="@ChartMath.Px(g.Xs[i] - half)" y="@ChartMath.Px(TopPad)" width="@ChartMath.Px(Math.Max(g.Step, 1))" height="@ChartMath.Px(g.Baseline - TopPad)"
+                  fill="transparent" @onmouseenter="() => hover = index" @onclick="() => hover = index" />
+        }
+
+        @if (g.Empty)
+        {
+            <g><text x="@ChartMath.Px((g.Left + Width) / 2)" y="@ChartMath.Px(g.Baseline / 2)" text-anchor="middle" class="f3m-chart-empty">Nothing counted in this period</text></g>
+        }
+    </svg>
+
+    @if (hover is int i2 && i2 < Labels.Count)
+    {
+        <div class="f3m-chart-tooltip" style="left:@(ChartMath.Px(Math.Clamp(g.Xs[i2], 70, Width - 70)))px;">
+            <div class="fw-semibold mb-1">@Labels[i2]</div>
+            @foreach (var series in Series)
+            {
+                <div class="d-flex align-items-center gap-2">
+                    <span class="f3m-chart-swatch" style="background:@series.Color"></span>
+                    <span class="flex-grow-1">@series.Name</span>
+                    <span class="fw-semibold">@series.Values[i2].ToString("N0")</span>
+                </div>
+            }
+            @if (TooltipExtra is not null)
+            {
+                <div class="f3m-chart-tooltip-total border-top mt-1 pt-1">@TooltipExtra(i2)</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Labels { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<string> ShortLabels { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<ChartSeries> Series { get; set; } = [];
+    [Parameter] public double Height { get; set; } = 200;
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>One more line in the tooltip for a point, such as a related number that isn't drawn.</summary>
+    [Parameter] public Func<int, string>? TooltipExtra { get; set; }
+
+    private const double TopPad = 10;
+    private const double BottomPad = 24;
+    private const double RightPad = 8;
+
+    private int? hover;
+
+    private sealed record Tick(double Y, string Label);
+    private sealed record AxisLabel(double X, string Text, string Anchor);
+    private sealed record Line(string Path, string? Area, string Color, List<double> Ys);
+    private sealed record Geometry(double Left, double Baseline, double Step, List<double> Xs, List<Tick> Ticks, List<AxisLabel> AxisLabels, List<Line> Lines, bool Empty);
+
+    private Geometry Layout()
+    {
+        var count = Labels.Count;
+        var max = Series.SelectMany(s => s.Values).DefaultIfEmpty(0).Max();
+        var (top, step) = ChartMath.NiceScale(max);
+
+        var tickValues = new List<double>();
+        for (var value = 0d; value <= top + step / 2; value += step)
+            tickValues.Add(value);
+
+        double left = 10 + tickValues.Max(v => ChartMath.Compact(v).Length) * 7 + 4;
+        var baseline = Height - BottomPad;
+        var plot = baseline - TopPad;
+        double Y(double value) => baseline - value / top * plot;
+
+        var span = Width - RightPad - left;
+        var xStep = count > 1 ? span / (count - 1) : span;
+        var xs = Enumerable.Range(0, count).Select(i => count > 1 ? left + i * xStep : left + span / 2).ToList();
+
+        var every = Math.Max(1, (int)Math.Ceiling(count / Math.Max(1, span / 70)));
+        var axisLabels = new List<AxisLabel>();
+        for (var i = 0; i < count; i += every)
+            axisLabels.Add(new AxisLabel(xs[i], ShortLabels[i], i == 0 ? "start" : i == count - 1 ? "end" : "middle"));
+
+        var lines = new List<Line>();
+        foreach (var series in Series)
+        {
+            var ys = Enumerable.Range(0, count).Select(i => Y(i < series.Values.Count ? series.Values[i] : 0)).ToList();
+            var path = string.Join(" ", ys.Select((y, i) => $"{(i == 0 ? "M" : "L")}{ChartMath.Px(xs[i])} {ChartMath.Px(y)}"));
+            string? area = Series.Count == 1 && count > 1
+                ? $"{path} L{ChartMath.Px(xs[^1])} {ChartMath.Px(baseline)} L{ChartMath.Px(xs[0])} {ChartMath.Px(baseline)} Z"
+                : null;
+            lines.Add(new Line(path, area, series.Color, ys));
+        }
+
+        return new Geometry(left, baseline, xStep, xs, tickValues.Select(v => new Tick(Y(v), ChartMath.Compact(v))).ToList(),
+            axisLabels, lines, max <= 0);
+    }
+}

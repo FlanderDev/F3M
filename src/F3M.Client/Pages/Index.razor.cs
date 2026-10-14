@@ -21,6 +21,9 @@ public partial class Index
     private SortBy sortBy = SortBy.Newest;
     private System.Timers.Timer? _debounce;
 
+    private static readonly TimeSpan SearchSettleTime = TimeSpan.FromSeconds(2.5);
+    private string? lastReportedSearch;
+
     // The mods shown so far, page by page; every page has batchSize mods, so page numbers stay consistent.
     private readonly List<Mod> mods = [];
     private int totalCount;
@@ -110,6 +113,9 @@ public partial class Index
         loading = false;
         StateHasChanged();
 
+        if (searchTerm.Trim().Length >= 3 && selectedCategory == CategoryAll)
+            _ = ReportSearchLaterAsync(current, searchTerm.Trim(), totalCount);
+
         // The new list may end on the screen already (few results, or the page was scrolled down).
         if (listEndWatcher is not null)
             await listEndWatcher.InvokeVoidAsync("check");
@@ -160,6 +166,28 @@ public partial class Index
     {
         var specificCategory = selectedCategory == CategoryAll ? null : selectedCategory;
         return ModsApi.GetMods(page, batchSize, searchTerm, specificCategory, sortBy);
+    }
+
+    /// <summary>
+    /// Counts a search for the statistics page once its results have stayed on screen for a moment, so the words typed
+    /// on the way ("tex", "text", ...) don't count. Searches within one category are left out: "no results" there
+    /// says little about what the site is missing.
+    /// </summary>
+    private async Task ReportSearchLaterAsync(int current, string term, int results)
+    {
+        await Task.Delay(SearchSettleTime);
+        if (current != generation || string.Equals(term, lastReportedSearch, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        lastReportedSearch = term;
+        try
+        {
+            await Telemetry.ReportSearch(new SearchReport { Term = term, Results = results });
+        }
+        catch
+        {
+            // Only statistics.
+        }
     }
 
     private void OnSearchKeyUp(KeyboardEventArgs _)

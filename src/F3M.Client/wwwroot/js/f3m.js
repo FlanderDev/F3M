@@ -148,5 +148,38 @@ window.f3m = {
     /** Writes a value to localStorage. Silently does nothing when storage is blocked. */
     setItem: function (key, value) {
         try { window.localStorage.setItem(key, value); } catch { /* storage blocked */ }
+    },
+
+    /**
+     * A random id kept in this browser, so the statistics page counts a visitor once per day. Null when the browser
+     * asks not to be tracked (Do Not Track, Global Privacy Control) or storage is blocked.
+     */
+    visitorId: function () {
+        if (navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true) return null;
+        try {
+            let id = window.localStorage.getItem('f3m.visitor');
+            if (!id) {
+                id = window.crypto && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 10)).join('');
+                window.localStorage.setItem('f3m.visitor', id);
+            }
+            return id;
+        } catch {
+            return null;
+        }
+    },
+
+    /**
+     * Calls dotNet.invokeMethodAsync('OnWidth', width) with the element's width now and whenever it changes (charts
+     * draw at their real size). Returns { dispose }.
+     */
+    watchWidth: function (element, dotNet) {
+        const observer = new ResizeObserver(entries => {
+            const width = Math.round(entries[0].contentRect.width);
+            if (width > 0) dotNet.invokeMethodAsync('OnWidth', width).catch(() => { /* the page is going away */ });
+        });
+        observer.observe(element);
+        return { dispose: () => observer.disconnect() };
     }
 };

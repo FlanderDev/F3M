@@ -1,0 +1,52 @@
+@* The frame of a chart: title, what it shows, a legend for two or more series, and a switch to see the numbers as a
+   table instead. *@
+
+<section class="f3m-surface rounded-3 border p-3 p-md-4 h-100 f3m-chart-card">
+    <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+        <div>
+            <h2 class="fs-6 fw-bold mb-0">@Title</h2>
+            @if (Subtitle is not null)
+            {
+                <p class="small f3m-chart-muted mb-0">@Subtitle</p>
+            }
+        </div>
+        @if (Table is not null)
+        {
+            <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" aria-pressed="@(showTable ? "true" : "false")"
+                    @onclick="() => showTable = !showTable">
+                <i class="bi @(showTable ? "bi-bar-chart" : "bi-table") me-1"></i>@(showTable ? "Chart" : "Table")
+            </button>
+        }
+    </div>
+
+    @if (Legend is { Count: > 1 } && !showTable)
+    {
+        <ul class="f3m-legend list-unstyled d-flex flex-wrap gap-3 mb-2">
+            @foreach (var (name, color) in Legend)
+            {
+                <li class="d-flex align-items-center gap-2 small"><span class="f3m-chart-swatch" style="background:@color"></span>@name</li>
+            }
+        </ul>
+    }
+
+    @if (showTable && Table is not null)
+    {
+        <div class="table-responsive f3m-chart-table">
+            @Table
+        </div>
+    }
+    else
+    {
+        @ChildContent
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public IReadOnlyList<(string Name, string Color)>? Legend { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Table { get; set; }
+
+    private bool showTable;
+}

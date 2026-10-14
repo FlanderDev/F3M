@@ -1,6 +1,8 @@
 @using F3M.Client.Components
 @inherits LayoutComponentBase
 @inject IAccountManagement Acct
+@inject ITelemetryApi Telemetry
+@inject IJSRuntime JS
 
 
 <div class="f3m-wrapper">
@@ -83,6 +85,24 @@
 </div>
 
 @code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        // One page load (and the visitor, once a day) for the statistics page. The layout stays while the visitor moves
+        // between pages, so this runs once per visit to the site.
+        try
+        {
+            var visitorId = await JS.InvokeAsync<string?>("f3m.visitorId");
+            await Telemetry.ReportVisit(new VisitReport { VisitorId = visitorId });
+        }
+        catch
+        {
+            // Only statistics.
+        }
+    }
+
     protected async Task LogoutAsync()
     {
         if (await Acct.CheckAuthenticatedAsync())

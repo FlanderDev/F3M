@@ -1,0 +1,30 @@
+@* A chart's numbers as a table: one row per day, week or month, one column per series. *@
+
+<table class="table table-dark table-sm mb-0 f3m-num-table">
+    <thead>
+        <tr>
+            <th scope="col">Date</th>
+            @foreach (var column in Columns)
+            {
+                <th scope="col" class="text-end">@column</th>
+            }
+        </tr>
+    </thead>
+    <tbody>
+        @for (var i = Points.Labels.Count - 1; i >= 0; i--)
+        {
+            <tr>
+                <td>@Points.Labels[i]</td>
+                @for (var c = 0; c < Columns.Count && c < Points.Values[i].Length; c++)
+                {
+                    <td class="text-end">@Points.Values[i][c].ToString("#,0.#")</td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired] public ChartPoints Points { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<string> Columns { get; set; } = [];
+}
