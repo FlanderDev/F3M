@@ -1,0 +1,30 @@
+@* One headline number: a label, the value, and optionally its change against the previous period. *@
+
+<div class="f3m-stat-tile h-100">
+    <div class="f3m-stat-tile-label">@Label</div>
+    <div class="f3m-stat-tile-value">@Value</div>
+    @if (Change is double change)
+    {
+        var up = change >= 0;
+        var good = up == UpIsGood || change == 0;
+        <div class="f3m-stat-tile-delta @(change == 0 ? "flat" : good ? "good" : "bad")">
+            <i class="bi @(change == 0 ? "bi-dash" : up ? "bi-arrow-up-right" : "bi-arrow-down-right")"></i>
+            @(change == 0 ? "No change" : $"{(up ? "+" : "")}{change:P0}") <span class="f3m-chart-muted">@ChangeNote</span>
+        </div>
+    }
+    else if (Note is not null)
+    {
+        <div class="f3m-stat-tile-note">@Note</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+
+    /// <summary>The change as a fraction (0.12 = +12 %); null to leave it out.</summary>
+    [Parameter] public double? Change { get; set; }
+    [Parameter] public string? ChangeNote { get; set; }
+    [Parameter] public bool UpIsGood { get; set; } = true;
+    [Parameter] public string? Note { get; set; }
+}

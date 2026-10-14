@@ -1,0 +1,284 @@
+@page "/admin/stats"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IStatsApi Api
+
+<PageTitle>F3M - Statistics</PageTitle>
+
+<div class="container py-5" style="max-width:1200px;">
+    <a href="/admin" class="small d-inline-flex align-items-center gap-1 mb-3">
+        <i class="bi bi-arrow-left"></i> Admin Panel
+    </a>
+
+    <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="fw-black mb-1 fs-2">
+                <i class="bi bi-graph-up text-warning me-2"></i>Statistics
+            </h1>
+            <p class="small mb-0">How the site is used: downloads, visitors, accounts, uploads and problems.</p>
+        </div>
+
+        @* One row of filters above everything; the whole page follows the chosen period. *@
+        <div class="d-flex flex-wrap gap-2" role="group" aria-label="Period">
+            @foreach (var range in Ranges)
+            {
+                <button type="button" class="f3m-chip @(days == range ? "active" : string.Empty)" aria-pressed="@(days == range ? "true" : "false")"
+                        @onclick="() => SelectRange(range)">
+                    @(range == 365 ? "1 year" : $"{range} days")
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (error is not null)
+    {
+        <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>@error</div>
+    }
+
+    @if (stats is null)
+    {
+        @if (loading)
+        {
+            <div class="placeholder-glow">
+                @for (var i = 0; i < 4; i++)
+                {
+                    <div class="placeholder w-100 mb-3" style="height:120px;border-radius:10px;"></div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        var s = stats;
+        <div class="@(loading ? "f3m-stats-reloading" : string.Empty)">
+
+            @if (s.CountingSince is null)
+            {
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle-fill me-2"></i>Downloads, visitors, searches, sign-ins and desktop syncs are counted from now on;
+                    they will show up here as they happen.
+                </div>
+            }
+            else if (CountingStartedInPeriod)
+            {
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle-fill me-2"></i>Downloads, visitors, searches, sign-ins and desktop syncs are counted since
+                    @s.CountingSince.Value.ToString("MMMM d, yyyy"); earlier days show none.
+                </div>
+            }
+
+            <!-- The period -->
+            <h2 class="fs-6 fw-bold text-uppercase f3m-chart-muted mb-2">The @PeriodName</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <StatTile Label="Downloads" Value="@ChartMath.Compact(s.Period.Downloads)"
+                              Change="@Change(s.Period.Downloads, s.PreviousPeriod.Downloads, PreviousCounted)" ChangeNote="@ChangeNote" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <StatTile Label="Visitors" Value="@ChartMath.Compact(s.Period.Visitors)"
+                              Change="@Change(s.Period.Visitors, s.PreviousPeriod.Visitors, PreviousCounted)" ChangeNote="@ChangeNote"
+                              Note="@($"{s.Period.PageLoads:N0} page loads")" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <StatTile Label="New accounts" Value="@ChartMath.Compact(s.Period.NewUsers)"
+                              Change="@Change(s.Period.NewUsers, s.PreviousPeriod.NewUsers)" ChangeNote="@ChangeNote" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <StatTile Label="New mods" Value="@ChartMath.Compact(s.Period.NewMods)"
+                              Change="@Change(s.Period.NewMods, s.PreviousPeriod.NewMods)" ChangeNote="@ChangeNote" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <StatTile Label="New versions" Value="@ChartMath.Compact(s.Period.NewVersions)"
+                              Change="@Change(s.Period.NewVersions, s.PreviousPeriod.NewVersions)" ChangeNote="@ChangeNote" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <StatTile Label="Sign-ins" Value="@ChartMath.Compact(s.Period.SignIns)"
+                              Change="@Change(s.Period.SignIns, s.PreviousPeriod.SignIns, PreviousCounted)" ChangeNote="@ChangeNote" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <StatTile Label="Desktop app syncs" Value="@ChartMath.Compact(s.Period.DesktopSyncs)"
+                              Change="@Change(s.Period.DesktopSyncs, s.PreviousPeriod.DesktopSyncs, PreviousCounted)" ChangeNote="@ChangeNote"
+                              Note="Each start and update check of a desktop app" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <StatTile Label="Page loads" Value="@ChartMath.Compact(s.Period.PageLoads)"
+                              Change="@Change(s.Period.PageLoads, s.PreviousPeriod.PageLoads, PreviousCounted)" ChangeNote="@ChangeNote" />
+                </div>
+            </div>
+
+            <!-- All time -->
+            <h2 class="fs-6 fw-bold text-uppercase f3m-chart-muted mb-2">All time</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-4 col-xl-2">
+                    <StatTile Label="Mods" Value="@s.Totals.Mods.ToString("N0")" Note="@($"{s.Totals.UnclaimedMods:N0} imported, not yet claimed")" />
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <StatTile Label="Versions" Value="@s.Totals.Versions.ToString("N0")" />
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <StatTile Label="Downloads" Value="@ChartMath.Compact(s.Totals.Downloads)" />
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <StatTile Label="Accounts" Value="@s.Totals.Users.ToString("N0")" Note="@($"{s.Totals.LinkedUsers:N0} linked to F95zone")" />
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <StatTile Label="Files" Value="@s.Totals.Files.ToString("N0")" />
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <StatTile Label="Storage" Value="@Bytes(s.Totals.StorageBytes)" Note="Uploaded mod files" />
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- Downloads -->
+                <div class="col-lg-6">
+                    @{ var downloads = DownloadPoints; }
+                    <ChartCard Title="@(Weekly ? "Downloads per week" : "Downloads per day")" Subtitle="Files downloaded, in the browser or by the desktop app"
+                               Legend="@([BrowserSeries, DesktopSeries])">
+                        <ChildContent>
+                            <ColumnChart Labels="downloads.Labels" ShortLabels="downloads.ShortLabels" Series="@Series(downloads, BrowserSeries, DesktopSeries)"
+                                         AriaLabel="Downloads per day, browser and desktop app" />
+                        </ChildContent>
+                        <Table>
+                            <PointTable Points="downloads" Columns="@(["Browser", "Desktop app"])" />
+                        </Table>
+                    </ChartCard>
+                </div>
+
+                <!-- Visitors -->
+                <div class="col-lg-6">
+                    @{ var visits = VisitPoints; }
+                    <ChartCard Title="@(Weekly ? "Visitors per day (weekly average)" : "Visitors per day")"
+                               Subtitle="Different browsers that opened the site; a browser counts once a day">
+                        <ChildContent>
+                            <LineChart Labels="visits.Labels" ShortLabels="visits.ShortLabels"
+                                       Series="@([new ChartSeries("Visitors", ChartColors.Accent, visits.Values.Select(v => v[0]).ToList())])"
+                                       TooltipExtra="@(i => $"{visits.Values[i][1]:N0} page loads")" AriaLabel="Visitors per day" />
+                        </ChildContent>
+                        <Table>
+                            <PointTable Points="visits" Columns="@(["Visitors", "Page loads"])" />
+                        </Table>
+                    </ChartCard>
+                </div>
+
+                <!-- Sign-ins -->
+                <div class="col-lg-6">
+                    @{ var signIns = SignInPoints; }
+                    <ChartCard Title="@(Weekly ? "Sign-ins per week" : "Sign-ins per day")" Subtitle="With a password, or through an F95zone verification (including new accounts)"
+                               Legend="@([PasswordSeries, F95Series])">
+                        <ChildContent>
+                            <ColumnChart Labels="signIns.Labels" ShortLabels="signIns.ShortLabels" Series="@Series(signIns, PasswordSeries, F95Series)"
+                                         AriaLabel="Sign-ins per day" />
+                        </ChildContent>
+                        <Table>
+                            <PointTable Points="signIns" Columns="@(["Password", "F95zone verification"])" />
+                        </Table>
+                    </ChartCard>
+                </div>
+
+                <!-- Problems -->
+                <div class="col-lg-6">
+                    @{ var problems = ProblemPoints; }
+                    <ChartCard Title="@(Weekly ? "Warnings and errors per week" : "Warnings and errors per day")"
+                               Subtitle="From the site log (kept for 90 days); details are in the log on the admin page"
+                               Legend="@([ErrorSeries, WarningSeries])">
+                        <ChildContent>
+                            <ColumnChart Labels="problems.Labels" ShortLabels="problems.ShortLabels" Series="@Series(problems, ErrorSeries, WarningSeries)"
+                                         AriaLabel="Warnings and errors per day" />
+                        </ChildContent>
+                        <Table>
+                            <PointTable Points="problems" Columns="@(["Errors", "Warnings"])" />
+                        </Table>
+                    </ChartCard>
+                </div>
+
+                <!-- Uploads per month -->
+                <div class="col-lg-6">
+                    @{ var growth = GrowthPoints; }
+                    <ChartCard Title="Uploads per month" Subtitle="The last 12 months: new mods, and new versions of existing mods"
+                               Legend="@([NewModSeries, NewVersionSeries])">
+                        <ChildContent>
+                            <ColumnChart Labels="growth.Labels" ShortLabels="growth.ShortLabels" Series="@Series(growth, NewModSeries, NewVersionSeries)"
+                                         AriaLabel="New mods and versions per month" />
+                        </ChildContent>
+                        <Table>
+                            <PointTable Points="growth" Columns="@(["New mods", "New versions", "New accounts"])" />
+                        </Table>
+                    </ChartCard>
+                </div>
+
+                <!-- Accounts per month -->
+                <div class="col-lg-6">
+                    <ChartCard Title="New accounts per month" Subtitle="The last 12 months">
+                        <ChildContent>
+                            <ColumnChart Labels="growth.Labels" ShortLabels="growth.ShortLabels"
+                                         Series="@([new ChartSeries("New accounts", ChartColors.Accent, growth.Values.Select(v => v[2]).ToList())])"
+                                         AriaLabel="New accounts per month" />
+                        </ChildContent>
+                        <Table>
+                            <PointTable Points="growth" Columns="@(["New mods", "New versions", "New accounts"])" />
+                        </Table>
+                    </ChartCard>
+                </div>
+
+                <!-- Top mods -->
+                <div class="col-lg-6">
+                    <ChartCard Title="Most downloaded mods" Subtitle="@($"In the {PeriodName}")">
+                        <BarList Items="@TopModItems(s.TopModsInPeriod)" EmptyText="No downloads counted in this period yet." />
+                    </ChartCard>
+                </div>
+                <div class="col-lg-6">
+                    <ChartCard Title="Most downloaded mods of all time" Subtitle="All versions of a mod together">
+                        <BarList Items="@TopModItems(s.TopModsAllTime)" EmptyText="No downloads yet." />
+                    </ChartCard>
+                </div>
+
+                <!-- Categories -->
+                <div class="col-lg-4">
+                    <ChartCard Title="Mods by category" Subtitle="The category of each mod's latest version">
+                        <BarList Items="@CategoryModItems" />
+                    </ChartCard>
+                </div>
+                <div class="col-lg-4">
+                    <ChartCard Title="Downloads by category" Subtitle="All time">
+                        <BarList Items="@CategoryDownloadItems" ValueFormat="ChartMath.Compact" EmptyText="No downloads yet." />
+                    </ChartCard>
+                </div>
+                <div class="col-lg-4">
+                    <ChartCard Title="Storage by category" Subtitle="Uploaded files of all versions">
+                        <BarList Items="@CategoryStorageItems" ValueFormat="Bytes" EmptyText="No files yet." />
+                    </ChartCard>
+                </div>
+
+                <!-- Account linking -->
+                <div class="col-lg-6">
+                    <ChartCard Title="Account linking" Subtitle="@($"F95zone verifications started in the {PeriodName}, by how they ended")">
+                        <ShareBar Items="@VerificationItems" EmptyText="No verifications started in this period." />
+                        @if (VerificationRate is { } rate)
+                        {
+                            <p class="small f3m-chart-muted mt-3 mb-0">@rate</p>
+                        }
+                    </ChartCard>
+                </div>
+
+                <!-- Desktop versions -->
+                <div class="col-lg-6">
+                    <ChartCard Title="Desktop app versions" Subtitle="@($"Catalog syncs per app version in the {PeriodName}")">
+                        <BarList Items="@DesktopVersionItems" EmptyText="No desktop app has synced in this period." />
+                    </ChartCard>
+                </div>
+
+                <!-- Searches -->
+                <div class="col-lg-6">
+                    <ChartCard Title="Top searches" Subtitle="What people searched for on the browse page">
+                        <CountTable Items="s.Searches" Header="Search" EmptyText="No searches counted in this period yet." />
+                    </ChartCard>
+                </div>
+                <div class="col-lg-6">
+                    <ChartCard Title="Searches without results" Subtitle="Mods people looked for that the site doesn't have">
+                        <CountTable Items="s.SearchesWithoutResults" Header="Search" EmptyText="Every search found something." />
+                    </ChartCard>
+                </div>
+            </div>
+        </div>
+    }
+</div>

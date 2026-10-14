@@ -1,0 +1,42 @@
+@* A ranked list as horizontal bars: label, a thin bar with a rounded end, and the value at its tip. Every value is
+   written out, so the list needs no axis and doubles as its own table. *@
+
+@if (Items.Count == 0)
+{
+    <p class="small f3m-chart-empty-text mb-0">@EmptyText</p>
+}
+else
+{
+    var max = Items.Max(i => i.Value);
+    <ol class="f3m-barlist list-unstyled mb-0">
+        @foreach (var item in Items)
+        {
+            var share = max > 0 ? item.Value / max : 0;
+            <li class="f3m-barlist-row" title="@item.Label: @Format(item.Value)">
+                <div class="f3m-barlist-label text-truncate">
+                    @if (item.Href is not null)
+                    {
+                        <a href="@item.Href">@item.Label</a>
+                    }
+                    else
+                    {
+                        @item.Label
+                    }
+                </div>
+                <div class="f3m-barlist-track">
+                    <span class="f3m-barlist-bar" style="width:calc((100% - 4.5rem) * @(ChartMath.Px(share))); background:@(item.Color ?? Color);"></span>
+                    <span class="f3m-barlist-value">@Format(item.Value)</span>
+                </div>
+            </li>
+        }
+    </ol>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ChartItem> Items { get; set; } = [];
+    [Parameter] public string Color { get; set; } = ChartColors.Accent;
+    [Parameter] public Func<double, string>? ValueFormat { get; set; }
+    [Parameter] public string EmptyText { get; set; } = "Nothing yet.";
+
+    private string Format(double value) => ValueFormat?.Invoke(value) ?? value.ToString("N0");
+}
