@@ -120,4 +120,10 @@ public class LinkF95PollResponse
 
     /// <summary>On success: true when a new account was created, false when an existing one was signed in.</summary>
     public bool IsNewUser { get; set; }
+
+    /// <summary>
+    /// Pending because the member's F95zone privacy settings hide their profile from other members, so the post can't
+    /// be seen. The page explains which setting to change (<see cref="Helpers.F95Profile.PrivacySettingsUrl"/>).
+    /// </summary>
+    public bool ProfileHidden { get; set; }
 }

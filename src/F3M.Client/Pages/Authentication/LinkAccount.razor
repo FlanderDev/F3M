@@ -154,6 +154,21 @@
                     <li>Come back here and press <strong>I've posted it</strong>.</li>
                 </ol>
 
+                @if (profileHidden)
+                {
+                    <div class="alert alert-warning small">
+                        <div class="fw-semibold mb-1">
+                            <i class="bi bi-eye-slash-fill me-2"></i>Your F95zone profile is hidden
+                        </div>
+                        F95zone says <em>"This member limits who may view their full profile."</em> So we can't see your post yet.
+                        <ol class="mb-2 mt-2 ps-3">
+                            <li>Open your <a href="@F95Profile.PrivacySettingsUrl" target="_blank" rel="noopener" class="alert-link">F95zone privacy settings</a> (opens in a new tab).</li>
+                            <li>Under <strong>Allow users to…</strong>, set <strong>View your details on your profile page</strong> to <em>Members only</em> or <em>All visitors</em>, and save.</li>
+                            <li>Come back and press <strong>I've posted it</strong> again.</li>
+                        </ol>
+                        <div class="f3m-auth-sub">You can change it back once your account is linked.</div>
+                    </div>
+                }
                 @if (pendingMessage is not null)
                 {
                     <div class="alert alert-secondary py-2 small">

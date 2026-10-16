@@ -10,6 +10,12 @@ public static partial class F95Profile
     /// <summary>Shown wherever the user has to enter their profile URL.</summary>
     public const string ExampleUrl = "https://f95zone.to/members/YourName.12345/";
 
+    /// <summary>
+    /// Where members choose who may see their profile. "View your details on your profile page" must allow at least
+    /// members, or the bot can't see the posts on it.
+    /// </summary>
+    public const string PrivacySettingsUrl = "https://f95zone.to/account/privacy";
+
     // Matches: https://f95zone.to/members/username.12345/
     [GeneratedRegex(@"^https?://f95zone\.to/members/([a-zA-Z0-9_.\-]+?)\.(\d+)/?$", RegexOptions.IgnoreCase)]
     private static partial Regex ProfileUrlRegex();
