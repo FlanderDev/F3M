@@ -88,7 +88,61 @@ a {
     background: rgba(13,14,16,.95) !important;
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--f3m-border);
-    height: 56px;
+    /* At least the bar's height; on small screens the opened menu makes it taller. */
+    min-height: 56px;
+}
+
+@media (min-width: 992px) {
+    .f3m-navbar {
+        height: 56px;
+    }
+}
+
+/* Small screens: the menu opens inside the bar, as full-width rows that are easy to tap. */
+@media (max-width: 991.98px) {
+    .f3m-navbar .navbar-collapse {
+        border-top: 1px solid var(--f3m-border);
+        margin-top: .4rem;
+        padding: .4rem 0 .75rem;
+        max-height: calc(100vh - 64px);
+        overflow-y: auto;
+    }
+
+        .f3m-navbar .navbar-collapse.show, .f3m-navbar .navbar-collapse.collapsing {
+            display: flex;
+            flex-direction: column;
+        }
+
+    /* Both lists take the full width (on wide screens the second one sits on the right). */
+    .f3m-navbar .navbar-collapse > .navbar-nav {
+        width: 100%;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    .f3m-navbar .navbar-nav .nav-link {
+        padding: .65rem .75rem !important;
+        font-size: .95rem;
+    }
+
+    .f3m-navbar .navbar-nav .btn {
+        width: 100%;
+        margin: .4rem 0 0 !important;
+        padding: .55rem .75rem;
+    }
+
+    /* The version line goes small, last in the menu. */
+    .f3m-nav-version {
+        order: 99;
+        padding: .6rem .75rem 0 !important;
+        margin: 0 !important;
+    }
+
+        .f3m-nav-version h4 {
+            font-family: var(--f3m-font-b);
+            font-size: .75rem;
+            color: var(--f3m-muted);
+        }
 }
 
 .f3m-logo-badge {
