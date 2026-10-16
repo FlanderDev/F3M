@@ -18,7 +18,7 @@ namespace F3M.Server.Services;
 /// </summary>
 public partial class ModsService(
     AppDbContext db, IHttpContextAccessor httpContextAccessor, CatalogService catalog, ModOwnershipService ownership,
-    ILogger<ModsService> logger) : IModsApi
+    TagService tagService, ILogger<ModsService> logger) : IModsApi
 {
     private const int MinSearchLength = 3;
     private const int MaxSearchResults = 50;
@@ -29,7 +29,7 @@ public partial class ModsService(
 
     public async Task<ModListResult> GetMods(
         int page = 1, int pageSize = 18, string? search = null, string? category = null,
-        SortBy sort = SortBy.Newest, CancellationToken ct = default)
+        SortBy sort = SortBy.Newest, string? tags = null, CancellationToken ct = default)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
@@ -43,12 +43,25 @@ public partial class ModsService(
 
         if (!string.IsNullOrWhiteSpace(search))
         {
+            // The name, or a tag (or a tag including the mod's): "texture" finds the mods tagged Textures too.
             var pattern = LikePattern(search.Trim());
-            query = query.Where(m => EF.Functions.Like(m.Name, pattern, "\\"));
+            var matchingTags = await tagService.MatchingTagsAsync(search.Trim(), ct);
+            query = query.Where(m => EF.Functions.Like(m.Name, pattern, "\\")
+                                     || db.ModGroupTags.Any(t => t.ModGroupId == m.ModGroupId && matchingTags.Contains(t.TagId)));
         }
 
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(m => m.Category == category);
+
+        if (!string.IsNullOrWhiteSpace(tags))
+        {
+            var sets = await tagService.FilterSetsAsync(tags.Split(TagRules.ListSeparator), ct);
+            if (sets is null)
+                return new ModListResult { Page = page, PageSize = pageSize };
+
+            foreach (var set in sets)
+                query = query.Where(m => db.ModGroupTags.Any(t => t.ModGroupId == m.ModGroupId && set.Contains(t.TagId)));
+        }
 
         // The id breaks ties (many mods share a download count), so pages never overlap or skip a mod when the
         // browse page appends them one after another.
@@ -65,6 +78,7 @@ public partial class ModsService(
 
         var totalCount = await query.CountAsync(ct);
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        await tagService.FillTagIdsAsync(items, ct);
         return new ModListResult { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize };
     }
 
@@ -75,6 +89,7 @@ public partial class ModsService(
             ?? throw new KeyNotFoundException($"No mod with id {id} was found.");
 
         await ResolveDependenciesAsync([mod], ct);
+        await tagService.FillTagIdsAsync([mod], ct);
         mod.ShippedPaths = await ShippedPathsAsync(mod, ct);
         return mod;
     }
@@ -121,6 +136,7 @@ public partial class ModsService(
             .ToListAsync(ct);
 
         await ResolveDependenciesAsync(versions, ct);
+        await tagService.FillTagIdsAsync(versions, ct);
 
         // The owner's public names, for the profile links on the mod page. An unclaimed import has no owner yet.
         var owner = group.IsUnclaimed
@@ -237,6 +253,10 @@ public partial class ModsService(
         mod.DependencyGroups.Clear();
         mod.DependencyGroups.AddRange(newDependencyGroups);
 
+        // Tags belong to the whole mod. The index the catalog publishes them in is rewritten with the version below.
+        if (dto.TagIds is not null)
+            await tagService.SetGroupTagsAsync(mod.ModGroupId, dto.TagIds, ct);
+
         await RecalculateLatestVersion(db, group?.Id, mod);
         try
         {
@@ -262,6 +282,7 @@ public partial class ModsService(
         // Metadata or optional groups changed, so the published document must be rewritten. Files never change here.
         await catalog.TryPublishVersionAsync(mod.Id, ct);
         await ResolveDependenciesAsync([mod], ct);
+        await tagService.FillTagIdsAsync([mod], ct);
         mod.ShippedPaths = await ShippedPathsAsync(mod, ct);
         return mod;
     }

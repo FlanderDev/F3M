@@ -203,6 +203,7 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
             .ToList();
         result.Searches = Top(StatsRecorder.Metrics.Search, TopSearchCount);
         result.SearchesWithoutResults = Top(StatsRecorder.Metrics.SearchWithoutResults, TopSearchCount);
+        result.TagFilters = Top(StatsRecorder.Metrics.TagFilter, TopSearchCount);
         result.DesktopVersions = Top(StatsRecorder.Metrics.DesktopSync, TopCount);
     }
 

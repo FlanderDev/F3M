@@ -1,0 +1,182 @@
+@* Picks tags from the site's tag list: chips for the picked ones, and a box that suggests tags while typing. Used for
+   the browse filter, a mod's tags, and the inclusions on the admin tag page. *@
+@implements IDisposable
+@inject TagDirectory Directory
+
+<div class="f3m-tag-picker @(open ? "open" : string.Empty) @(Disabled ? "disabled" : string.Empty)">
+    <div class="f3m-tag-picker-control form-control" @onclick="FocusInput">
+        @foreach (var tag in Directory.Resolve(Selected))
+        {
+            <span class="f3m-tag f3m-tag-picked" title="@Tooltip(tag)">
+                @tag.Name
+                @if (!Disabled)
+                {
+                    <button type="button" class="f3m-tag-remove" aria-label="@($"Remove {tag.Name}")"
+                            @onclick="() => RemoveAsync(tag.Id)" @onclick:stopPropagation="true">
+                        <i class="bi bi-x"></i>
+                    </button>
+                }
+            </span>
+        }
+        @if (!Disabled && !IsFull)
+        {
+            <input @ref="input" class="f3m-tag-picker-input" type="text" role="combobox" autocomplete="off"
+                   aria-label="@AriaLabel" aria-expanded="@(open ? "true" : "false")" aria-controls="@listId"
+                   placeholder="@(Selected.Count == 0 ? Placeholder : null)" maxlength="@TagRules.MaxNameLength"
+                   value="@text" @oninput="OnInput" @onkeydown="OnKeyDown" @onfocus="Open" @onblur="Close" />
+        }
+        else if (IsFull && !Disabled)
+        {
+            <span class="f3m-tag-picker-full small">At most @Max</span>
+        }
+    </div>
+
+    @if (open)
+    {
+        var suggestions = Suggestions();
+        <ul class="f3m-tag-picker-list f3m-dropdown-menu" id="@listId" role="listbox">
+            @if (suggestions.Count == 0)
+            {
+                <li class="f3m-tag-picker-empty small">
+                    @(Directory.Tags.Count == 0 ? "There are no tags yet." : EmptyText)
+                </li>
+            }
+            @for (var i = 0; i < suggestions.Count; i++)
+            {
+                var tag = suggestions[i];
+                var index = i;
+                var parents = ParentNames(tag);
+                <li role="option" aria-selected="@(index == highlighted ? "true" : "false")">
+                    @* mousedown, not click: a click would come after the box lost focus and closed the list. *@
+                    <button type="button" class="dropdown-item @(index == highlighted ? "active" : string.Empty)"
+                            @onmousedown="() => PickAsync(tag)" @onmousedown:preventDefault="true">
+                        <span class="fw-semibold">@tag.Name</span>
+                        @if (parents.Length > 0)
+                        {
+                            <span class="f3m-tag-picker-parents small">in @parents</span>
+                        }
+                        @if (ShowCounts)
+                        {
+                            <span class="f3m-tag-picker-count small">@tag.TotalModCount</span>
+                        }
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<int> Selected { get; set; } = [];
+    [Parameter] public EventCallback<List<int>> SelectedChanged { get; set; }
+
+    /// <summary>Which tags may be offered; all when not given. Picked tags are never offered again.</summary>
+    [Parameter] public Func<TagDto, bool>? Offer { get; set; }
+
+    [Parameter] public int Max { get; set; } = int.MaxValue;
+    [Parameter] public string? Placeholder { get; set; } = "Add a tag…";
+    [Parameter] public string? AriaLabel { get; set; } = "Tags";
+    [Parameter] public string EmptyText { get; set; } = "No matching tag.";
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Shows how many mods each suggested tag finds.</summary>
+    [Parameter] public bool ShowCounts { get; set; }
+
+    private const int MaxSuggestions = 40;
+
+    private readonly string listId = $"tag-list-{Guid.NewGuid():N}";
+    private ElementReference input;
+    private string text = string.Empty;
+    private bool open;
+    private int highlighted;
+
+    private bool IsFull => Selected.Count >= Max;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Directory.Changed += OnTagsChanged;
+        await Directory.LoadAsync();
+    }
+
+    private void OnTagsChanged() => InvokeAsync(StateHasChanged);
+
+    /// <summary>Tags whose name contains what was typed; names starting with it first.</summary>
+    private List<TagDto> Suggestions()
+    {
+        var typed = TagRules.Clean(text);
+        return [.. Directory.Tags
+            .Where(t => !Selected.Contains(t.Id) && (Offer?.Invoke(t) ?? true))
+            .Where(t => typed.Length == 0 || t.Name.Contains(typed, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(t => typed.Length > 0 && !t.Name.StartsWith(typed, StringComparison.OrdinalIgnoreCase))
+            .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxSuggestions)];
+    }
+
+    private string ParentNames(TagDto tag) =>
+        string.Join(", ", tag.ParentIds.Select(Directory.Find).OfType<TagDto>().Select(p => p.Name).Order(StringComparer.OrdinalIgnoreCase));
+
+    private string Tooltip(TagDto tag)
+    {
+        var description = tag.Description ?? tag.Name;
+        var ancestors = Directory.AncestorNames(tag.Id);
+        return ancestors.Count == 0 ? description : $"{description} (counts as {string.Join(", ", ancestors)})";
+    }
+
+    private async Task FocusInput()
+    {
+        if (Disabled || IsFull)
+            return;
+        try { await input.FocusAsync(); }
+        catch (InvalidOperationException) { /* not rendered yet */ }
+    }
+
+    private void Open() { open = true; highlighted = 0; }
+
+    private void Close() { open = false; text = string.Empty; }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        text = e.Value?.ToString() ?? string.Empty;
+        open = true;
+        highlighted = 0;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                open = true;
+                highlighted = Math.Min(highlighted + 1, Math.Max(0, Suggestions().Count - 1));
+                break;
+            case "ArrowUp":
+                highlighted = Math.Max(0, highlighted - 1);
+                break;
+            case "Enter":
+                if (open && Suggestions() is { Count: > 0 } list)
+                    await PickAsync(list[Math.Min(highlighted, list.Count - 1)]);
+                break;
+            case "Escape":
+                Close();
+                break;
+            case "Backspace" when text.Length == 0 && Selected.Count > 0:
+                await RemoveAsync(Selected[^1]);
+                break;
+        }
+    }
+
+    private async Task PickAsync(TagDto tag)
+    {
+        if (Selected.Contains(tag.Id) || IsFull)
+            return;
+        text = string.Empty;
+        highlighted = 0;
+        await SelectedChanged.InvokeAsync([.. Selected, tag.Id]);
+        if (Selected.Count + 1 >= Max)
+            open = false;
+    }
+
+    private async Task RemoveAsync(int id) => await SelectedChanged.InvokeAsync([.. Selected.Where(s => s != id)]);
+
+    public void Dispose() => Directory.Changed -= OnTagsChanged;
+}

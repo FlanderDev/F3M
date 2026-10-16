@@ -102,6 +102,12 @@ public class Mod : IId, IName
     /// by ModsService.GetMod so the edit page can show what the optional groups cover.
     /// </summary>
     public List<string> ShippedPaths { get; set; } = [];
+
+    /// <summary>
+    /// The tags of the mod (its group; every version shows the same). NOT persisted on the version (see
+    /// AppDbContext.Ignore); filled from ModGroupTags by ModsService. The pages look the names up in the tag list.
+    /// </summary>
+    public List<int> TagIds { get; set; } = [];
 }
 
 // ── ModFile ───────────────────────────────────────────────────────────────────
@@ -177,6 +183,9 @@ public class ModUploadDto
 
     /// <summary>If set, this upload is a new version of an existing mod group.</summary>
     public int? ModGroupId { get; set; }
+
+    /// <summary>The mod's tags. Only for a new mod: a new version keeps the tags the mod has (change them on the edit page).</summary>
+    public List<int> TagIds { get; set; } = [];
 
     /// <summary>Files the mod creates at runtime that are not part of the archive (plan 5.8).</summary>
     public List<GeneratedPathDto> GeneratedPaths { get; set; } = [];

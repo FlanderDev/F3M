@@ -28,6 +28,10 @@ namespace F3M.Shared.Api;
 [ApiRoute("api/mods", HttpClientName = Configuration.AppName)]
 public interface IModsApi
 {
+    /// <param name="tags">
+    /// Tag names separated by <see cref="Helpers.TagRules.ListSeparator"/>. A mod must have each tag, or a tag it
+    /// includes. A name that is no tag finds nothing.
+    /// </param>
     [Get]
     Task<ModListResult> GetMods(
         [Query] int page = 1,
@@ -35,6 +39,7 @@ public interface IModsApi
         [Query] string? search = null,
         [Query] string? category = null,
         [Query] SortBy sort = SortBy.Newest,
+        [Query] string? tags = null,
         CancellationToken ct = default);
 
     [Get("{id:int}")]

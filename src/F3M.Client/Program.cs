@@ -39,6 +39,8 @@ builder.Services.AddScoped<IF95LinkApi, HttpF95LinkApi>();
 builder.Services.AddScoped<IModsApi, HttpModsApi>();
 builder.Services.AddScoped<IStatsApi, HttpStatsApi>();
 builder.Services.AddScoped<IServerUpdateApi, HttpServerUpdateApi>();
+builder.Services.AddScoped<ITagsApi, HttpTagsApi>();
+builder.Services.AddScoped<TagDirectory>();
 builder.Services.AddScoped<CatalogClient>();
 builder.Services.AddScoped<CollectionStore>();
 

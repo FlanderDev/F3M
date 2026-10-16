@@ -1,5 +1,6 @@
 using F3M.Shared;
 using F3M.Shared.Api;
+using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -19,6 +20,17 @@ public partial class Index
     private IEnumerable<string> CategoryOptions => categories.Prepend(CategoryAll);
     private string searchTerm = string.Empty;
     private SortBy sortBy = SortBy.Newest;
+
+    // The tag filter: a mod must have each of these tags, or a tag it includes. Kept in the address (?tags=a,b), so a
+    // filtered list can be shared and the tag chips on the cards can link to it.
+    private List<int> selectedTags = [];
+
+    [SupplyParameterFromQuery(Name = "tags")]
+    public string? TagsQuery { get; set; }
+
+    // The first batch is loaded after the first render (it needs the screen size); until then a changed address only
+    // sets the filter.
+    private bool firstLoadStarted;
     private System.Timers.Timer? _debounce;
 
     private static readonly TimeSpan SearchSettleTime = TimeSpan.FromSeconds(2.5);
@@ -52,6 +64,38 @@ public partial class Index
         categories = [.. F3M.Shared.Helpers.Categories.OthersLast(Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()))];
     }
 
+    protected override async Task OnParametersSetAsync()
+    {
+        await Tags.LoadAsync();
+
+        // Names that are no tag (any more) are dropped.
+        List<int> fromAddress = [.. (TagsQuery ?? string.Empty)
+            .Split(TagRules.ListSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(Tags.Find).OfType<TagDto>().Select(t => t.Id).Distinct()];
+        if (fromAddress.SequenceEqual(selectedTags))
+            return;
+
+        selectedTags = fromAddress;
+        if (firstLoadStarted)
+            await LoadMods();
+    }
+
+    private async Task OnTagsPicked(List<int> tags)
+    {
+        selectedTags = tags;
+        // The address follows; OnParametersSetAsync then finds nothing changed.
+        Navigation.NavigateTo(BrowseAddress(), replace: true);
+        await LoadMods();
+    }
+
+    private string BrowseAddress()
+    {
+        var names = SelectedTagNames();
+        return Navigation.GetUriWithQueryParameter("tags", names.Count > 0 ? string.Join(TagRules.ListSeparator, names) : null);
+    }
+
+    private List<string> SelectedTagNames() => [.. selectedTags.Select(Tags.Find).OfType<TagDto>().Select(t => t.Name)];
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
@@ -68,6 +112,7 @@ public partial class Index
             // Measuring failed; the default batch size works too.
         }
 
+        firstLoadStarted = true;
         await LoadMods();
 
         try
@@ -113,7 +158,7 @@ public partial class Index
         loading = false;
         StateHasChanged();
 
-        if (searchTerm.Trim().Length >= 3 && selectedCategory == CategoryAll)
+        if (searchTerm.Trim().Length >= 3 && selectedCategory == CategoryAll && selectedTags.Count == 0)
             _ = ReportSearchLaterAsync(current, searchTerm.Trim(), totalCount);
 
         // The new list may end on the screen already (few results, or the page was scrolled down).
@@ -165,13 +210,15 @@ public partial class Index
     private Task<ModListResult> FetchPage(int page)
     {
         var specificCategory = selectedCategory == CategoryAll ? null : selectedCategory;
-        return ModsApi.GetMods(page, batchSize, searchTerm, specificCategory, sortBy);
+        var names = SelectedTagNames();
+        var tags = names.Count > 0 ? string.Join(TagRules.ListSeparator, names) : null;
+        return ModsApi.GetMods(page, batchSize, searchTerm, specificCategory, sortBy, tags);
     }
 
     /// <summary>
     /// Counts a search for the statistics page once its results have stayed on screen for a moment, so the words typed
-    /// on the way ("tex", "text", ...) don't count. Searches within one category are left out: "no results" there
-    /// says little about what the site is missing.
+    /// on the way ("tex", "text", ...) don't count. Searches within one category or tag are left out: "no results"
+    /// there says little about what the site is missing.
     /// </summary>
     private async Task ReportSearchLaterAsync(int current, string term, int results)
     {
@@ -219,7 +266,18 @@ public partial class Index
     };
 
     private async Task SelectCategory(string cat) { selectedCategory = cat; await LoadMods(); }
-    private async Task ClearFilters() { searchTerm = string.Empty; selectedCategory = CategoryAll; sortBy = SortBy.Newest; await LoadMods(); }
+    private async Task ClearFilters()
+    {
+        searchTerm = string.Empty;
+        selectedCategory = CategoryAll;
+        sortBy = SortBy.Newest;
+        if (selectedTags.Count > 0)
+        {
+            selectedTags = [];
+            Navigation.NavigateTo(BrowseAddress(), replace: true);
+        }
+        await LoadMods();
+    }
 
     public async ValueTask DisposeAsync()
     {

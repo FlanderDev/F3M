@@ -365,6 +365,8 @@ else
                     <div class="mb-4"></div>
                 }
 
+                <TagChips TagIds="selectedVersion.TagIds" Class="mb-4" />
+
                 <h6 class="fw-bold mb-2">Description</h6>
                 <div>@((MarkupString)HelperExtensions.SanatizeMarkdownToHtml(selectedVersion.Description))</div>
 

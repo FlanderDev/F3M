@@ -73,6 +73,16 @@
                     </div>
                 </div>
 
+                <!-- Tags -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Tags</label>
+                    <TagPicker Selected="dto.TagIds ?? []" SelectedChanged="tags => dto.TagIds = tags" Max="TagRules.MaxTagsPerMod"
+                               Placeholder="Pick tags that describe the mod…" />
+                    <div class="form-text small">
+                        Up to @TagRules.MaxTagsPerMod, for the whole mod: every version shows them. Missing a tag? Ask an admin to add it.
+                    </div>
+                </div>
+
                 <!-- Description -->
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Description <span class="text-danger">*</span></label>

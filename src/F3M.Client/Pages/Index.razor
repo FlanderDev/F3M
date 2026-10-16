@@ -6,6 +6,8 @@
 @inject IModsApi ModsApi
 @inject ITelemetryApi Telemetry
 @inject IJSRuntime JS
+@inject TagDirectory Tags
+@inject NavigationManager Navigation
 @implements IAsyncDisposable
 
 <PageTitle>F3M - Browse</PageTitle>
@@ -64,6 +66,14 @@
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
+            @if (Tags.Tags.Count > 0)
+            {
+                @* A mod must have every picked tag (or a tag it includes). *@
+                <div class="col-12">
+                    <TagPicker Selected="selectedTags" SelectedChanged="OnTagsPicked" ShowCounts="true"
+                               Placeholder="Filter by tags…" AriaLabel="Filter by tags" />
+                </div>
+            }
         </div>
 
         <!-- Category chips -->

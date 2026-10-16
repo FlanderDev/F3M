@@ -1,0 +1,248 @@
+@page "/admin/tags"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject ITagsApi Api
+@inject TagDirectory Directory
+
+<PageTitle>F3M - Tags</PageTitle>
+
+<div class="container py-5" style="max-width:1200px;">
+    <a href="/admin" class="small d-inline-flex align-items-center gap-1 mb-3">
+        <i class="bi bi-arrow-left"></i> Admin Panel
+    </a>
+
+    <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+        <div style="max-width:720px;">
+            <h1 class="fw-black mb-1 fs-2">
+                <i class="bi bi-tags-fill text-warning me-2"></i>Tags
+            </h1>
+            <p class="small mb-0">
+                Uploaders pick from these tags, and visitors filter the browse page by them. A tag can include others,
+                which are kinds of it: a filter by <em>Clothing</em> also finds mods tagged <em>Lingerie</em> when
+                Clothing includes Lingerie.
+            </p>
+        </div>
+        <button type="button" class="btn btn-warning fw-bold" @onclick="StartNew">
+            <i class="bi bi-plus-lg me-1"></i>New tag
+        </button>
+    </div>
+
+    @if (loadError is not null)
+    {
+        <div class="alert alert-danger small">@loadError</div>
+    }
+
+    <div class="row g-4">
+        <!-- The tags -->
+        <div class="col-lg-6">
+            <div class="f3m-surface rounded-3 border p-3" style="border-color:var(--f3m-border);">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <div class="input-group flex-grow-1" style="min-width:200px;flex-basis:0;">
+                        <span class="input-group-text f3m-search-icon"><i class="bi bi-search"></i></span>
+                        <input class="form-control f3m-search-input" type="search" placeholder="Search tags…" aria-label="Search tags"
+                               @bind="search" @bind:event="oninput" />
+                    </div>
+                    <div class="d-flex gap-2" role="group" aria-label="View">
+                        <button type="button" class="f3m-chip @(treeView ? string.Empty : "active")" aria-pressed="@(treeView ? "false" : "true")"
+                                @onclick="() => treeView = false">List</button>
+                        <button type="button" class="f3m-chip @(treeView ? "active" : string.Empty)" aria-pressed="@(treeView ? "true" : "false")"
+                                @onclick="() => treeView = true">Tree</button>
+                    </div>
+                </div>
+
+                @if (loading)
+                {
+                    <div class="text-center py-4"><span class="spinner-border spinner-border-sm text-warning"></span></div>
+                }
+                else if (Directory.Tags.Count == 0)
+                {
+                    <p class="small mb-0 py-3 text-center">No tags yet. Create the first one with <strong>New tag</strong>.</p>
+                }
+                else if (Rows().ToList() is { Count: 0 })
+                {
+                    <p class="small mb-0 py-3 text-center">No tag matches "@search".</p>
+                }
+                else
+                {
+                    <ul class="f3m-tag-admin-list list-unstyled mb-0">
+                        @foreach (var (tag, depth, repeated) in Rows())
+                        {
+                            var current = tag.Id == editingId;
+                            <li>
+                                <button type="button" class="f3m-tag-admin-row @(current ? "active" : string.Empty)"
+                                        style="padding-left:@(0.75 + depth * 1.25)rem;" aria-current="@(current ? "true" : null)"
+                                        @onclick="() => Edit(tag)">
+                                    <span class="f3m-tag-admin-name">
+                                        @if (treeView && depth > 0)
+                                        {
+                                            <i class="bi bi-arrow-return-right f3m-tag-admin-branch"></i>
+                                        }
+                                        <span class="fw-semibold">@tag.Name</span>
+                                        @if (repeated)
+                                        {
+                                            <span class="f3m-tag-admin-note small" title="This tag is included by several tags, so it shows under each of them.">also elsewhere</span>
+                                        }
+                                        @if (!treeView && tag.ParentIds.Count > 0)
+                                        {
+                                            <span class="f3m-tag-admin-note small">in @NamesOf(tag.ParentIds)</span>
+                                        }
+                                    </span>
+                                    <span class="f3m-tag-admin-count small" title="Mods tagged with it / found by a filter by it (with the tags it includes)">
+                                        @tag.ModCount@(tag.TotalModCount != tag.ModCount ? $" / {tag.TotalModCount}" : string.Empty)
+                                        <i class="bi bi-box-seam ms-1"></i>
+                                    </span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <!-- The editor -->
+        <div class="col-lg-6">
+            @if (editing is null)
+            {
+                <div class="f3m-surface rounded-3 border p-4 text-center small" style="border-color:var(--f3m-border);">
+                    <i class="bi bi-tag fs-3 d-block mb-2 opacity-50"></i>
+                    Pick a tag to change it, or create a new one.
+                </div>
+            }
+            else
+            {
+                var working = WorkingGraph();
+                var problem = Problem(working);
+                <div class="f3m-surface rounded-3 border p-4 f3m-tag-editor" style="border-color:var(--f3m-border);">
+                    <h2 class="fs-5 fw-bold mb-3">
+                        @(editingId == NewId ? "New tag" : $"Tag: {Original?.Name}")
+                    </h2>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small" for="tag-name">Name <span class="text-danger">*</span></label>
+                        <input id="tag-name" class="form-control f3m-input" maxlength="@TagRules.MaxNameLength" @bind="editing.Name" @bind:event="oninput" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small" for="tag-description">Description</label>
+                        <textarea id="tag-description" class="form-control f3m-input" rows="2" maxlength="@TagRules.MaxDescriptionLength"
+                                  placeholder="Shown when pointing at the tag. Optional." @bind="editing.Description" @bind:event="oninput"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Includes <span class="fw-normal">(kinds of this tag)</span></label>
+                        @* Tags above this one aren't offered: including them would make a loop. *@
+                        <TagPicker Selected="editing.IncludesIds" SelectedChanged="ids => editing.IncludesIds = ids"
+                                   Offer="t => CanInclude(working, t.Id)" AriaLabel="Tags this tag includes"
+                                   Placeholder="Add a tag this one includes…" EmptyText="No matching tag can go under this one." />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Included in <span class="fw-normal">(this tag is a kind of)</span></label>
+                        <TagPicker Selected="editing.IncludedInIds" SelectedChanged="ids => editing.IncludedInIds = ids"
+                                   Offer="t => CanBeIncludedIn(working, t.Id)" AriaLabel="Tags that include this tag"
+                                   Placeholder="Add a tag that includes this one…" EmptyText="No matching tag can go above this one." />
+                    </div>
+
+                    @if (problem is not null)
+                    {
+                        <div class="alert alert-danger small py-2"><i class="bi bi-x-octagon-fill me-2"></i>@problem</div>
+                    }
+                    @foreach (var warning in Redundant(working))
+                    {
+                        <div class="alert alert-warning small py-2"><i class="bi bi-info-circle-fill me-2"></i>@warning</div>
+                    }
+
+                    @if (problem is null)
+                    {
+                        var below = Below(working);
+                        var above = Above(working);
+                        <div class="f3m-tag-preview small mb-3">
+                            <div>
+                                <span class="fw-semibold">A filter by it also finds mods tagged:</span>
+                                @(below.Count > 0 ? string.Join(", ", below) : "nothing else")
+                            </div>
+                            <div>
+                                <span class="fw-semibold">Mods tagged with it also count as:</span>
+                                @(above.Count > 0 ? string.Join(", ", above) : "nothing else")
+                            </div>
+                        </div>
+                    }
+
+                    @if (saveError is not null)
+                    {
+                        <div class="alert alert-danger small py-2">@saveError</div>
+                    }
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-warning fw-bold" @onclick="SaveAsync" disabled="@(busy || problem is not null)">
+                            @if (busy)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            @(editingId == NewId ? "Create tag" : "Save")
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="Cancel" disabled="@busy">Cancel</button>
+                    </div>
+
+                    @if (Original is { } original)
+                    {
+                        <hr class="my-4" style="border-color:var(--f3m-border);" />
+
+                        <!-- Merge -->
+                        <h3 class="fs-6 fw-bold mb-1">Merge into another tag</h3>
+                        <p class="small mb-2">
+                            For duplicates and typos: the other tag takes over this one's mods and inclusions, and this
+                            one is deleted.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 align-items-start mb-2">
+                            <div class="flex-grow-1" style="min-width:200px;">
+                                <TagPicker Selected="mergeTarget" SelectedChanged="ids => { mergeTarget = ids; confirmMerge = false; }" Max="1"
+                                           Offer="t => t.Id != original.Id" AriaLabel="Tag to merge into" Placeholder="Tag to merge into…" />
+                            </div>
+                            @if (!confirmMerge)
+                            {
+                                <button type="button" class="btn btn-outline-warning" disabled="@(busy || mergeTarget.Count == 0)" @onclick="() => confirmMerge = true">
+                                    Merge…
+                                </button>
+                            }
+                        </div>
+                        @if (confirmMerge && mergeTarget.Count == 1 && Directory.Find(mergeTarget[0]) is { } target)
+                        {
+                            <div class="alert alert-warning small">
+                                Merge <strong>@original.Name</strong> into <strong>@target.Name</strong>? @MergeSummary(original, target)
+                                <div class="d-flex gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-warning fw-bold" disabled="@busy" @onclick="MergeAsync">Merge</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => confirmMerge = false">Cancel</button>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Delete -->
+                        <h3 class="fs-6 fw-bold mb-1 mt-4">Delete</h3>
+                        @if (!confirmDelete)
+                        {
+                            <p class="small mb-2">Removes the tag from every mod. The tags it includes stay.</p>
+                            <button type="button" class="btn btn-outline-danger" disabled="@busy" @onclick="() => confirmDelete = true">
+                                <i class="bi bi-trash me-1"></i>Delete…
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="alert alert-danger small">
+                                Delete <strong>@original.Name</strong>? @DeleteSummary(original)
+                                <div class="d-flex gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-danger fw-bold" disabled="@busy" @onclick="DeleteAsync">Delete</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => confirmDelete = false">Cancel</button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+
+            @if (notice is not null)
+            {
+                <div class="alert alert-success small mt-3"><i class="bi bi-check-circle-fill me-2"></i>@notice</div>
+            }
+        </div>
+    </div>
+</div>

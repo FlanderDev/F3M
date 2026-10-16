@@ -46,6 +46,9 @@ public class ModEditDto
     /// send everything that should remain, not just additions/removals.</summary>
     public List<int> DependencyGroupIds { get; set; } = [];
 
+    /// <summary>The mod's tags, replacing the current ones; they belong to the mod, so every version shows them. Null leaves them as they are.</summary>
+    public List<int>? TagIds { get; set; }
+
     /// <summary>The version's optional groups, replacing the current ones; null leaves them as they are.</summary>
     public List<OptionalGroupDto>? OptionalGroups { get; set; }
 

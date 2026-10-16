@@ -278,6 +278,11 @@
                         <CountTable Items="s.SearchesWithoutResults" Header="Search" EmptyText="Every search found something." />
                     </ChartCard>
                 </div>
+                <div class="col-lg-6">
+                    <ChartCard Title="Top tag filters" Subtitle="The tags people filtered the browse page by">
+                        <CountTable Items="s.TagFilters" Header="Tag" EmptyText="Nobody filtered by a tag in this period yet." />
+                    </ChartCard>
+                </div>
             </div>
         </div>
     }

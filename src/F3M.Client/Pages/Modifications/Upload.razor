@@ -73,6 +73,24 @@
                     </div>
                 </div>
 
+                <!-- Tags -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Tags</label>
+                    @* Tags belong to the mod; a new version keeps them (they are changed on the edit page). *@
+                    <TagPicker @bind-Selected="dto.TagIds" Max="TagRules.MaxTagsPerMod" Disabled="IsNewVersion"
+                               Placeholder="Pick tags that describe the mod…" />
+                    <div class="form-text small">
+                        @if (IsNewVersion)
+                        {
+                            <text>A new version keeps the mod's tags. Change them on the mod's edit page.</text>
+                        }
+                        else
+                        {
+                            <text>Up to @TagRules.MaxTagsPerMod. Missing a tag? Ask an admin to add it.</text>
+                        }
+                    </div>
+                </div>
+
                 <!-- Description -->
                 <div class="mb-3">
                     <label class="form-label fw-semibold small">Description <span class="text-danger">*</span></label>

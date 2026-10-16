@@ -33,6 +33,9 @@ public sealed class SiteStats
 
     public List<NamedCount> Searches { get; set; } = [];
     public List<NamedCount> SearchesWithoutResults { get; set; } = [];
+
+    /// <summary>The tags people filtered the browse page by (names as filtered, in lower case).</summary>
+    public List<NamedCount> TagFilters { get; set; } = [];
     public List<NamedCount> DesktopVersions { get; set; } = [];
 
     public VerificationStats Verifications { get; set; } = new();

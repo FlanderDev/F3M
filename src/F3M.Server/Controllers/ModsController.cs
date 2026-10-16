@@ -24,12 +24,29 @@ namespace F3M.Server.Controllers;
 /// JSON-only. A controller can freely mix generated-base overrides with its own additional
 /// actions like this; it doesn't have to be all-or-nothing.
 /// </summary>
-public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadService uploader, StatsRecorder stats, ILogger<ModsController> logger)
+public sealed class ModsController(
+    AppDbContext db, IModsApi modsApi, ModUploadService uploader, TagService tagService, StatsRecorder stats, ILogger<ModsController> logger)
     : ModsApiControllerBase
 {
     public override async Task<ActionResult<ModListResult>> GetMods(
-        int page, int pageSize, string? search, string? category, SortBy sort, CancellationToken ct)
-        => Ok(await modsApi.GetMods(page, pageSize, search, category, sort, ct));
+        int page, int pageSize, string? search, string? category, SortBy sort, string? tags, CancellationToken ct)
+    {
+        var result = await modsApi.GetMods(page, pageSize, search, category, sort, tags, ct);
+
+        // For the statistics page: which tags people filter by. Only the first page, which every new filter loads once,
+        // and only names that are tags, so made-up requests can't fill the table.
+        if (page <= 1 && !string.IsNullOrWhiteSpace(tags))
+        {
+            var names = tags.Split(TagRules.ListSeparator);
+            if (await tagService.FilterSetsAsync(names, ct) is not null)
+            {
+                foreach (var tag in names.Select(StatsRecorder.NormalizeKey).Where(t => t.Length > 0).Distinct())
+                    stats.Count(StatsRecorder.Metrics.TagFilter, tag);
+            }
+        }
+
+        return Ok(result);
+    }
 
     public override async Task<ActionResult<Mod>> GetMod(int id, CancellationToken ct)
     {

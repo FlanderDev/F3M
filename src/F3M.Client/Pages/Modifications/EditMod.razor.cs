@@ -121,7 +121,8 @@ public partial class EditMod
                 Description = mod.Description,
                 Version = mod.Version,
                 Category = mod.Category,
-                DependencyGroupIds = [.. mod.Dependencies.Select(d => d.ModGroupId)]
+                DependencyGroupIds = [.. mod.Dependencies.Select(d => d.ModGroupId)],
+                TagIds = [.. mod.TagIds]
             };
             selectedDependencyItems = [.. mod.Dependencies.Select(d => new MultiSelectDropdown<Mod>.InternalItem(d, false))];
             ShowSaved(mod);

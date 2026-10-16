@@ -225,6 +225,7 @@ public partial class Upload
         {
             dto.Name = existingMod.Name;
             dto.Category = existingMod.Category;
+            dto.TagIds = [.. existingMod.TagIds];
             dto.Description = existingMod.Description;
             dto.ModGroupId = groupId;
 
@@ -272,6 +273,12 @@ public partial class Upload
 
             foreach (var depGroupId in dto.DependencyGroupIds)
                 content.Add(new StringContent(depGroupId.ToString()), nameof(ModUploadDto.DependencyGroupIds));
+
+            if (!dto.ModGroupId.HasValue)
+            {
+                foreach (var tagId in dto.TagIds)
+                    content.Add(new StringContent(tagId.ToString()), nameof(ModUploadDto.TagIds));
+            }
 
             if (imageBytes is not null)
             {
