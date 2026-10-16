@@ -30,6 +30,10 @@ builder.Services.AddScoped<CatalogService>();
 Directory.CreateDirectory(Assets.Files);
 Directory.CreateDirectory(Assets.Images);
 
+// Where the admin page and the host's update service (admin-updates.sh) leave each other requests and reports. Made
+// here, by the app's user, so the app can always write its requests into it.
+Directory.CreateDirectory(ServerUpdateService.ExchangeDirectory);
+
 var catalogOptions = builder.Configuration.GetSection(CatalogOptions.SectionName).Get<CatalogOptions>() ?? new CatalogOptions();
 Directory.CreateDirectory(catalogOptions.Directory);
 
@@ -91,6 +95,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IProfileApi, ProfileService>();
 builder.Services.AddScoped<IAdminApi, AdminService>();
 builder.Services.AddScoped<IStatsApi, StatsService>();
+builder.Services.AddScoped<IServerUpdateApi, ServerUpdateService>();
 builder.Services.AddScoped<IF95LinkApi, F95LinkService>();
 builder.Services.AddScoped<IModsApi, ModsService>();
 builder.Services.AddScoped<ModUploadService>();

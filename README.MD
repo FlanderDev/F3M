@@ -113,7 +113,8 @@ F3M/
 ├── setup.sh                # Interactive server setup: writes .env, builds and starts the container
 ├── backup.sh               # Backs up the server's data and .env, or restores a backup
 ├── update.sh               # Pulls the newest code, rebuilds and restarts the server
-├── scripts/                # Helpers shared by the three scripts
+├── admin-updates.sh        # Installs or removes the service that lets the admin page run update.sh
+├── scripts/                # Helpers shared by the scripts, and the update service's runner
 └── .env.example            # Every setting the container needs
 ```
 
@@ -232,6 +233,17 @@ docker compose up --build -d
 The import's downloads are left out unless `--with-downloads` is given; they can be downloaded again. Making a backup asks nothing, so it can run from cron (`0 4 * * * /path/to/F3M/backup.sh --keep 14`). `./backup.sh --help` lists every option.
 
 `./update.sh` fetches the branch's newest commits, offers a backup, rebuilds and restarts the container, and waits until it is healthy. If the new version doesn't start, it prints how to go back to the previous one. `--yes` asks nothing, makes the backup, and only rebuilds when there is something new.
+
+#### Updating from the admin page
+
+`./admin-updates.sh` installs a small systemd service on the host (it asks for sudo), after which the admin page shows the running version, the new commits waiting on the branch, and an **Update now** button. The page only leaves a request in the storage volume; the service runs `./update.sh --yes` on the host (backup, newest code, rebuild, restart) as the owner of the F3M folder, and reports its progress and log back to the page. It also looks for new commits every 6 hours. The container gets no access to Docker or the host.
+
+```bash
+./admin-updates.sh           # shows the status and asks: install, reinstall or remove
+./admin-updates.sh install   # or remove, or status, without questions
+```
+
+Reinstall it after moving the F3M folder. `journalctl -u f3m-admin-update.service` shows what the service did.
 
 ### Without Docker
 

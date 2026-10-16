@@ -2132,3 +2132,29 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
     opacity: .55;
     transition: opacity .2s;
 }
+
+/* ── Admin: server update ───────────────────────────────── */
+.f3m-update-log, .f3m-update-command {
+    background: var(--f3m-bg);
+    border: 1px solid var(--f3m-border);
+    border-radius: 8px;
+    padding: .6rem .75rem;
+    color: var(--f3m-text);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: .75rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.f3m-update-log {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.f3m-update-commits li {
+    padding: .15rem 0;
+}
+
+.f3m-update-commits code {
+    color: var(--f3m-amber);
+}
