@@ -3,6 +3,8 @@
 @inject IAccountManagement Acct
 @inject ITelemetryApi Telemetry
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
+@implements IDisposable
 
 
 <div class="f3m-wrapper">
@@ -29,7 +31,7 @@
                         </NavLink>
                     </li>
                 </ul>
-                <div class="container col">
+                <div class="container col f3m-nav-version">
                     <h4 class="my-0">@Configuration.HeaderDisclaimer</h4>
                 </div>
                 <ul class="navbar-nav gap-1 ms-auto">
@@ -85,6 +87,23 @@
 </div>
 
 @code {
+    // Blazor changes pages without loading one, so the menu opened on a small screen would stay open over the new page.
+    protected override void OnInitialized() => Navigation.LocationChanged += CloseMenu;
+
+    private async void CloseMenu(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("f3m.closeNavMenu");
+        }
+        catch (JSException)
+        {
+            // An outdated f3m.js: the menu just stays open.
+        }
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= CloseMenu;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)

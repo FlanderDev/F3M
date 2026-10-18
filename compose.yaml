@@ -4,6 +4,9 @@ services:
     build:
       context: .
       target: final
+      args:
+        # The commit being built, set by setup.sh and update.sh; the admin page shows it as the running version.
+        SOURCE_COMMIT: ${F3M_SOURCE_COMMIT:-}
     # Starts again after a crash or a reboot of the host, until stopped with "docker compose down" or "stop".
     restart: unless-stopped
     ports:

@@ -140,6 +140,14 @@ window.f3m = {
         }
     },
 
+    /** Closes the navigation menu when it is open (small screens), after the visitor picked a page in it. */
+    closeNavMenu: function () {
+        const menu = document.getElementById('navMenu');
+        if (menu && menu.classList.contains('show') && window.bootstrap) {
+            window.bootstrap.Collapse.getOrCreateInstance(menu, { toggle: false }).hide();
+        }
+    },
+
     /** Reads a value from localStorage. Returns null when storage is blocked or empty. */
     getItem: function (key) {
         try { return window.localStorage.getItem(key); } catch { return null; }

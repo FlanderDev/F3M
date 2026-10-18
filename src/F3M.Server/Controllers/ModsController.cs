@@ -24,12 +24,29 @@ namespace F3M.Server.Controllers;
 /// JSON-only. A controller can freely mix generated-base overrides with its own additional
 /// actions like this; it doesn't have to be all-or-nothing.
 /// </summary>
-public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadService uploader, StatsRecorder stats, ILogger<ModsController> logger)
+public sealed class ModsController(
+    AppDbContext db, IModsApi modsApi, ModUploadService uploader, TagService tagService, StatsRecorder stats, ILogger<ModsController> logger)
     : ModsApiControllerBase
 {
     public override async Task<ActionResult<ModListResult>> GetMods(
-        int page, int pageSize, string? search, string? category, SortBy sort, CancellationToken ct)
-        => Ok(await modsApi.GetMods(page, pageSize, search, category, sort, ct));
+        int page, int pageSize, string? search, SortBy sort, string? tags, CancellationToken ct)
+    {
+        var result = await modsApi.GetMods(page, pageSize, search, sort, tags, ct);
+
+        // For the statistics page: which tags people filter by. Only the first page, which every new filter loads once,
+        // and only names that are tags, so made-up requests can't fill the table.
+        if (page <= 1 && !string.IsNullOrWhiteSpace(tags))
+        {
+            var names = tags.Split(TagRules.ListSeparator);
+            if (await tagService.FilterSetsAsync(names, ct) is not null)
+            {
+                foreach (var tag in names.Select(StatsRecorder.NormalizeKey).Where(t => t.Length > 0).Distinct())
+                    stats.Count(StatsRecorder.Metrics.TagFilter, tag);
+            }
+        }
+
+        return Ok(result);
+    }
 
     public override async Task<ActionResult<Mod>> GetMod(int id, CancellationToken ct)
     {
@@ -57,8 +74,6 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
             return NotFound(ex.Message);
         }
     }
-
-    public override async Task<ActionResult<List<string>>> GetCategories(CancellationToken ct) => Ok(await modsApi.GetCategories(ct));
 
     public override async Task<ActionResult> DownloadFile([FromRoute] int id, [FromRoute] int fileId, CancellationToken ct = default)
     {
@@ -184,7 +199,7 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
 
     // ── Upload: new mod OR new version ────────────────────────────────────────
     // Form fields:
-    //   Name, Description, Version, Category, ModGroupId (optional)
+    //   Name, Description, Version, ModGroupId (optional), TagIds[] (optional, a new mod's tags)
     //   GeneratedPaths[i].Pattern and GeneratedPaths[i].Kind (optional, plan 5.8)
     //   OptionalGroups[i].Name and OptionalGroups[i].Patterns[j] (optional): parts the mod does not need
     //   previewImage (optional IFormFile)
@@ -216,6 +231,10 @@ public sealed class ModsController(AppDbContext db, IModsApi modsApi, ModUploadS
             return BadRequest("User ID not found.");
 
         var owner = new UploadOwner(userId.Value, User.FindFirstValue(ClaimTypes.Name) ?? "unknown");
+
+        // The type (tag and catalog category) comes from the files' types. Only the importer may name one for files
+        // without a type; from the website that would be a type the files don't have.
+        dto.Category = ModUploadDto.UnspecifiedCategory;
         var uploadFiles = UploadFile.FromForm(files, originalNames, installPaths, archiveRoots, templates);
 
         var result = await uploader.UploadAsync(dto, uploadFiles, previewImage, owner, ct: ct);

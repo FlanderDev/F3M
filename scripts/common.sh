@@ -1,4 +1,4 @@
-# Shared by setup.sh, update.sh and backup.sh in the project root. Not meant to be run on its own.
+# Shared by setup.sh, update.sh, backup.sh and admin-updates.sh in the project root. Not meant to be run on its own.
 # shellcheck shell=bash
 
 ENV_FILE=".env"
@@ -53,6 +53,14 @@ require_docker() {
     fi
 
     docker info >/dev/null 2>&1 || fail "Docker is not running, or this user may not use it (try sudo, or add the user to the docker group)."
+}
+
+# Builds the image from the checked-out code and (re)starts the container. The commit is baked into the image, so the
+# admin page can show which version runs.
+build_and_start() {
+    F3M_SOURCE_COMMIT=$(git rev-parse HEAD 2>/dev/null || true)
+    export F3M_SOURCE_COMMIT
+    "${COMPOSE[@]}" up --build -d
 }
 
 # The server's container id; empty when it does not exist.

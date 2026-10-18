@@ -178,6 +178,28 @@ public sealed class CatalogService(
         }
     }
 
+    /// <summary>
+    /// Rewrites only the index, logging instead of throwing: for changes that touch no version document, such as the
+    /// tags (they are published in the index alone, since they belong to a mod and not to one of its versions).
+    /// </summary>
+    public async Task TryRefreshIndexAsync(CancellationToken ct = default)
+    {
+        await Gate.WaitAsync(ct);
+        try
+        {
+            using var key = LoadKey();
+            await WriteIndexAsync(key, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Rewriting the catalog index failed. Run the catalog rebuild to repair it.");
+        }
+        finally
+        {
+            Gate.Release();
+        }
+    }
+
     /// <summary>Removal counterpart of <see cref="TryPublishVersionAsync"/>.</summary>
     public async Task TryRemoveVersionAsync(int groupId, int versionId, CancellationToken ct = default)
     {
@@ -325,6 +347,20 @@ public sealed class CatalogService(
                 select new { GroupId = g.Id, m.Name, g.Author, m.Category, VersionId = m.Id, m.Version, m.UploadedAt, m.PreviewImageName })
             .ToListAsync(ct);
 
+        // Tags belong to the mod, so they are published here and not in the version documents.
+        var tags = await db.Tags.AsNoTracking().Select(t => new { t.Id, t.Name }).ToListAsync(ct);
+        var tagNames = tags.ToDictionary(t => t.Id, t => t.Name);
+        var inclusions = await db.TagInclusions.AsNoTracking().ToListAsync(ct);
+        var tagsByGroup = (await db.ModGroupTags.AsNoTracking().ToListAsync(ct))
+            .Where(t => tagNames.ContainsKey(t.TagId))
+            .GroupBy(t => t.ModGroupId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)[.. g.Select(t => tagNames[t.TagId]).Order(StringComparer.OrdinalIgnoreCase)]);
+        var tagTree = tags
+            .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(t => new TagRef(t.Name, [.. inclusions.Where(i => i.ParentId == t.Id && tagNames.ContainsKey(i.ChildId))
+                .Select(i => tagNames[i.ChildId]).Order(StringComparer.OrdinalIgnoreCase)]))
+            .ToList();
+
         var groups = rows
             .OrderBy(r => r.GroupId)
             .Select(r => new IndexGroup(
@@ -335,10 +371,11 @@ public sealed class CatalogService(
                 r.VersionId,
                 r.Version,
                 Utc(r.UploadedAt),
-                PreviewUrl(r.PreviewImageName)))
+                PreviewUrl(r.PreviewImageName),
+                tagsByGroup.GetValueOrDefault(r.GroupId) ?? []))
             .ToList();
 
-        await WriteSignedAsync(Path.Combine(_opts.Directory, "index.json"), new IndexDocument(SchemaVersion, DateTime.UtcNow, groups), key, ct);
+        await WriteSignedAsync(Path.Combine(_opts.Directory, "index.json"), new IndexDocument(SchemaVersion, DateTime.UtcNow, groups, tagTree), key, ct);
     }
 
     // ── Backfill and cleanup ────────────────────────────────────────────────

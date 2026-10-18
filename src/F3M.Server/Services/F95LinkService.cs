@@ -137,6 +137,19 @@ public class F95LinkService(
         {
             page = await f95.GetProfilePageAsync(verification.F95Username, f95UserId, ct);
         }
+        catch (ProfileHiddenException)
+        {
+            // Not the user's mistake in the form, and easy to fix: the verification stays open for the next try.
+            logger.LogInformation("Verification {Id}: {Username} hides their F95zone profile from other members.",
+                verification.Id, verification.F95Username);
+            return new LinkF95PollResponse
+            {
+                Status = VerificationState.Pending,
+                ProfileHidden = true,
+                Message = "Your F95zone profile is hidden from other members, so your post can't be seen. Allow members to view " +
+                          "the details on your profile page in your F95zone privacy settings, then try again."
+            };
+        }
         catch (ProfileMismatchException ex)
         {
             logger.LogWarning("Verification {Id}: {Url} leads to {Name}.{UserId}.", verification.Id,

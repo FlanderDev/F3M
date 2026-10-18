@@ -23,6 +23,9 @@ public partial class LinkAccount
     private bool copied;
     private string? error;
     private string? pendingMessage;
+
+    // The last check found the F95zone profile hidden from other members (its privacy settings).
+    private bool profileHidden;
     private bool usernameTaken;
     private string? refusedName;
 
@@ -85,6 +88,7 @@ public partial class LinkAccount
             return;
 
         error = null;
+        profileHidden = false;
         loading = true;
         try
         {
@@ -100,6 +104,11 @@ public partial class LinkAccount
                     // profile page is [Authorize]d and waits for this refreshed state, then shows a welcome note.
                     Acct.RefreshAuthenticationState();
                     Navigation.NavigateTo($"/profile?welcome={(result.IsNewUser ? "new" : "back")}");
+                    break;
+
+                case VerificationState.Pending when result.ProfileHidden:
+                    // Explained with the steps on the page itself.
+                    profileHidden = true;
                     break;
 
                 case VerificationState.Pending:
@@ -145,6 +154,7 @@ public partial class LinkAccount
         dto = new();
         error = null;
         pendingMessage = null;
+        profileHidden = false;
         copied = false;
     }
 }

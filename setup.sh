@@ -177,7 +177,7 @@ info "${GREEN}Saved.${RESET}"
 
 step "Building and starting the container"
 info "${DIM}The first build downloads the .NET images and takes a few minutes.${RESET}"
-"${COMPOSE[@]}" up --build -d
+build_and_start
 
 step "Waiting for the server"
 wait_until_healthy

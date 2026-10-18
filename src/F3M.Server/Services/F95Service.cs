@@ -104,14 +104,23 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
         await EnsureLoggedInAsync(ct);
 
         var relativeUrl = $"members/{targetUsername}.{targetUserId}/";
-        var (html, finalUri) = await FetchWithReloginAsync(relativeUrl, ct);
+        var (html, finalUri, status) = await FetchWithReloginAsync(relativeUrl, ct);
 
         // A session F95zone has dropped can still get the page, just as a guest, who may not see the posts.
         if (!IsSignedIn(html))
         {
             _logger.LogWarning("The profile page of {Username} came back signed out; signing in again.", targetUsername);
             await ForceReloginAsync(ct);
-            (html, finalUri) = await FetchWithReloginAsync(relativeUrl, ct);
+            (html, finalUri, status) = await FetchWithReloginAsync(relativeUrl, ct);
+        }
+
+        // Signed in and still refused: the member's privacy settings hide the profile, or F95zone says why not.
+        if (status == HttpStatusCode.Forbidden)
+        {
+            var reason = BlockMessage(html);
+            if (reason?.Contains("limits who may view", StringComparison.OrdinalIgnoreCase) == true)
+                throw new ProfileHiddenException(targetUsername);
+            throw new HttpRequestException($"F95zone refused the profile page of {targetUsername}: {reason ?? "no reason given"}", null, status);
         }
 
         EnsureProfileIs(html, finalUri, targetUsername, targetUserId);
@@ -122,6 +131,19 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
     {
         _isLoggedIn = false;
         await EnsureLoggedInAsync(ct);
+    }
+
+    /// <summary>The text of XenForo's message box on an error page ("This member limits who may view their full profile.").</summary>
+    private static string? BlockMessage(string html)
+    {
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+        // The one in the page's content: the page also has one in <noscript> ("JavaScript is disabled ...").
+        const string box = "div[contains(concat(' ', normalize-space(@class), ' '), ' blockMessage ')]";
+        var node = doc.DocumentNode.SelectSingleNode($"//div[contains(concat(' ', normalize-space(@class), ' '), ' p-body-pageContent ')]//{box}")
+                   ?? doc.DocumentNode.SelectSingleNode($"//{box}[not(ancestor::noscript)]");
+        var text = node?.InnerText;
+        return text is null ? null : string.Join(' ', WebUtility.HtmlDecode(text).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
     /// <summary>XenForo marks pages for signed-in visitors with &lt;html data-logged-in="true"&gt;.</summary>
@@ -305,20 +327,27 @@ public sealed class F95Service(F95BotSettings settings, ILogger<F95Service> logg
         return input?.GetAttributeValue("value", null);
     }
 
-    /// <summary>The page's HTML and the address it was served from, after redirects.</summary>
-    private async Task<(string Html, Uri? FinalUri)> FetchWithReloginAsync(string relativeUrl, CancellationToken ct)
+    /// <summary>
+    /// The page's HTML, the address it was served from (after redirects) and its status. A 403 for a signed-in visitor
+    /// is returned too: it's F95zone's answer (a member who hides their profile), not an expired session, and signing in
+    /// again would only cost another login.
+    /// </summary>
+    private async Task<(string Html, Uri? FinalUri, HttpStatusCode Status)> FetchWithReloginAsync(string relativeUrl, CancellationToken ct)
     {
         var response = await _httpClient.SendAsync(FreshRequest(relativeUrl), ct);
+        var html = await response.Content.ReadAsStringAsync(ct);
 
-        if (IsRedirectToLogin(response) || response.StatusCode == HttpStatusCode.Forbidden)
+        if (IsRedirectToLogin(response) || (response.StatusCode == HttpStatusCode.Forbidden && !IsSignedIn(html)))
         {
             _logger.LogWarning("Session expired — re-logging in.");
             await ForceReloginAsync(ct);
             response = await _httpClient.SendAsync(FreshRequest(relativeUrl), ct);
+            html = await response.Content.ReadAsStringAsync(ct);
         }
 
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadAsStringAsync(ct), response.RequestMessage?.RequestUri);
+        if (response.StatusCode != HttpStatusCode.Forbidden || !IsSignedIn(html))
+            response.EnsureSuccessStatusCode();
+        return (html, response.RequestMessage?.RequestUri, response.StatusCode);
     }
 
     /// <summary>A GET that asks every cache on the way for the current page: a post made a moment ago must be on it.</summary>
@@ -349,6 +378,16 @@ public sealed class ProfileMismatchException(string actualName, string actualId)
 {
     public string ActualName { get; } = actualName;
     public string ActualId { get; } = actualId;
+}
+
+/// <summary>
+/// The member's F95zone privacy settings hide their profile from other members ("This member limits who may view their
+/// full profile."), so the bot can't see the posts on it.
+/// </summary>
+public sealed class ProfileHiddenException(string username)
+    : Exception($"{username} limits who may view their full profile.")
+{
+    public string Username { get; } = username;
 }
 
 /// <summary>A profile post, or a comment on one (<see cref="IsComment"/>), as read from a member profile page.</summary>

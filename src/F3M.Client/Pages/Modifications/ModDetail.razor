@@ -289,7 +289,7 @@ else
             @* Phones show the name and description first, above the image and the downloads. *@
             <div class="col-lg-5 order-first order-lg-0">
                 <div class="d-flex gap-2 mb-2 flex-wrap align-items-center">
-                    <span class="mod-card-category" style="position:static;font-size:.72rem;">@selectedVersion.Category</span>
+                    <TypeBadge TagIds="selectedVersion.TagIds" Style="position:static;font-size:.72rem;" />
 
                     <!-- Version selector dropdown -->
                     @if (allVersions.Count > 1)
@@ -364,6 +364,8 @@ else
                 {
                     <div class="mb-4"></div>
                 }
+
+                <TagChips TagIds="selectedVersion.TagIds" Class="mb-4" />
 
                 <h6 class="fw-bold mb-2">Description</h6>
                 <div>@((MarkupString)HelperExtensions.SanatizeMarkdownToHtml(selectedVersion.Description))</div>
