@@ -39,12 +39,12 @@ public class ModEditDto
     [MaxLength(20)]
     public string Version { get; set; } = "1.0.0";
 
-    [MaxLength(50)]
-    public string Category { get; set; } = "General";
-
     /// <summary>ModGroup IDs (logical mods) this version depends on. Replaces the full set —
     /// send everything that should remain, not just additions/removals.</summary>
     public List<int> DependencyGroupIds { get; set; } = [];
+
+    /// <summary>The mod's tags, replacing the current ones; they belong to the mod, so every version shows them. Null leaves them as they are.</summary>
+    public List<int>? TagIds { get; set; }
 
     /// <summary>The version's optional groups, replacing the current ones; null leaves them as they are.</summary>
     public List<OptionalGroupDto>? OptionalGroups { get; set; }
@@ -120,4 +120,10 @@ public class LinkF95PollResponse
 
     /// <summary>On success: true when a new account was created, false when an existing one was signed in.</summary>
     public bool IsNewUser { get; set; }
+
+    /// <summary>
+    /// Pending because the member's F95zone privacy settings hide their profile from other members, so the post can't
+    /// be seen. The page explains which setting to change (<see cref="Helpers.F95Profile.PrivacySettingsUrl"/>).
+    /// </summary>
+    public bool ProfileHidden { get; set; }
 }

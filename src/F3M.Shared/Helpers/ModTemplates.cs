@@ -107,6 +107,19 @@ public static class ModTemplates
     public static ModTemplate? Find(string? id) =>
         All.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// The mod types a version is, from its files' types (each once, <see cref="Custom"/> left out). When none of its
+    /// files has a type, the type its <paramref name="category"/> names, if any: mods from before tags kept their type
+    /// that way (the frameworks were uploaded as custom files under "BepInEx-Plugin").
+    /// </summary>
+    public static List<string> TypeIdsOf(IEnumerable<string?> templateIds, string? category = null)
+    {
+        List<string> ids = [.. templateIds.Select(Find).OfType<ModTemplate>().Where(t => t.Id != Custom).Select(t => t.Id).Distinct()];
+        if (ids.Count == 0 && All.FirstOrDefault(t => t.Id != Custom && string.Equals(t.Category, category?.Trim(), StringComparison.OrdinalIgnoreCase)) is { } named)
+            ids.Add(named.Id);
+        return ids;
+    }
+
     /// <summary>The frameworks: every <see cref="ModTemplate.RequiredModName"/>, once each, with the types that need it.</summary>
     public static IReadOnlyList<(string Name, IReadOnlyList<ModTemplate> NeededBy)> Frameworks() =>
         [.. All.Where(t => t.RequiredModName is not null)

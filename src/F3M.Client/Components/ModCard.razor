@@ -10,7 +10,7 @@
         {
             <div class="mod-card-no-image"><i class="bi bi-box-seam"></i></div>
         }
-        <span class="mod-card-category">@Mod.Category</span>
+        <TypeBadge TagIds="Mod.TagIds" />
     </div>
     <div class="mod-card-body">
         <h6 class="mod-card-title">@Mod.Name</h6>
@@ -18,6 +18,7 @@
             by <a href="@Paths.PublicProfile(Mod.Author)" @onclick:stopPropagation="true">@Mod.Author</a>
         </p>
         <p class="mod-card-desc">@Mod.Description</p>
+        <TagChips TagIds="Mod.TagIds" Limit="3" Class="mod-card-tags" />
         <div class="mod-card-meta">
             <span><i class="bi bi-download"></i> @Mod.DownloadCount.ToString("N0")</span>
             <span class="mod-card-version">v@(Mod.Version)</span>

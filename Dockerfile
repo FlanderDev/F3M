@@ -5,12 +5,14 @@ ARG DOTNET_VERSION=10.0
 
 FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-alpine AS build
 ARG CONFIGURATION=Release
+# The git commit being built (compose.yaml passes it); the admin page shows it as the running version.
+ARG SOURCE_COMMIT=
 
 COPY ./src /source
 
 WORKDIR /source/F3M.Server
 
-RUN dotnet publish --configuration ${CONFIGURATION} --self-contained false -o /app
+RUN dotnet publish --configuration ${CONFIGURATION} --self-contained false -p:F3MSourceCommit=${SOURCE_COMMIT} -o /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-alpine AS final
 WORKDIR /app

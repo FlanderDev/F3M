@@ -6,6 +6,7 @@
 @inject IJSRuntime JS
 @inject IModsApi ModsApi
 @inject NavigationManager Nav
+@inject TagDirectory TagList
 
 <PageTitle>F3M - Upload</PageTitle>
 
@@ -58,18 +59,30 @@
                     <ValidationMessage For="@(() => dto.Name)" class="text-danger small mt-1 d-block" />
                 </div>
 
-                <!-- Version + category -->
+                <!-- Version + tags -->
                 <div class="row g-3 mb-3">
-                    <div class="col-4">
+                    <div class="col-12 col-sm-4">
                         <label class="form-label fw-semibold small">Version <span class="text-danger">*</span></label>
                         <InputText class="form-control f3m-input" placeholder="1.0.0" @bind-Value="dto.Version" />
                         <ValidationMessage For="@(() => dto.Version)" class="text-danger small mt-1 d-block" />
                     </div>
-                    <div class="col-8">
-                        <label class="form-label fw-semibold small">Category</label>
-                        @* Until one is chosen the server takes the category from the files' type. *@
-                        <SelectMenu TValue="string" @bind-Value="dto.Category" @bind-Value:after="() => categoryChosen = true"
-                                    Items="Categories" Disabled="IsNewVersion" Placeholder="From the files' type" AriaLabel="Category" />
+                    <div class="col-12 col-sm-8">
+                        <label class="form-label fw-semibold small">Tags</label>
+                        @* The locked ones are the files' types; the others belong to the mod, and a new version keeps them
+                           (they are changed on the edit page). *@
+                        <TagPicker @bind-Selected="dto.TagIds" Max="TagRules.MaxTagsPerMod" Disabled="IsNewVersion"
+                                   Offer="t => !t.IsType" Locked="TypeNames" LockedTitle="@TagHints.LockedType"
+                                   Placeholder="Pick tags that describe the mod…" EmptyText="No matching tag. Missing one? Ask an admin." />
+                        <div class="form-text small">
+                            @if (IsNewVersion)
+                            {
+                                <text>A new version keeps the mod's tags. Change them on the mod's edit page.</text>
+                            }
+                            else
+                            {
+                                <text>Up to @TagRules.MaxTagsPerMod. <i class="bi bi-lock-fill"></i> The type comes from the files' types.</text>
+                            }
+                        </div>
                     </div>
                 </div>
 

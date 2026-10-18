@@ -142,6 +142,75 @@ namespace F3M.Server.Migrations
                     b.ToTable("F95PendingVerifications");
                 });
 
+            modelBuilder.Entity("F3M.Server.Models.ModGroupTag", b =>
+                {
+                    b.Property<int>("ModGroupId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ModGroupId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("ModGroupTags");
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.Tag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TypeId")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("TypeId")
+                        .IsUnique()
+                        .HasFilter("\"TypeId\" IS NOT NULL");
+
+                    b.ToTable("Tags");
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.TagInclusion", b =>
+                {
+                    b.Property<int>("ParentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ChildId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ParentId", "ChildId");
+
+                    b.HasIndex("ChildId");
+
+                    b.ToTable("TagInclusions");
+                });
+
             modelBuilder.Entity("F3M.Shared.Models.Mod", b =>
                 {
                     b.Property<int>("Id")
@@ -567,6 +636,36 @@ namespace F3M.Server.Migrations
                     b.HasIndex("DependencyGroupId");
 
                     b.ToTable("ModDependencies", (string)null);
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.ModGroupTag", b =>
+                {
+                    b.HasOne("F3M.Shared.Models.ModGroup", null)
+                        .WithMany()
+                        .HasForeignKey("ModGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("F3M.Server.Models.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.TagInclusion", b =>
+                {
+                    b.HasOne("F3M.Server.Models.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("F3M.Server.Models.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("F3M.Shared.Models.ModFile", b =>

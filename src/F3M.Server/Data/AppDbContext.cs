@@ -19,6 +19,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ModGeneratedPath> ModGeneratedPaths => Set<ModGeneratedPath>();
     public DbSet<ModOptionalGroup> ModOptionalGroups => Set<ModOptionalGroup>();
     public DbSet<F95PendingVerification> F95PendingVerifications => Set<F95PendingVerification>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<TagInclusion> TagInclusions => Set<TagInclusion>();
+    public DbSet<ModGroupTag> ModGroupTags => Set<ModGroupTag>();
     // No longer written: browser errors go to the site log (Logging/LogStore). Kept so the schema matches the migration.
     public DbSet<Telemetry.ErrorReport> TelemetryErrorReports => Set<Telemetry.ErrorReport>();
 
@@ -85,6 +88,36 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             // Dependencies (List<Mod>) is a resolved, read-only view for display — not persisted.
             e.Ignore(m => m.Dependencies);
             e.Ignore(m => m.ShippedPaths);
+            e.Ignore(m => m.TagIds);
+        });
+
+        modelBuilder.Entity<Tag>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Name).IsRequired().HasMaxLength(TagRules.MaxNameLength);
+            e.Property(t => t.NormalizedName).IsRequired().HasMaxLength(TagRules.MaxNameLength);
+            e.Property(t => t.Description).HasMaxLength(TagRules.MaxDescriptionLength);
+            e.HasIndex(t => t.NormalizedName).IsUnique();
+            e.Property(t => t.TypeId).HasMaxLength(ModTemplates.MaxIdLength);
+            // One tag per mod type.
+            e.HasIndex(t => t.TypeId).IsUnique().HasFilter("\"TypeId\" IS NOT NULL");
+        });
+
+        // Removing a tag removes its inclusions both ways; TagService keeps the rest of the tree free of loops.
+        modelBuilder.Entity<TagInclusion>(e =>
+        {
+            e.HasKey(i => new { i.ParentId, i.ChildId });
+            e.HasIndex(i => i.ChildId);
+            e.HasOne<Tag>().WithMany().HasForeignKey(i => i.ParentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tag>().WithMany().HasForeignKey(i => i.ChildId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ModGroupTag>(e =>
+        {
+            e.HasKey(t => new { t.ModGroupId, t.TagId });
+            e.HasIndex(t => t.TagId);
+            e.HasOne<ModGroup>().WithMany().HasForeignKey(t => t.ModGroupId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tag>().WithMany().HasForeignKey(t => t.TagId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ModFile>(e =>

@@ -44,7 +44,11 @@ public sealed record GeneratedPathRef(string Pattern, string Kind);
 /// </summary>
 public sealed record OptionalGroupRef(string Name, IReadOnlyList<string> Patterns);
 
-public sealed record IndexDocument(int Schema, DateTime GeneratedAt, IReadOnlyList<IndexGroup> Groups);
+/// <param name="Tags">Every tag and what it includes. Missing in indexes written before tags existed.</param>
+public sealed record IndexDocument(int Schema, DateTime GeneratedAt, IReadOnlyList<IndexGroup> Groups, IReadOnlyList<TagRef>? Tags = null);
+
+/// <summary>A tag of the site. "Includes" are kinds of it: a filter by it also finds mods tagged with them.</summary>
+public sealed record TagRef(string Name, IReadOnlyList<string> Includes);
 
 public sealed record IndexGroup(
     int GroupId,
@@ -54,7 +58,8 @@ public sealed record IndexGroup(
     int LatestVersionId,
     string LatestVersion,
     DateTime UpdatedAt,
-    string? PreviewUrl);
+    string? PreviewUrl,
+    IReadOnlyList<string>? Tags = null);
 
 public sealed record KeysDocument(List<PublicKeyEntry> Keys);
 

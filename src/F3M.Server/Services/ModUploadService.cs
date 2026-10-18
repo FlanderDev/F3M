@@ -119,7 +119,7 @@ public sealed record UploadResult(Mod? Mod, string? Error, bool Forbidden, IRead
 /// inspected, and checked against each other and against the generated-file patterns. Files are also checked against
 /// their types (<see cref="ModTemplates"/>); those findings only hold the upload back until the uploader accepts them.
 /// </summary>
-public sealed class ModUploadService(AppDbContext db, CatalogService catalog, ILogger<ModUploadService> logger)
+public sealed class ModUploadService(AppDbContext db, CatalogService catalog, TagService tags, ILogger<ModUploadService> logger)
 {
     /// <param name="uploadedAt">Upload time to record; defaults to now. The importer passes the original post date.</param>
     /// <param name="origin">Imports only: where the mod was published before; used when the upload creates the group.</param>
@@ -201,6 +201,10 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
         // ── Validate optional groups (what they cover needs the file contents) ──
         if (!OptionalFileRules.TryNormalize(dto.OptionalGroups, out var optionalGroups, out var optionalError))
             return UploadResult.Fail(optionalError ?? "The optional groups are not valid.");
+
+        // ── Tags: only a new mod takes them; a new version keeps the ones the mod has ──
+        if (dto.ModGroupId is null && await tags.TagIdsProblemAsync(dto.TagIds, ct) is { } tagProblem)
+            return UploadResult.Fail(tagProblem);
 
         // ── Check the target group. It is created later, once the upload is known to be valid. ──
         ModGroup? existingGroup = null;
@@ -296,13 +300,11 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
             throw;
         }
 
-        // Without a category of its own, a mod gets the one of its first typed file.
-        var category = dto.Category;
-        if (string.IsNullOrWhiteSpace(category) || category == ModUploadDto.UnspecifiedCategory)
-        {
-            category = staged.Select(f => ModTemplates.Find(f.Template)).FirstOrDefault(t => t is { Id: not ModTemplates.Custom })?.Category
-                       ?? category;
-        }
+        // The category the catalog still publishes (for desktop apps from before tags): the one of the first typed file.
+        // Without typed files, the one the importer named, or Others. The type tags follow the same rule
+        // (ModTemplates.TypeIdsOf, TagService.SyncTypeTagsAsync).
+        var category = staged.Select(f => ModTemplates.Find(f.Template)).FirstOrDefault(t => t is { Id: not ModTemplates.Custom })?.Category
+                       ?? (string.IsNullOrWhiteSpace(dto.Category) || dto.Category == ModUploadDto.UnspecifiedCategory ? Categories.Others : dto.Category);
 
         // ── Write the rows. If anything fails from here on, rows and staged files are removed again. ──
         var group = existingGroup;
@@ -355,6 +357,9 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
                 var requestedIds = dto.DependencyGroupIds.Where(depId => depId != group.Id).Distinct().ToList();
                 dependencyGroups = await db.ModGroups.Where(g => requestedIds.Contains(g.Id)).ToListAsync(ct);
             }
+
+            if (createdGroup && dto.TagIds.Count > 0)
+                await tags.SetGroupTagsAsync(group.Id, dto.TagIds, ct);
 
             // ── Create version record ──
             mod = new Mod
@@ -459,6 +464,9 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
         var uploaded = mod!;
         logger.LogInformation("Mod uploaded: {Name} v{Version} by {Author} ({FileCount} files)", uploaded.Name, uploaded.Version, uploaded.Author, files.Count);
 
+        // The new version may be the latest now: the mod gets its files' types as tags.
+        await tags.SyncTypeTagsAsync(uploaded.ModGroupId, ct);
+
         // The catalog is updated after the upload is safely stored. A failure there is logged, never returned to the uploader.
         await catalog.TryPublishVersionAsync(uploaded.Id, ct);
 
@@ -469,6 +477,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, IL
             .Include(m => m.GeneratedPaths)
             .Include(m => m.OptionalGroups)
             .FirstAsync(m => m.Id == uploaded.Id, ct);
+        await tags.FillTagIdsAsync([uploadedMod], ct);
         return new UploadResult(uploadedMod, null, false, warnings);
     }
 

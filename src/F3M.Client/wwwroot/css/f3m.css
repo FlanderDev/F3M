@@ -88,7 +88,61 @@ a {
     background: rgba(13,14,16,.95) !important;
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--f3m-border);
-    height: 56px;
+    /* At least the bar's height; on small screens the opened menu makes it taller. */
+    min-height: 56px;
+}
+
+@media (min-width: 992px) {
+    .f3m-navbar {
+        height: 56px;
+    }
+}
+
+/* Small screens: the menu opens inside the bar, as full-width rows that are easy to tap. */
+@media (max-width: 991.98px) {
+    .f3m-navbar .navbar-collapse {
+        border-top: 1px solid var(--f3m-border);
+        margin-top: .4rem;
+        padding: .4rem 0 .75rem;
+        max-height: calc(100vh - 64px);
+        overflow-y: auto;
+    }
+
+        .f3m-navbar .navbar-collapse.show, .f3m-navbar .navbar-collapse.collapsing {
+            display: flex;
+            flex-direction: column;
+        }
+
+    /* Both lists take the full width (on wide screens the second one sits on the right). */
+    .f3m-navbar .navbar-collapse > .navbar-nav {
+        width: 100%;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    .f3m-navbar .navbar-nav .nav-link {
+        padding: .65rem .75rem !important;
+        font-size: .95rem;
+    }
+
+    .f3m-navbar .navbar-nav .btn {
+        width: 100%;
+        margin: .4rem 0 0 !important;
+        padding: .55rem .75rem;
+    }
+
+    /* The version line goes small, last in the menu. */
+    .f3m-nav-version {
+        order: 99;
+        padding: .6rem .75rem 0 !important;
+        margin: 0 !important;
+    }
+
+        .f3m-nav-version h4 {
+            font-family: var(--f3m-font-b);
+            font-size: .75rem;
+            color: var(--f3m-muted);
+        }
 }
 
 .f3m-logo-badge {
@@ -1124,6 +1178,228 @@ a {
     color: var(--f3m-muted);
 }
 
+/* ── Tags (chips on mods, the picker, the admin page) ───── */
+.f3m-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.f3m-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 100%;
+    padding: .1rem .5rem;
+    border-radius: 99px;
+    border: 1px solid var(--f3m-border);
+    background: var(--f3m-surface-2);
+    color: var(--f3m-text);
+    font-size: .72rem;
+    line-height: 1.5;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: border-color var(--tr), color var(--tr);
+}
+
+a.f3m-tag:hover, a.f3m-tag:focus-visible {
+    border-color: var(--f3m-amber);
+    color: var(--f3m-amber);
+}
+
+.f3m-tag-more {
+    color: var(--f3m-muted);
+}
+
+.mod-card-tags {
+    margin: -4px 0 10px;
+}
+
+.f3m-tag-picker {
+    position: relative;
+}
+
+.f3m-tag-picker-control {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-height: 38px;
+    padding: .25rem .5rem;
+    background: var(--f3m-surface-2) !important;
+    border: 1px solid var(--f3m-border) !important;
+    color: var(--f3m-text) !important;
+    cursor: text;
+    transition: border-color var(--tr), box-shadow var(--tr);
+}
+
+.f3m-tag-picker.open .f3m-tag-picker-control, .f3m-tag-picker-control:focus-within {
+    border-color: var(--f3m-amber) !important;
+    box-shadow: 0 0 0 3px var(--f3m-amber-dim);
+}
+
+.f3m-tag-picker.disabled .f3m-tag-picker-control {
+    opacity: .65;
+    cursor: default;
+}
+
+.f3m-tag-picked {
+    font-size: .8rem;
+    padding-right: .2rem;
+}
+
+.f3m-tag-remove {
+    border: 0;
+    background: none;
+    color: var(--f3m-muted);
+    padding: 0 .1rem;
+    line-height: 1;
+    border-radius: 50%;
+}
+
+    .f3m-tag-remove:hover, .f3m-tag-remove:focus-visible {
+        color: var(--f3m-amber);
+    }
+
+.f3m-tag-picker-input {
+    flex: 1;
+    min-width: 8rem;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--f3m-text);
+    font-size: .9rem;
+    padding: .2rem 0;
+}
+
+    .f3m-tag-picker-input::placeholder {
+        color: var(--f3m-muted);
+    }
+
+.f3m-tag-picker-full {
+    color: var(--f3m-muted);
+}
+
+.f3m-tag-picker-list {
+    display: block;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    margin: 0;
+    padding: .25rem 0;
+    list-style: none;
+    max-height: 280px;
+}
+
+    .f3m-tag-picker-list .dropdown-item {
+        display: flex;
+        align-items: baseline;
+        gap: .5rem;
+        white-space: normal;
+    }
+
+.f3m-tag-picker-parents {
+    color: var(--f3m-muted);
+}
+
+.f3m-tag-picker-count {
+    margin-left: auto;
+    color: var(--f3m-muted);
+}
+
+.f3m-tag-picker-empty {
+    padding: .5rem .9rem;
+    color: var(--f3m-muted);
+}
+
+.f3m-tag-admin-list {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.f3m-tag-admin-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    width: 100%;
+    padding: .45rem .75rem;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--f3m-text);
+    text-align: left;
+    font-size: .88rem;
+    transition: background var(--tr);
+}
+
+    .f3m-tag-admin-row:hover, .f3m-tag-admin-row:focus-visible {
+        background: var(--f3m-surface-2);
+    }
+
+    .f3m-tag-admin-row.active {
+        background: var(--f3m-amber-dim);
+        color: var(--f3m-amber);
+    }
+
+.f3m-tag-admin-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .4rem;
+    min-width: 0;
+}
+
+.f3m-tag-admin-type {
+    padding: 0 .4rem;
+    border-radius: 4px;
+    border: 1px solid rgba(255,193,7,.25);
+    color: var(--f3m-amber);
+    font-family: var(--f3m-font-h);
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.f3m-tag-locked {
+    gap: 4px;
+    font-size: .8rem;
+    color: var(--f3m-amber);
+    border-color: rgba(255,193,7,.25);
+}
+
+    .f3m-tag-locked i {
+        font-size: .65rem;
+    }
+
+.f3m-tag-admin-branch {
+    color: var(--f3m-muted);
+    font-size: .75rem;
+}
+
+.f3m-tag-admin-note, .f3m-tag-admin-count {
+    color: var(--f3m-muted);
+}
+
+.f3m-tag-admin-count {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.f3m-tag-preview {
+    display: grid;
+    gap: .25rem;
+    padding: .6rem .75rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: 8px;
+    background: var(--f3m-surface-2);
+}
+
 /* SelectMenu's button looks like the form fields; the arrow is the light one, for the dark background. */
 .f3m-select-menu .form-select {
     background-color: var(--f3m-surface-2) !important;
@@ -2077,4 +2353,30 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
 .f3m-stats-reloading {
     opacity: .55;
     transition: opacity .2s;
+}
+
+/* ── Admin: server update ───────────────────────────────── */
+.f3m-update-log, .f3m-update-command {
+    background: var(--f3m-bg);
+    border: 1px solid var(--f3m-border);
+    border-radius: 8px;
+    padding: .6rem .75rem;
+    color: var(--f3m-text);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: .75rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.f3m-update-log {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.f3m-update-commits li {
+    padding: .15rem 0;
+}
+
+.f3m-update-commits code {
+    color: var(--f3m-amber);
 }

@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject IModsApi ModsApi
 @inject NavigationManager Nav
+@inject TagDirectory TagList
 
 <PageTitle>F3M - Edit Mod</PageTitle>
 
@@ -60,16 +61,22 @@
                     <ValidationMessage For="@(() => dto.Name)" class="text-danger small mt-1 d-block" />
                 </div>
 
-                <!-- Version + category -->
+                <!-- Version + tags -->
                 <div class="row g-3 mb-3">
-                    <div class="col-4">
+                    <div class="col-12 col-sm-4">
                         <label class="form-label fw-semibold small">Version <span class="text-danger">*</span></label>
                         <InputText class="form-control f3m-input" placeholder="1.0.0" @bind-Value="dto.Version" />
                         <ValidationMessage For="@(() => dto.Version)" class="text-danger small mt-1 d-block" />
                     </div>
-                    <div class="col-8">
-                        <label class="form-label fw-semibold small">Category</label>
-                        <SelectMenu TValue="string" @bind-Value="dto.Category" Items="Categories" AriaLabel="Category" />
+                    <div class="col-12 col-sm-8">
+                        <label class="form-label fw-semibold small">Tags</label>
+                        <TagPicker Selected="dto.TagIds ?? []" SelectedChanged="tags => dto.TagIds = tags" Max="TagRules.MaxTagsPerMod"
+                                   Offer="t => !t.IsType" Locked="TypeNames" LockedTitle="@TagHints.LockedType"
+                                   Placeholder="Pick tags that describe the mod…" EmptyText="No matching tag. Missing one? Ask an admin." />
+                        <div class="form-text small">
+                            Up to @TagRules.MaxTagsPerMod, for the whole mod: every version shows them.
+                            <i class="bi bi-lock-fill"></i> The type comes from the latest version's files.
+                        </div>
                     </div>
                 </div>
 

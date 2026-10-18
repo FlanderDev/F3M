@@ -88,7 +88,7 @@ FAIL_HINT="To go back to the version before the update:
   (then git checkout $branch, once the problem is fixed upstream)"
 
 step "Rebuilding and restarting"
-"${COMPOSE[@]}" up --build -d
+build_and_start
 
 step "Waiting for the server"
 wait_until_healthy

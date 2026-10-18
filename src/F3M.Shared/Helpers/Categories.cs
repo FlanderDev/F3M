@@ -1,17 +1,11 @@
 namespace F3M.Shared.Helpers;
 
-/// <summary>Mod categories as lists show them.</summary>
+/// <summary>
+/// Mod categories, from before tags. Mods are sorted by their type tags now; the category stays only in the catalog,
+/// for desktop apps that filter by it.
+/// </summary>
 public static class Categories
 {
-    /// <summary>The catch-all category; lists show it last.</summary>
+    /// <summary>The category of a mod without a type.</summary>
     public const string Others = "Others";
-
-    /// <summary>Each category once (ignoring case), in the order given, with <see cref="Others"/> moved to the end.</summary>
-    public static List<string> OthersLast(IEnumerable<string> categories) =>
-    [
-        .. categories
-            .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(c => string.Equals(c, Others, StringComparison.OrdinalIgnoreCase)),
-    ];
 }
