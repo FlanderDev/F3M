@@ -280,8 +280,38 @@ public class ModTemplatesTests
     }
 
     [Fact]
-    public void Categories_AreTheDefaultCategories() =>
-        Assert.All(ModTemplates.All, t => Assert.Contains(t.Category, Configuration.DefaultCategories));
+    public void Names_CanBeTagNames() =>
+        Assert.All(ModTemplates.All, t => Assert.Null(TagRules.NameProblem(TagRules.Clean(t.Name))));
+
+    // ── TypeIdsOf (the type tags a mod gets) ─────────────────────────────────
+
+    [Fact]
+    public void TypeIdsOf_TheFilesTypes_EachOnceWithoutCustom()
+    {
+        var ids = ModTemplates.TypeIdsOf([ModTemplates.MissionsV2, ModTemplates.Custom, ModTemplates.BepInExPlugin, ModTemplates.MissionsV2]);
+        Assert.Equal([ModTemplates.MissionsV2, ModTemplates.BepInExPlugin], ids);
+    }
+
+    [Fact]
+    public void TypeIdsOf_TypedFiles_IgnoreTheCategory()
+    {
+        Assert.Equal([ModTemplates.MissionsV1], ModTemplates.TypeIdsOf([ModTemplates.MissionsV1], "BepInEx-Plugin"));
+    }
+
+    [Fact]
+    public void TypeIdsOf_NoTypedFiles_TakeTheTypeTheCategoryNames()
+    {
+        Assert.Equal([ModTemplates.BepInExPlugin], ModTemplates.TypeIdsOf([ModTemplates.Custom], " bepinex-plugin "));
+    }
+
+    [Theory]
+    [InlineData("Others")]
+    [InlineData("Unspecified")]
+    [InlineData(null)]
+    public void TypeIdsOf_NoTypedFilesNorTypeCategory_IsNone(string? category)
+    {
+        Assert.Empty(ModTemplates.TypeIdsOf([ModTemplates.Custom, "unknown-type"], category));
+    }
 
     [Theory]
     [InlineData("Yuu's Missions", "Yuu's Missions")]

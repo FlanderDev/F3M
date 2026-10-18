@@ -5,6 +5,10 @@
 
 <div class="f3m-tag-picker @(open ? "open" : string.Empty) @(Disabled ? "disabled" : string.Empty)">
     <div class="f3m-tag-picker-control form-control" @onclick="FocusInput">
+        @foreach (var name in Locked)
+        {
+            <span class="f3m-tag f3m-tag-locked" title="@LockedTitle"><i class="bi bi-lock-fill"></i>@name</span>
+        }
         @foreach (var tag in Directory.Resolve(Selected))
         {
             <span class="f3m-tag f3m-tag-picked" title="@Tooltip(tag)">
@@ -22,7 +26,7 @@
         {
             <input @ref="input" class="f3m-tag-picker-input" type="text" role="combobox" autocomplete="off"
                    aria-label="@AriaLabel" aria-expanded="@(open ? "true" : "false")" aria-controls="@listId"
-                   placeholder="@(Selected.Count == 0 ? Placeholder : null)" maxlength="@TagRules.MaxNameLength"
+                   placeholder="@(Selected.Count == 0 && Locked.Count == 0 ? Placeholder : null)" maxlength="@TagRules.MaxNameLength"
                    value="@text" @oninput="OnInput" @onkeydown="OnKeyDown" @onfocus="Open" @onblur="Close" />
         }
         else if (IsFull && !Disabled)
@@ -72,6 +76,11 @@
 
     /// <summary>Which tags may be offered; all when not given. Picked tags are never offered again.</summary>
     [Parameter] public Func<TagDto, bool>? Offer { get; set; }
+
+    /// <summary>Tags shown first, with a lock, that can't be removed here (a mod's type tags).</summary>
+    [Parameter] public IReadOnlyList<string> Locked { get; set; } = [];
+
+    [Parameter] public string? LockedTitle { get; set; }
 
     [Parameter] public int Max { get; set; } = int.MaxValue;
     [Parameter] public string? Placeholder { get; set; } = "Add a tag…";

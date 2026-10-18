@@ -3,7 +3,7 @@
 @inject TagDirectory Directory
 
 @{
-    var tags = Directory.Resolve(TagIds);
+    var tags = Directory.Resolve(TagIds).Where(t => IncludeTypes || !t.IsType).ToList();
 }
 @if (tags.Count > 0)
 {
@@ -27,6 +27,9 @@
     [Parameter] public int Limit { get; set; } = int.MaxValue;
 
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>Also show type tags; off where <see cref="TypeBadge"/> shows them.</summary>
+    [Parameter] public bool IncludeTypes { get; set; }
 
     /// <summary>The browse page filtered by one tag.</summary>
     public static string BrowseUrl(string name) => $"/?tags={Uri.EscapeDataString(name)}";

@@ -38,7 +38,6 @@ public static class Configuration
     public const int PasswordMinLength = 8;
     public const int PasswordMaxLength = 256;
 
-    public static readonly string[] DefaultCategories = ["BepInEx-Plugin", "Custom-Missions 1", "Custom-Missions 2", "Cosplay-Loader", "Texture Edits", Categories.Others];
     public static readonly string[] AllowedFileExtension = [".dll", ".zip", ".rar", ".7z", ".pak", ".mod"];
     public static readonly string[] AllowedThumbnailExtension = [".jpg", ".jpeg", ".png", ".webp"];
 

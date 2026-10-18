@@ -1354,6 +1354,29 @@ a.f3m-tag:hover, a.f3m-tag:focus-visible {
     min-width: 0;
 }
 
+.f3m-tag-admin-type {
+    padding: 0 .4rem;
+    border-radius: 4px;
+    border: 1px solid rgba(255,193,7,.25);
+    color: var(--f3m-amber);
+    font-family: var(--f3m-font-h);
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.f3m-tag-locked {
+    gap: 4px;
+    font-size: .8rem;
+    color: var(--f3m-amber);
+    border-color: rgba(255,193,7,.25);
+}
+
+    .f3m-tag-locked i {
+        font-size: .65rem;
+    }
+
 .f3m-tag-admin-branch {
     color: var(--f3m-muted);
     font-size: .75rem;

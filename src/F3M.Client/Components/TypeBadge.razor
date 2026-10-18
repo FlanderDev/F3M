@@ -1,0 +1,26 @@
+@* A mod's types (its type tags), in the corner badge cards used for the category. Nothing for a mod without a type. *@
+@implements IDisposable
+@inject TagDirectory Directory
+
+@{
+    var types = Directory.Resolve(TagIds).Where(t => t.IsType).Select(t => t.Name).ToList();
+}
+@if (types.Count > 0)
+{
+    <span class="mod-card-category" style="@Style" title="@(types.Count > 1 ? string.Join(", ", types) : null)">@string.Join(" · ", types)</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyCollection<int> TagIds { get; set; } = [];
+    [Parameter] public string? Style { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Directory.Changed += OnTagsChanged;
+        await Directory.LoadAsync();
+    }
+
+    private void OnTagsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Directory.Changed -= OnTagsChanged;
+}

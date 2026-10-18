@@ -61,6 +61,18 @@ public sealed class TagDirectory(ITagsApi api)
     public List<TagDto> Resolve(IEnumerable<int> ids) =>
         [.. ids.Select(Find).OfType<TagDto>().OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)];
 
+    /// <summary>The tags of the mod types, by name: the browse page's chips.</summary>
+    public List<TagDto> TypeTags => [.. Tags.Where(t => t.IsType).OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)];
+
+    public bool IsType(int id) => Find(id)?.IsType == true;
+
+    /// <summary>The tags among <paramref name="ids"/> that aren't type tags: the ones uploaders pick.</summary>
+    public List<int> Ordinary(IEnumerable<int> ids) => [.. ids.Where(id => !IsType(id))];
+
+    /// <summary>The names of the mod types' tags, for type ids (ModTemplates); the type's own name until the tags are loaded.</summary>
+    public List<string> TypeNames(IEnumerable<string> typeIds) =>
+        [.. typeIds.Select(id => Tags.FirstOrDefault(t => t.TypeId == id)?.Name ?? ModTemplates.Find(id)?.Name ?? id)];
+
     /// <summary>The names of the tags that include this one, directly or through others; for a tooltip.</summary>
     public List<string> AncestorNames(int id) =>
         [.. Graph.SelfAndAncestors(id).Where(a => a != id).Select(Find).OfType<TagDto>().Select(t => t.Name).Order(StringComparer.OrdinalIgnoreCase)];

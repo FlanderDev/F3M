@@ -98,6 +98,8 @@ public partial class AdminTags
         }
     }
 
+    private static string TypeName(TagDto tag) => ModTemplates.Find(tag.TypeId)?.Name ?? tag.TypeId ?? string.Empty;
+
     private string NamesOf(IEnumerable<int> ids) =>
         string.Join(", ", ids.Select(Directory.Find).OfType<TagDto>().Select(t => t.Name).Order(StringComparer.OrdinalIgnoreCase));
 

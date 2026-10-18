@@ -29,9 +29,9 @@ public sealed class ModsController(
     : ModsApiControllerBase
 {
     public override async Task<ActionResult<ModListResult>> GetMods(
-        int page, int pageSize, string? search, string? category, SortBy sort, string? tags, CancellationToken ct)
+        int page, int pageSize, string? search, SortBy sort, string? tags, CancellationToken ct)
     {
-        var result = await modsApi.GetMods(page, pageSize, search, category, sort, tags, ct);
+        var result = await modsApi.GetMods(page, pageSize, search, sort, tags, ct);
 
         // For the statistics page: which tags people filter by. Only the first page, which every new filter loads once,
         // and only names that are tags, so made-up requests can't fill the table.
@@ -74,8 +74,6 @@ public sealed class ModsController(
             return NotFound(ex.Message);
         }
     }
-
-    public override async Task<ActionResult<List<string>>> GetCategories(CancellationToken ct) => Ok(await modsApi.GetCategories(ct));
 
     public override async Task<ActionResult> DownloadFile([FromRoute] int id, [FromRoute] int fileId, CancellationToken ct = default)
     {
@@ -201,7 +199,7 @@ public sealed class ModsController(
 
     // ── Upload: new mod OR new version ────────────────────────────────────────
     // Form fields:
-    //   Name, Description, Version, Category, ModGroupId (optional)
+    //   Name, Description, Version, ModGroupId (optional), TagIds[] (optional, a new mod's tags)
     //   GeneratedPaths[i].Pattern and GeneratedPaths[i].Kind (optional, plan 5.8)
     //   OptionalGroups[i].Name and OptionalGroups[i].Patterns[j] (optional): parts the mod does not need
     //   previewImage (optional IFormFile)
@@ -233,6 +231,10 @@ public sealed class ModsController(
             return BadRequest("User ID not found.");
 
         var owner = new UploadOwner(userId.Value, User.FindFirstValue(ClaimTypes.Name) ?? "unknown");
+
+        // The type (tag and catalog category) comes from the files' types. Only the importer may name one for files
+        // without a type; from the website that would be a type the files don't have.
+        dto.Category = ModUploadDto.UnspecifiedCategory;
         var uploadFiles = UploadFile.FromForm(files, originalNames, installPaths, archiveRoots, templates);
 
         var result = await uploader.UploadAsync(dto, uploadFiles, previewImage, owner, ct: ct);

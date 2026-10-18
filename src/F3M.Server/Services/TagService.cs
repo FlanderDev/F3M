@@ -71,6 +71,7 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
                 Id = t.Id,
                 Name = t.Name,
                 Description = t.Description,
+                TypeId = t.TypeId,
                 ParentIds = [.. snapshot.Graph.ParentsOf(t.Id).Order()],
                 ModCount = groupsByTag.TryGetValue(t.Id, out var own) ? own.Count : 0,
                 TotalModCount = snapshot.Graph.SelfAndDescendants(t.Id)
@@ -160,6 +161,8 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
         try
         {
             var tag = await db.Tags.FindAsync([id], ct) ?? throw new KeyNotFoundException($"No tag with id {id} was found.");
+            if (tag.TypeId is not null)
+                throw new InvalidDataException($"{tag.Name} is the tag of a mod type, so it can't be deleted.");
             var mods = await db.ModGroupTags.CountAsync(t => t.TagId == id, ct);
 
             // Its inclusions and its place on mods go with it (cascade).
@@ -188,6 +191,13 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
             var snapshot = await TagIndex.LoadAsync(db, ct);
             var source = snapshot.ById.GetValueOrDefault(id) ?? throw new KeyNotFoundException($"No tag with id {id} was found.");
             var target = snapshot.ById.GetValueOrDefault(targetId) ?? throw new KeyNotFoundException($"No tag with id {targetId} was found.");
+
+            // A type tag on a mod means its files are of that type, so no other tag can turn into one or take its place.
+            if ((source.TypeId ?? target.TypeId) is not null)
+            {
+                throw new InvalidDataException(
+                    $"{(source.TypeId is not null ? source.Name : target.Name)} is the tag of a mod type, so it can't be merged. Mods get it from their files' types.");
+            }
 
             // The tree without the source, then its inclusions moved to the target one by one. One that would make a
             // loop is left out: the two tags are already related the other way round, so nothing is lost.
@@ -264,6 +274,13 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
                 throw new InvalidDataException($"There is no tag with id {other} (any more). Reload the page.");
         }
 
+        // A type tag including another tag would make the mods tagged with that one count as of the type, whatever their
+        // files are. Type tags can be included by ordinary tags ("Missions" including both mission types).
+        if (dto.IncludesIds.Count > 0 && snapshot.ById.GetValueOrDefault(id)?.TypeId is not null)
+            throw new InvalidDataException($"{name} is the tag of a mod type, so it can't include other tags.");
+        if (dto.IncludedInIds.Select(p => snapshot.ById[p]).FirstOrDefault(p => p.TypeId is not null) is { } typeParent)
+            throw new InvalidDataException($"{typeParent.Name} is the tag of a mod type, so it can't include other tags.");
+
         var changed = snapshot.Graph.WithInclusions(id, dto.IncludesIds.Distinct(), dto.IncludedInIds.Distinct());
         if (changed.Problem(t => t == id ? name : snapshot.NameOf(t)) is { } problem)
             throw new InvalidDataException(problem);
@@ -321,31 +338,100 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
             mod.TagIds = byGroup.TryGetValue(mod.ModGroupId, out var ids) ? [.. ids] : [];
     }
 
-    /// <summary>Why a mod can't have these tags (unknown, or too many); null when it can.</summary>
+    /// <summary>
+    /// Why a mod can't have these tags (unknown, or too many); null when it can. Type tags among them don't count:
+    /// <see cref="SetGroupTagsAsync"/> ignores them.
+    /// </summary>
     public async Task<string?> TagIdsProblemAsync(IEnumerable<int> tagIds, CancellationToken ct = default)
     {
-        var ids = tagIds.Distinct().ToList();
-        if (ids.Count > TagRules.MaxTagsPerMod)
-            return $"A mod can have at most {TagRules.MaxTagsPerMod} tags.";
-
         var snapshot = await index.GetAsync(db, ct);
-        return ids.FirstOrDefault(id => !snapshot.ById.ContainsKey(id)) is var unknown and not 0
-            ? $"There is no tag with id {unknown} (any more). Reload the page."
+        var ids = tagIds.Distinct().ToList();
+        if (ids.FirstOrDefault(id => !snapshot.ById.ContainsKey(id)) is var unknown and not 0)
+            return $"There is no tag with id {unknown} (any more). Reload the page.";
+
+        return ids.Count(id => snapshot.ById[id].TypeId is null) > TagRules.MaxTagsPerMod
+            ? $"A mod can have at most {TagRules.MaxTagsPerMod} tags."
             : null;
     }
 
     /// <summary>
-    /// Replaces the tags of a mod group (not saved yet). Throws <see cref="InvalidDataException"/> for an unknown tag
-    /// or too many.
+    /// Replaces the ordinary tags of a mod group (not saved yet). Type tags are left as they are, whether asked for or
+    /// not: they follow the files (<see cref="SyncTypeTagsAsync"/>). Throws <see cref="InvalidDataException"/> for an
+    /// unknown tag or too many.
     /// </summary>
     public async Task SetGroupTagsAsync(int groupId, IEnumerable<int> tagIds, CancellationToken ct = default)
     {
-        var ids = tagIds.Distinct().ToList();
-        if (await TagIdsProblemAsync(ids, ct) is { } problem)
+        var requested = tagIds.ToList();
+        if (await TagIdsProblemAsync(requested, ct) is { } problem)
             throw new InvalidDataException(problem);
 
-        var current = await db.ModGroupTags.Where(t => t.ModGroupId == groupId).ToListAsync(ct);
+        var snapshot = await index.GetAsync(db, ct);
+        bool Ordinary(int id) => snapshot.ById.TryGetValue(id, out var tag) && tag.TypeId is null;
+        var ids = requested.Where(Ordinary).Distinct().ToList();
+
+        var current = (await db.ModGroupTags.Where(t => t.ModGroupId == groupId).ToListAsync(ct)).Where(t => Ordinary(t.TagId)).ToList();
         db.ModGroupTags.RemoveRange(current.Where(t => !ids.Contains(t.TagId)));
         db.ModGroupTags.AddRange(ids.Where(id => current.All(t => t.TagId != id)).Select(id => new ModGroupTag { ModGroupId = groupId, TagId = id }));
+    }
+
+    // ── Type tags ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Gives the mod group the type tags of its latest version (<see cref="ModTemplates.TypeIdsOf"/>) and removes the
+    /// others, and saves. Call after anything that changes the latest version or its files.
+    /// </summary>
+    public async Task SyncTypeTagsAsync(int groupId, CancellationToken ct = default)
+    {
+        var latest = await db.Mods.AsNoTracking().Include(m => m.Files)
+            .FirstOrDefaultAsync(m => m.ModGroupId == groupId && m.IsLatestVersion, ct);
+        if (latest is null)
+            return;
+
+        var snapshot = await index.GetAsync(db, ct);
+        var typeIds = ModTemplates.TypeIdsOf(latest.Files.Select(f => f.Template), latest.Category);
+        var typeTags = snapshot.Tags.Where(t => t.TypeId is not null).ToList();
+        var wanted = typeTags.Where(t => typeIds.Contains(t.TypeId!)).Select(t => t.Id).ToList();
+        var typeTagIds = typeTags.Select(t => t.Id).ToList();
+
+        var current = await db.ModGroupTags.Where(t => t.ModGroupId == groupId && typeTagIds.Contains(t.TagId)).ToListAsync(ct);
+        var removed = current.Where(t => !wanted.Contains(t.TagId)).ToList();
+        var added = wanted.Where(id => current.All(t => t.TagId != id)).Select(id => new ModGroupTag { ModGroupId = groupId, TagId = id }).ToList();
+        if (removed.Count == 0 && added.Count == 0)
+            return;
+
+        db.ModGroupTags.RemoveRange(removed);
+        db.ModGroupTags.AddRange(added);
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Creates the tag of every mod type that has none yet (the AddTags migration made the first ones; this covers types
+    /// added later). A name an ordinary tag already has gets " (type)" added. Run at startup.
+    /// </summary>
+    public async Task EnsureTypeTagsAsync(CancellationToken ct = default)
+    {
+        await index.WriteLock.WaitAsync(ct);
+        try
+        {
+            var snapshot = await TagIndex.LoadAsync(db, ct);
+            var missing = ModTemplates.All
+                .Where(t => t.Id != ModTemplates.Custom && snapshot.Tags.All(tag => tag.TypeId != t.Id))
+                .ToList();
+            if (missing.Count == 0)
+                return;
+
+            foreach (var template in missing)
+            {
+                var name = snapshot.Find(template.Name) is null ? template.Name : $"{template.Name} (type)";
+                db.Tags.Add(new Tag { Name = name, NormalizedName = TagRules.Normalize(name), TypeId = template.Id });
+                logger.LogInformation("Created the tag {Name} for the mod type {TypeId}.", name, template.Id);
+            }
+            await db.SaveChangesAsync(ct);
+            index.Invalidate();
+        }
+        finally
+        {
+            index.WriteLock.Release();
+        }
     }
 }

@@ -219,6 +219,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    await scope.ServiceProvider.GetRequiredService<TagService>().EnsureTypeTagsAsync();
     await scope.ServiceProvider.GetRequiredService<CatalogService>().InitializeAsync();
 
     // The admin account from the settings. Local development sets F3M / F3M in launchSettings.json.

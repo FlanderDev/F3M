@@ -232,19 +232,19 @@
                     </ChartCard>
                 </div>
 
-                <!-- Categories -->
+                <!-- Types -->
                 <div class="col-lg-4">
-                    <ChartCard Title="Mods by category" Subtitle="The category of each mod's latest version">
+                    <ChartCard Title="Mods by type" Subtitle="From the files of each mod's latest version">
                         <BarList Items="@CategoryModItems" />
                     </ChartCard>
                 </div>
                 <div class="col-lg-4">
-                    <ChartCard Title="Downloads by category" Subtitle="All time">
+                    <ChartCard Title="Downloads by type" Subtitle="All time">
                         <BarList Items="@CategoryDownloadItems" ValueFormat="ChartMath.Compact" EmptyText="No downloads yet." />
                     </ChartCard>
                 </div>
                 <div class="col-lg-4">
-                    <ChartCard Title="Storage by category" Subtitle="Uploaded files of all versions">
+                    <ChartCard Title="Storage by type" Subtitle="Uploaded files of all versions">
                         <BarList Items="@CategoryStorageItems" ValueFormat="Bytes" EmptyText="No files yet." />
                     </ChartCard>
                 </div>

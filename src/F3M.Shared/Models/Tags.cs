@@ -10,6 +10,14 @@ public sealed class TagDto
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
 
+    /// <summary>
+    /// For the built-in tag of a mod type: its <see cref="Helpers.ModTemplates"/> id. Mods get such a tag from their
+    /// files' types, never by hand; it can't be deleted, merged or include other tags. Null for ordinary tags.
+    /// </summary>
+    public string? TypeId { get; set; }
+
+    public bool IsType => TypeId is not null;
+
     /// <summary>The tags that include this one directly: it is a kind of each of them.</summary>
     public List<int> ParentIds { get; set; } = [];
 

@@ -39,9 +39,6 @@ public class ModEditDto
     [MaxLength(20)]
     public string Version { get; set; } = "1.0.0";
 
-    [MaxLength(50)]
-    public string Category { get; set; } = "General";
-
     /// <summary>ModGroup IDs (logical mods) this version depends on. Replaces the full set —
     /// send everything that should remain, not just additions/removals.</summary>
     public List<int> DependencyGroupIds { get; set; } = [];

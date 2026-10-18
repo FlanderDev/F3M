@@ -27,6 +27,10 @@ public sealed class TagsController(ITagsApi tags) : TagsApiControllerBase
         {
             return NotFound(ex.Message);
         }
+        catch (InvalidDataException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     public override Task<ActionResult<TagDto>> Merge(int id, int targetId, CancellationToken ct)

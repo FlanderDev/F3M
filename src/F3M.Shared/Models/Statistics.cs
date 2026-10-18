@@ -27,6 +27,7 @@ public sealed class SiteStats
     /// <summary>The last 12 months, oldest first, including the current one.</summary>
     public List<MonthlyGrowth> Growth { get; set; } = [];
 
+    /// <summary>Per mod type (type tag); a mod of several types counts for each, one without for "(no type)".</summary>
     public List<CategoryStats> Categories { get; set; } = [];
     public List<TopMod> TopModsAllTime { get; set; } = [];
     public List<TopMod> TopModsInPeriod { get; set; } = [];

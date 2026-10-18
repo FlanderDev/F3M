@@ -38,10 +38,10 @@ public partial class Upload
         dto.DependencyGroupIds = [.. selected.Select(i => i.Model.ModGroupId).Distinct()];
     }
 
-    // ── Types: category, required mods, warnings ──────────────────────────────
+    // ── Types: type tags, required mods, warnings ─────────────────────────────
 
-    // The author picked a category; the files' types no longer change it.
-    private bool categoryChosen;
+    // The type tags the mod will get: its files' types (the server sets them the same way).
+    private List<string> TypeNames => TagList.TypeNames(ModTemplates.TypeIdsOf(fileEntries.Select(e => e.Template)));
 
     // Required mods by name (ModTemplate.RequiredModName), looked up once; null when the site doesn't have it.
     private readonly Dictionary<string, Mod?> requiredMods = new(StringComparer.OrdinalIgnoreCase);
@@ -52,16 +52,10 @@ public partial class Upload
     private IEnumerable<ModTemplate> UsedTemplates =>
         fileEntries.Select(e => ModTemplates.Find(e.Template)).OfType<ModTemplate>().DistinctBy(t => t.Id);
 
-    /// <summary>After the files or their types change: fill in the category, the required mods and the suggested optional groups.</summary>
+    /// <summary>After the files or their types change: fill in the required mods and the suggested optional groups.</summary>
     private async Task OnFilesChanged()
     {
         RefreshSuggestedGroups();
-
-        if (!categoryChosen && !IsNewVersion
-            && UsedTemplates.FirstOrDefault(t => t.Id != ModTemplates.Custom) is { } main)
-        {
-            dto.Category = main.Category;
-        }
 
         foreach (var name in UsedTemplates.Select(t => t.RequiredModName).OfType<string>().Distinct().ToList())
         {
@@ -128,7 +122,6 @@ public partial class Upload
     private byte[]? imageBytes;
     private string? previewDataUrl;
     private string imageFileName = string.Empty;
-    private string[] Categories = [];
 
     private string ImagePickerHint => IsNewVersion ? "optional, leave blank to keep existing" : "optional";
 
@@ -213,8 +206,7 @@ public partial class Upload
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        // The default categories first, then any other the site already uses; each once.
-        Categories = [.. F3M.Shared.Helpers.Categories.OthersLast(Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()))];
+        await TagList.LoadAsync();
 
         if (GroupId is not int groupId)
             return;
@@ -224,8 +216,7 @@ public partial class Upload
         if (existingMod is not null)
         {
             dto.Name = existingMod.Name;
-            dto.Category = existingMod.Category;
-            dto.TagIds = [.. existingMod.TagIds];
+            dto.TagIds = TagList.Ordinary(existingMod.TagIds);
             dto.Description = existingMod.Description;
             dto.ModGroupId = groupId;
 
@@ -262,7 +253,6 @@ public partial class Upload
             using var content = new MultipartFormDataContent();
             content.Add(new StringContent(dto.Name), nameof(ModUploadDto.Name));
             content.Add(new StringContent(dto.Version), nameof(ModUploadDto.Version));
-            content.Add(new StringContent(dto.Category), nameof(ModUploadDto.Category));
             content.Add(new StringContent(dto.Description), nameof(ModUploadDto.Description));
 
             if (dto.ModGroupId.HasValue)
@@ -370,7 +360,6 @@ public partial class Upload
         fileEntries.Clear();
         optionalGroups.Clear();
         dismissedSuggestions.Clear();
-        categoryChosen = false;
         requirementsAdded.Clear();
         acceptedWarnings = null;
         serverWarnings = [];

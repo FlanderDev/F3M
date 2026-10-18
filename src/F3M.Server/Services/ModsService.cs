@@ -28,7 +28,7 @@ public partial class ModsService(
         ?? throw new InvalidOperationException("ModsService was called outside of an HTTP request.");
 
     public async Task<ModListResult> GetMods(
-        int page = 1, int pageSize = 18, string? search = null, string? category = null,
+        int page = 1, int pageSize = 18, string? search = null,
         SortBy sort = SortBy.Newest, string? tags = null, CancellationToken ct = default)
     {
         page = Math.Max(1, page);
@@ -49,9 +49,6 @@ public partial class ModsService(
             query = query.Where(m => EF.Functions.Like(m.Name, pattern, "\\")
                                      || db.ModGroupTags.Any(t => t.ModGroupId == m.ModGroupId && matchingTags.Contains(t.TagId)));
         }
-
-        if (!string.IsNullOrWhiteSpace(category))
-            query = query.Where(m => m.Category == category);
 
         if (!string.IsNullOrWhiteSpace(tags))
         {
@@ -149,18 +146,6 @@ public partial class ModsService(
         return new ModVersionsResult { Group = group, Versions = versions, Owner = owner };
     }
 
-    public async Task<List<string>> GetCategories(CancellationToken ct = default)
-    {
-        // Category of each group = category of its latest version
-        var categories = await db.Mods
-            .Where(m => m.IsApproved && m.IsLatestVersion)
-            .Select(m => m.Category)
-            .Distinct()
-            .OrderBy(c => c)
-            .ToListAsync(ct);
-        return Categories.OthersLast(categories);
-    }
-
     public async Task<Stream> DownloadFile(int id, int fileId, CancellationToken ct = default)
     {
         var mod = await db.Mods.Include(m => m.Files).FirstOrDefaultAsync(m => m.Id == id && m.IsApproved, ct)
@@ -195,7 +180,6 @@ public partial class ModsService(
         mod.Name = dto.Name;
         mod.Description = dto.Description;
         mod.Version = dto.Version;
-        mod.Category = dto.Category;
 
         // Optional groups: the same rules as on upload, against the files this version ships.
         if (dto.OptionalGroups is not null)
@@ -279,6 +263,9 @@ public partial class ModsService(
 
         logger.LogInformation("Mod {ModId} ({Name} v{Version}, group {GroupId}) was edited.", mod.Id, mod.Name, mod.Version, mod.ModGroupId);
 
+        // A new version number can make another version the latest, whose files' types the mod then has.
+        await tagService.SyncTypeTagsAsync(mod.ModGroupId, ct);
+
         // Metadata or optional groups changed, so the published document must be rewritten. Files never change here.
         await catalog.TryPublishVersionAsync(mod.Id, ct);
         await ResolveDependenciesAsync([mod], ct);
@@ -324,6 +311,8 @@ public partial class ModsService(
                 ? "Mod {ModId} ({Name} v{Version}) was deleted, and with it its group {GroupId} (it was the last version)."
                 : "Mod {ModId} ({Name} v{Version}) was deleted from group {GroupId}.",
             mod.Id, mod.Name, mod.Version, mod.ModGroupId);
+        if (remaining > 0)
+            await tagService.SyncTypeTagsAsync(mod.ModGroupId, ct);
         await catalog.TryRemoveVersionAsync(mod.ModGroupId, mod.Id, ct);
 
         foreach (var path in diskFiles)

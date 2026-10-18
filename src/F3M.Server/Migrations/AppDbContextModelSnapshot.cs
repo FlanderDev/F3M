@@ -180,10 +180,18 @@ namespace F3M.Server.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TypeId")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
                         .IsUnique();
+
+                    b.HasIndex("TypeId")
+                        .IsUnique()
+                        .HasFilter("\"TypeId\" IS NOT NULL");
 
                     b.ToTable("Tags");
                 });

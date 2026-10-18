@@ -175,9 +175,13 @@ public class ModUploadDto
     [MaxLength(20)]
     public string Version { get; set; } = "1.0.0";
 
-    /// <summary>The category of an upload whose author picked none.</summary>
+    /// <summary>The category of an upload that names none.</summary>
     public const string UnspecifiedCategory = "Unspecified";
 
+    /// <summary>
+    /// Importer only: the type (as its old category name) of a mod whose files have none, such as the frameworks. The
+    /// website's uploads get their type from the files' types alone; the server ignores this for them.
+    /// </summary>
     [MaxLength(50)]
     public string Category { get; set; } = UnspecifiedCategory;
 

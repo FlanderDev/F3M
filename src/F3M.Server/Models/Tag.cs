@@ -13,6 +13,12 @@ public class Tag
 
     public string? Description { get; set; }
 
+    /// <summary>
+    /// Set for the built-in tag of a mod type (a ModTemplates id): mods get it from their files' types, never by hand,
+    /// and it can't be deleted or merged. Null for the tags admins create.
+    /// </summary>
+    public string? TypeId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 

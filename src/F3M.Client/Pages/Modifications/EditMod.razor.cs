@@ -21,7 +21,9 @@ public partial class EditMod
 
     private Mod? mod;
     private ModEditDto dto = new();
-    private string[] Categories = [];
+
+    // The mod's type tags, which come from its files and can't be changed here.
+    private List<string> TypeNames => mod is null ? [] : [.. TagList.Resolve(mod.TagIds).Where(t => t.IsType).Select(t => t.Name)];
     private bool loading = true;
     private bool forbidden = false;
     private bool saving = false;
@@ -91,9 +93,7 @@ public partial class EditMod
         {
             mod = await ModsApi.GetMod(Id);
 
-            // Like the upload page: the default categories, then any other the site uses, and the mod's own; each once.
-            Categories = [.. F3M.Shared.Helpers.Categories.OthersLast(
-                Configuration.DefaultCategories.Concat(await ModsApi.GetCategories()).Append(mod.Category))];
+            await TagList.LoadAsync();
 
             // Check ownership or admin
             if (AuthState is not null)
@@ -120,9 +120,8 @@ public partial class EditMod
                 Name = mod.Name,
                 Description = mod.Description,
                 Version = mod.Version,
-                Category = mod.Category,
                 DependencyGroupIds = [.. mod.Dependencies.Select(d => d.ModGroupId)],
-                TagIds = [.. mod.TagIds]
+                TagIds = TagList.Ordinary(mod.TagIds)
             };
             selectedDependencyItems = [.. mod.Dependencies.Select(d => new MultiSelectDropdown<Mod>.InternalItem(d, false))];
             ShowSaved(mod);

@@ -39,7 +39,7 @@
 
         <!-- Filters -->
         <div class="row g-2 mt-3">
-            <div class="col-12 col-md-5">
+            <div class="col-12 col-md">
                 <div class="input-group">
                     <span class="input-group-text f3m-search-icon">
                         <i class="bi bi-search"></i>
@@ -52,11 +52,7 @@
                            @onkeyup="OnSearchKeyUp" />
                 </div>
             </div>
-            @* The two menus share the row with the clear button at every width, so it never wraps onto a row of its own. *@
-            <div class="col col-md-3">
-                <SelectMenu TValue="string" @bind-Value="selectedCategory" @bind-Value:after="LoadMods"
-                            Items="CategoryOptions" AriaLabel="Category" />
-            </div>
+            @* The menu shares the row with the clear button at every width, so it never wraps onto a row of its own. *@
             <div class="col col-md-3">
                 <SelectMenu TValue="SortBy" @bind-Value="sortBy" @bind-Value:after="LoadMods"
                             Items="Enum.GetValues<SortBy>()" Text="SortText" AriaLabel="Sort by" />
@@ -76,19 +72,21 @@
             }
         </div>
 
-        <!-- Category chips -->
-        @if (categories.Any())
+        <!-- Type chips: one click for the type tags, together with the tags picked above -->
+        @if (Tags.TypeTags is { Count: > 0 } types)
         {
-            <div class="d-flex flex-wrap gap-2 mt-3">
-                <button class="f3m-chip @(selectedCategory == CategoryAll ? "active" : string.Empty)"
-                        @onclick='() => SelectCategory(CategoryAll)'>
+            var anyType = selectedTags.Any(Tags.IsType);
+            <div class="d-flex flex-wrap gap-2 mt-3" role="group" aria-label="Mod type">
+                <button class="f3m-chip @(anyType ? string.Empty : "active")" aria-pressed="@(anyType ? "false" : "true")"
+                        @onclick="() => SelectType(null)">
                     All
                 </button>
-                @foreach (var cat in categories)
+                @foreach (var type in types)
                 {
-                    <button class="f3m-chip @(selectedCategory == cat ? "active" : string.Empty)"
-                            @onclick="() => SelectCategory(cat)">
-                        @cat
+                    var active = selectedTags.Contains(type.Id);
+                    <button class="f3m-chip @(active ? "active" : string.Empty)" aria-pressed="@(active ? "true" : "false")"
+                            title="@type.Description" @onclick="() => SelectType(active ? null : type.Id)">
+                        @type.Name
                     </button>
                 }
             </div>

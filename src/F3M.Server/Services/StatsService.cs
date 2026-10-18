@@ -36,12 +36,12 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
         return result;
     }
 
-    /// <summary>Totals, growth, categories and the most downloaded mods, from the mods and accounts themselves.</summary>
+    /// <summary>Totals, growth, types and the most downloaded mods, from the mods and accounts themselves.</summary>
     private async Task AddSiteDataAsync(SiteStats result, DateOnly previousFrom, CancellationToken ct)
     {
         var versions = await db.Mods.AsNoTracking()
             .Where(m => m.IsApproved)
-            .Select(m => new { m.Id, m.ModGroupId, m.Name, m.Author, m.Category, m.UploadedAt, m.DownloadCount })
+            .Select(m => new { m.Id, m.ModGroupId, m.Name, m.Author, m.UploadedAt, m.DownloadCount })
             .ToListAsync(ct);
         var files = await db.ModFiles.AsNoTracking().Select(f => new { f.ModId, f.FileSizeBytes }).ToListAsync(ct);
         var users = await db.Users.AsNoTracking().Select(u => new { u.RegisteredAt, Linked = u.F95UserId != null }).ToListAsync(ct);
@@ -102,9 +102,19 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
             });
         }
 
+        // By type tag; a mod of several types counts for each of them.
+        var typesByGroup = (await (
+                    from link in db.ModGroupTags.AsNoTracking()
+                    join tag in db.Tags.AsNoTracking() on link.TagId equals tag.Id
+                    where tag.TypeId != null
+                    select new { link.ModGroupId, tag.Name })
+                .ToListAsync(ct))
+            .GroupBy(t => t.ModGroupId)
+            .ToDictionary(g => g.Key, g => g.Select(t => t.Name).ToList());
         result.Categories = groups
-            .GroupBy(g => string.IsNullOrWhiteSpace(g.Latest.Category) ? "(none)" : g.Latest.Category)
-            .Select(c => new CategoryStats { Name = c.Key, Mods = c.Count(), Downloads = c.Sum(g => g.Downloads), StorageBytes = c.Sum(g => g.Bytes) })
+            .SelectMany(g => (typesByGroup.GetValueOrDefault(g.GroupId) ?? ["(no type)"]).Select(type => (Type: type, Group: g)))
+            .GroupBy(t => t.Type)
+            .Select(c => new CategoryStats { Name = c.Key, Mods = c.Count(), Downloads = c.Sum(t => t.Group.Downloads), StorageBytes = c.Sum(t => t.Group.Bytes) })
             .OrderByDescending(c => c.Mods).ThenBy(c => c.Name)
             .ToList();
 

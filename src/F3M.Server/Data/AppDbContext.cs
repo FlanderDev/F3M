@@ -98,6 +98,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(t => t.NormalizedName).IsRequired().HasMaxLength(TagRules.MaxNameLength);
             e.Property(t => t.Description).HasMaxLength(TagRules.MaxDescriptionLength);
             e.HasIndex(t => t.NormalizedName).IsUnique();
+            e.Property(t => t.TypeId).HasMaxLength(ModTemplates.MaxIdLength);
+            // One tag per mod type.
+            e.HasIndex(t => t.TypeId).IsUnique().HasFilter("\"TypeId\" IS NOT NULL");
         });
 
         // Removing a tag removes its inclusions both ways; TagService keeps the rest of the tree free of loops.

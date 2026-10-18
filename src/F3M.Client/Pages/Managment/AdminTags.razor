@@ -77,6 +77,10 @@
                                             <i class="bi bi-arrow-return-right f3m-tag-admin-branch"></i>
                                         }
                                         <span class="fw-semibold">@tag.Name</span>
+                                        @if (tag.IsType)
+                                        {
+                                            <span class="f3m-tag-admin-type" title="The tag of a mod type: mods get it from their files' types.">type</span>
+                                        }
                                         @if (repeated)
                                         {
                                             <span class="f3m-tag-admin-note small" title="This tag is included by several tags, so it shows under each of them.">also elsewhere</span>
@@ -116,6 +120,15 @@
                         @(editingId == NewId ? "New tag" : $"Tag: {Original?.Name}")
                     </h2>
 
+                    @if (Original is { IsType: true } typeTag)
+                    {
+                        <div class="alert alert-info small py-2">
+                            <i class="bi bi-lock-fill me-2"></i>The tag of the mod type <strong>@TypeName(typeTag)</strong>. Mods get it from
+                            their files' types, never by hand, so it can't be deleted, merged or include other tags. Its name,
+                            description and the tags it is in can be changed.
+                        </div>
+                    }
+
                     <div class="mb-3">
                         <label class="form-label fw-semibold small" for="tag-name">Name <span class="text-danger">*</span></label>
                         <input id="tag-name" class="form-control f3m-input" maxlength="@TagRules.MaxNameLength" @bind="editing.Name" @bind:event="oninput" />
@@ -127,18 +140,21 @@
                                   placeholder="Shown when pointing at the tag. Optional." @bind="editing.Description" @bind:event="oninput"></textarea>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold small">Includes <span class="fw-normal">(kinds of this tag)</span></label>
-                        @* Tags above this one aren't offered: including them would make a loop. *@
-                        <TagPicker Selected="editing.IncludesIds" SelectedChanged="ids => editing.IncludesIds = ids"
-                                   Offer="t => CanInclude(working, t.Id)" AriaLabel="Tags this tag includes"
-                                   Placeholder="Add a tag this one includes…" EmptyText="No matching tag can go under this one." />
-                    </div>
+                    @if (Original?.IsType != true)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small">Includes <span class="fw-normal">(kinds of this tag)</span></label>
+                            @* Tags above this one aren't offered: including them would make a loop. *@
+                            <TagPicker Selected="editing.IncludesIds" SelectedChanged="ids => editing.IncludesIds = ids"
+                                       Offer="t => CanInclude(working, t.Id)" AriaLabel="Tags this tag includes"
+                                       Placeholder="Add a tag this one includes…" EmptyText="No matching tag can go under this one." />
+                        </div>
+                    }
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold small">Included in <span class="fw-normal">(this tag is a kind of)</span></label>
                         <TagPicker Selected="editing.IncludedInIds" SelectedChanged="ids => editing.IncludedInIds = ids"
-                                   Offer="t => CanBeIncludedIn(working, t.Id)" AriaLabel="Tags that include this tag"
+                                   Offer="t => !t.IsType && CanBeIncludedIn(working, t.Id)" AriaLabel="Tags that include this tag"
                                    Placeholder="Add a tag that includes this one…" EmptyText="No matching tag can go above this one." />
                     </div>
 
@@ -183,7 +199,7 @@
                         <button type="button" class="btn btn-outline-secondary" @onclick="Cancel" disabled="@busy">Cancel</button>
                     </div>
 
-                    @if (Original is { } original)
+                    @if (Original is { IsType: false } original)
                     {
                         <hr class="my-4" style="border-color:var(--f3m-border);" />
 
@@ -196,7 +212,7 @@
                         <div class="d-flex flex-wrap gap-2 align-items-start mb-2">
                             <div class="flex-grow-1" style="min-width:200px;">
                                 <TagPicker Selected="mergeTarget" SelectedChanged="ids => { mergeTarget = ids; confirmMerge = false; }" Max="1"
-                                           Offer="t => t.Id != original.Id" AriaLabel="Tag to merge into" Placeholder="Tag to merge into…" />
+                                           Offer="t => t.Id != original.Id && !t.IsType" AriaLabel="Tag to merge into" Placeholder="Tag to merge into…" />
                             </div>
                             @if (!confirmMerge)
                             {

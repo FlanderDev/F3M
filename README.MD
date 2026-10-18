@@ -44,14 +44,14 @@ F3M is a mod hub for a BepInEx-modded Unity game. It has two parts:
 
 ### Website
 
-- [x] Browse mods with search, category filter, sorting and infinite scroll
+- [x] Browse mods with search, type chips, tag filter, sorting and infinite scroll
 - [x] **Tags:** a mod can have several, from a list admins manage. A tag can include others (*Clothing* includes *Lingerie*), so filtering by a tag also finds mods tagged with the tags it includes. A filtered list's address can be shared.
 - [x] Mod pages with a Markdown description, versions, requirements, statistics, and links to the author's F3M and community forum profiles
 - [x] Download in the browser, or open the mod straight in F3M Desktop (`f3m://` link)
 - [x] Accounts with sign-up and login, plus linking a community forum account (verified through a post on the forum profile)
 - [x] Upload with versioning and dependencies. Files may be `.dll`, `.zip`, `.rar` or `.7z`.
 - [x] **Optional files:** named groups for parts a mod works without (examples, tutorials, readmes). The form suggests them and they can be marked in the install preview; F3M Desktop installs them only when a player turns a group on.
-- [x] **Mod types** for each file: BepInEx plugin, Custom Missions v1/v2, Cosplay Loader outfit, texture pack, or custom. The type fills in the install path and category, a preview shows where every file will land, and checks warn about common packaging mistakes.
+- [x] **Mod types** for each file: BepInEx plugin, Custom Missions v1/v2, Cosplay Loader outfit, texture pack, or custom. The type fills in the install path and gives the mod its type tag (it can't be set by hand), a preview shows where every file will land, and checks warn about common packaging mistakes.
 - [x] Mods imported from the community forum stay with their original authors, who claim them by signing in with their forum account
 - [x] Admin page: users and roles, rebuilding the signed catalog, assigning mod owners, managing tags (the tag tree can't get loops)
 - [x] Site setup (admin): a checklist of what a new site still needs, the forum bot account for account linking, and a one-click import of the frameworks

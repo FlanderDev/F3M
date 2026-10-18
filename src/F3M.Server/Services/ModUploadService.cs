@@ -300,13 +300,11 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, Ta
             throw;
         }
 
-        // Without a category of its own, a mod gets the one of its first typed file.
-        var category = dto.Category;
-        if (string.IsNullOrWhiteSpace(category) || category == ModUploadDto.UnspecifiedCategory)
-        {
-            category = staged.Select(f => ModTemplates.Find(f.Template)).FirstOrDefault(t => t is { Id: not ModTemplates.Custom })?.Category
-                       ?? category;
-        }
+        // The category the catalog still publishes (for desktop apps from before tags): the one of the first typed file.
+        // Without typed files, the one the importer named, or Others. The type tags follow the same rule
+        // (ModTemplates.TypeIdsOf, TagService.SyncTypeTagsAsync).
+        var category = staged.Select(f => ModTemplates.Find(f.Template)).FirstOrDefault(t => t is { Id: not ModTemplates.Custom })?.Category
+                       ?? (string.IsNullOrWhiteSpace(dto.Category) || dto.Category == ModUploadDto.UnspecifiedCategory ? Categories.Others : dto.Category);
 
         // ── Write the rows. If anything fails from here on, rows and staged files are removed again. ──
         var group = existingGroup;
@@ -465,6 +463,9 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, Ta
 
         var uploaded = mod!;
         logger.LogInformation("Mod uploaded: {Name} v{Version} by {Author} ({FileCount} files)", uploaded.Name, uploaded.Version, uploaded.Author, files.Count);
+
+        // The new version may be the latest now: the mod gets its files' types as tags.
+        await tags.SyncTypeTagsAsync(uploaded.ModGroupId, ct);
 
         // The catalog is updated after the upload is safely stored. A failure there is logged, never returned to the uploader.
         await catalog.TryPublishVersionAsync(uploaded.Id, ct);
