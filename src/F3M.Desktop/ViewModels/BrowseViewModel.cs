@@ -218,8 +218,7 @@ public sealed partial class BrowseViewModel : ObservableObject
             {
                 var bytes = await _app.Catalog.FetchBytesAsync(card.Group.PreviewUrl, CancellationToken.None);
                 if (bytes is null) continue;
-                using var stream = new MemoryStream(bytes);
-                card.Preview = new Bitmap(stream);
+                card.Preview = await Task.Run(() => Images.Decode(bytes));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

@@ -19,6 +19,8 @@
 		<PackageReference Include="Avalonia.Desktop" Version="11.3.9" />
 		<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.9" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<!-- Decodes AVIF previews, which Avalonia's Skia can't read. Adds one native library per runtime (about 25 MB for win-x64). -->
+		<PackageReference Include="Magick.NET-Q8-AnyCPU" Version="15.0.0" />
 		<!-- Same archive reader as the server, so every format it accepts (.zip, .7z, .rar) can be installed. -->
 		<PackageReference Include="SharpCompress" Version="0.50.4" />
 		<!-- Keep in step with the vpk version in .github/workflows/desktop-windows-velopack.yml. -->
