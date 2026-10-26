@@ -116,7 +116,7 @@
           <TextBlock Text="Choose Details on a mod to see it here." Classes="muted" TextWrapping="Wrap" />
           <TextBlock Text="{Binding Detail.Name}" FontWeight="Bold" FontSize="15" TextWrapping="Wrap" />
           <TextBlock Text="{Binding Detail.Author, StringFormat='by {0}'}" Classes="muted" />
-          <TextBlock Text="{Binding Detail.Description}" TextWrapping="Wrap" />
+          <TextBlock v:Links.Markup="{Binding Detail.Description}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding Detail.Version, StringFormat='Version {0}'}" Classes="muted" />
           <TextBlock Text="{Binding Detail.Published, StringFormat='Published {0}'}" Classes="muted" />
           <TextBlock Text="{Binding Detail.Size, StringFormat='Download size {0}'}" Classes="muted" />

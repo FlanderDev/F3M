@@ -256,7 +256,7 @@ public sealed partial class BrowseViewModel : ObservableObject
                 doc.Version,
                 doc.Author,
                 doc.Category,
-                doc.Description,
+                Markup.FromMarkdown(doc.Description),
                 FileOps.FormatBytes(doc.Files.Sum(f => f.Size)),
                 dependencies.Count == 0 ? "None" : string.Join(", ", dependencies),
                 doc.PublishedAt.ToString("yyyy-MM-dd"),
