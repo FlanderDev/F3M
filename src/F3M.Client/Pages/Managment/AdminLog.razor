@@ -1,0 +1,111 @@
+@page "/admin/log"
+@layout AdminLayout
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IAdminApi Api
+
+<PageTitle>F3M - Log</PageTitle>
+
+<div style="max-width:1000px;">
+    <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="fw-black mb-1 fs-2">
+                <i class="bi bi-journal-text text-warning me-2"></i>Log
+                @if (logTotal > 0)
+                {
+                    <span class="badge bg-secondary ms-1 align-middle fs-6">@logTotal</span>
+                }
+            </h1>
+            <p class="small mb-0">
+                Sign-ins, uploads, edits, deletions and admin actions, plus warnings and errors from the server and from
+                visitors' browsers. Newest first; entries older than @IAdminApi.LogRetentionDays days are removed.
+            </p>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="ReloadLog" disabled="@loadingLog">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+    </div>
+
+    <div class="f3m-surface rounded-3 border p-4" style="border-color:var(--f3m-border);">
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <select class="form-select form-select-sm f3m-input f3m-log-filter" aria-label="Lowest level shown"
+                    @bind:get="logMinLevel" @bind:set="OnLogMinLevelChanged">
+                <option value="@LogSeverity.Information">Info and above</option>
+                <option value="@LogSeverity.Warning">Warnings and errors</option>
+                <option value="@LogSeverity.Error">Errors only</option>
+            </select>
+            <select class="form-select form-select-sm f3m-input f3m-log-filter" aria-label="Source"
+                    @bind:get="logSource" @bind:set="OnLogSourceChanged">
+                <option value="@LogSourceFilter.All">Server and browsers</option>
+                <option value="@LogSourceFilter.Server">Server only</option>
+                <option value="@LogSourceFilter.Browser">Browsers only</option>
+            </select>
+            <div class="input-group input-group-sm f3m-log-search">
+                <input type="search" class="form-control f3m-input" placeholder="Search message, user or source"
+                       @bind="logSearch" @bind:event="oninput" @onkeydown="OnLogSearchKeyDown" />
+                <button class="btn btn-outline-secondary" @onclick="ReloadLog" disabled="@loadingLog" aria-label="Search">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </div>
+
+        @if (logError is not null)
+        {
+            <div class="alert alert-danger small mb-2"><i class="bi bi-exclamation-triangle-fill me-2"></i>@logError</div>
+        }
+
+        @if (logEntries.Count == 0 && !loadingLog && logError is null)
+        {
+            <div class="small f3m-import-muted">No entries match.</div>
+        }
+
+        @foreach (var entry in logEntries)
+        {
+            <details class="f3m-error-report">
+                <summary>
+                    <span class="f3m-error-time">@entry.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</span>
+                    <span class="badge @LevelBadge(entry.Level) f3m-log-level">@LevelName(entry.Level)</span>
+                    @if (entry.Source == LogSource.Browser)
+                    {
+                        <i class="bi bi-window f3m-import-muted" title="Reported by a visitor's browser"></i>
+                    }
+                    <span class="f3m-error-message">@entry.Message</span>
+                </summary>
+                <div class="small mt-2">
+                    @if (!string.IsNullOrWhiteSpace(entry.Category))
+                    {
+                        <div class="text-break">
+                            <span class="f3m-import-muted">@(entry.Source == LogSource.Browser ? "Source:" : "From:")</span>
+                            <span title="@entry.Category">@(entry.Source == LogSource.Server ? ShortCategory(entry.Category) : entry.Category)</span>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(entry.UserName))
+                    {
+                        <div><span class="f3m-import-muted">User:</span> <a href="@($"profile/{Uri.EscapeDataString(entry.UserName)}")">@entry.UserName</a></div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(entry.RequestPath))
+                    {
+                        <div class="text-break"><span class="f3m-import-muted">@(entry.Source == LogSource.Browser ? "Page:" : "Request:")</span> @entry.RequestPath</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(entry.Details))
+                    {
+                        <pre class="f3m-error-stack">@entry.Details</pre>
+                    }
+                </div>
+            </details>
+        }
+
+        @if (loadingLog)
+        {
+            <div class="small f3m-import-muted mt-2"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
+        }
+        else if (logEntries.Count < logTotal)
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <span class="small f3m-import-muted">Showing @logEntries.Count of @logTotal.</span>
+                <button class="btn btn-sm btn-outline-warning" @onclick="LoadMoreLog">Load @Math.Min(LogPageSize, logTotal - logEntries.Count) more</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="LoadAllLog">Load all</button>
+            </div>
+        }
+    </div>
+</div>

@@ -1,14 +1,14 @@
 @page "/admin/import"
+@layout AdminLayout
 @attribute [Authorize(Roles = AppRoles.Admin)]
 @inject IImportApi Api
 @inject IJSRuntime JS
 
 <PageTitle>F3M - F95zone import</PageTitle>
 
-<div class="container py-5" style="max-width:1100px;">
+<div style="max-width:1100px;">
     <div class="mb-4">
-        <a href="/admin" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>Admin Panel</a>
-        <h1 class="fw-black mb-1 fs-2 mt-2">
+        <h1 class="fw-black mb-1 fs-2">
             <i class="bi bi-cloud-download-fill text-warning me-2"></i>F95zone import
         </h1>
         <p class="small mb-0">

@@ -1,4 +1,4 @@
-@* The admin page's "Server update" card: the running version, new commits waiting on the branch, and a button that
+@* The server update page's card: the running version, new commits waiting on the branch, and a button that
    asks the host to update (backup, newest code, rebuild, restart). The host does the work; see admin-updates.sh. *@
 @implements IDisposable
 @inject IServerUpdateApi Api
@@ -8,7 +8,7 @@
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
         <div style="max-width:620px;">
             <h2 class="fs-5 fw-bold mb-2">
-                <i class="bi bi-cloud-arrow-up-fill text-warning me-2"></i>Server update
+                <i class="bi bi-hdd-rack-fill text-warning me-2"></i>This server
             </h2>
             <p class="small mb-1">
                 Running version:
