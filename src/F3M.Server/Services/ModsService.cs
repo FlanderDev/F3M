@@ -18,7 +18,7 @@ namespace F3M.Server.Services;
 /// </summary>
 public partial class ModsService(
     AppDbContext db, IHttpContextAccessor httpContextAccessor, CatalogService catalog, ModOwnershipService ownership,
-    TagService tagService, ILogger<ModsService> logger) : IModsApi
+    TagService tagService, SiteSettings settings, ILogger<ModsService> logger) : IModsApi
 {
     private const int MinSearchLength = 3;
     private const int MaxSearchResults = 50;
@@ -41,13 +41,17 @@ public partial class ModsService(
             .Include(m => m.Files)
             .AsQueryable();
 
+        // Suggestions whose votes reached the limit count like the mods' own tags.
+        var counting = tagService.CountingSuggestions(await settings.TagSuggestionThresholdAsync(ct));
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             // The name, or a tag (or a tag including the mod's): "texture" finds the mods tagged Textures too.
             var pattern = LikePattern(search.Trim());
             var matchingTags = await tagService.MatchingTagsAsync(search.Trim(), ct);
             query = query.Where(m => EF.Functions.Like(m.Name, pattern, "\\")
-                                     || db.ModGroupTags.Any(t => t.ModGroupId == m.ModGroupId && matchingTags.Contains(t.TagId)));
+                                     || db.ModGroupTags.Any(t => t.ModGroupId == m.ModGroupId && matchingTags.Contains(t.TagId))
+                                     || counting.Any(s => s.ModGroupId == m.ModGroupId && matchingTags.Contains(s.TagId!.Value)));
         }
 
         if (!string.IsNullOrWhiteSpace(tags))
@@ -57,7 +61,10 @@ public partial class ModsService(
                 return new ModListResult { Page = page, PageSize = pageSize };
 
             foreach (var set in sets)
-                query = query.Where(m => db.ModGroupTags.Any(t => t.ModGroupId == m.ModGroupId && set.Contains(t.TagId)));
+            {
+                query = query.Where(m => db.ModGroupTags.Any(t => t.ModGroupId == m.ModGroupId && set.Contains(t.TagId))
+                                         || counting.Any(s => s.ModGroupId == m.ModGroupId && set.Contains(s.TagId!.Value)));
+            }
         }
 
         // The id breaks ties (many mods share a download count), so pages never overlap or skip a mod when the
@@ -239,7 +246,7 @@ public partial class ModsService(
 
         // Tags belong to the whole mod. The index the catalog publishes them in is rewritten with the version below.
         if (dto.TagIds is not null)
-            await tagService.SetGroupTagsAsync(mod.ModGroupId, dto.TagIds, ct);
+            await tagService.SetGroupTagsAsync(mod.ModGroupId, dto.TagIds, Helper.GetUserId(CurrentPrincipal), ct);
 
         await RecalculateLatestVersion(db, group?.Id, mod);
         try

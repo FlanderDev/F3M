@@ -39,6 +39,13 @@ public sealed class SiteStats
     public List<NamedCount> TagFilters { get; set; } = [];
     public List<NamedCount> DesktopVersions { get; set; } = [];
 
+    /// <summary>The tags people suggested for mods, and the new tags they asked for (names in lower case).</summary>
+    public List<NamedCount> TagsSuggested { get; set; } = [];
+    public List<NamedCount> TagsRequested { get; set; } = [];
+
+    /// <summary>The last 12 weeks, oldest first, including the current one.</summary>
+    public List<WeeklyTagSuggestions> TagSuggestions { get; set; } = [];
+
     public VerificationStats Verifications { get; set; } = new();
 }
 
@@ -115,6 +122,21 @@ public sealed class MonthlyGrowth
 
     /// <summary>Versions added to mods that already existed.</summary>
     public int NewVersions { get; set; }
+}
+
+public sealed class WeeklyTagSuggestions
+{
+    /// <summary>The Monday the week starts on.</summary>
+    public DateOnly Week { get; set; }
+
+    /// <summary>Suggestions of existing tags.</summary>
+    public int Suggested { get; set; }
+
+    /// <summary>Requests for new tags.</summary>
+    public int Requested { get; set; }
+
+    /// <summary>Suggestions and requests approved or rejected.</summary>
+    public int Decided { get; set; }
 }
 
 public sealed class CategoryStats

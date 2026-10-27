@@ -1,27 +1,35 @@
-@* A mod's tags as small chips. Each one opens the browse page filtered by it. *@
+@* A mod's tags as small chips. Each one opens the browse page filtered by it. Tags whose suggestion reached the vote
+   limit (community tags) come after the mod's own, with a dashed border. *@
 @implements IDisposable
 @inject TagDirectory Directory
 
 @{
-    var tags = Directory.Resolve(TagIds).Where(t => IncludeTypes || !t.IsType).ToList();
+    var own = Directory.Resolve(TagIds).Where(t => IncludeTypes || !t.IsType).ToList();
+    var chips = own.Select(t => (Tag: t, Community: false))
+        .Concat(Directory.Resolve(CommunityTagIds).Where(t => own.All(o => o.Id != t.Id)).Select(t => (Tag: t, Community: true)))
+        .ToList();
 }
-@if (tags.Count > 0)
+@if (chips.Count > 0)
 {
     <div class="f3m-tags @Class">
-        @foreach (var tag in tags.Take(Limit))
+        @foreach (var (tag, community) in chips.Take(Limit))
         {
-            <a class="f3m-tag" href="@BrowseUrl(tag.Name)" title="@(tag.Description ?? $"All mods tagged {tag.Name}")"
+            <a class="f3m-tag @(community ? "f3m-tag-community" : string.Empty)" href="@BrowseUrl(tag.Name)"
+               title="@(community ? $"Suggested and voted for by visitors. {tag.Description}" : tag.Description ?? $"All mods tagged {tag.Name}")"
                @onclick:stopPropagation="true">@tag.Name</a>
         }
-        @if (tags.Count > Limit)
+        @if (chips.Count > Limit)
         {
-            <span class="f3m-tag f3m-tag-more" title="@string.Join(", ", tags.Skip(Limit).Select(t => t.Name))">+@(tags.Count - Limit)</span>
+            <span class="f3m-tag f3m-tag-more" title="@string.Join(", ", chips.Skip(Limit).Select(c => c.Tag.Name))">+@(chips.Count - Limit)</span>
         }
     </div>
 }
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyCollection<int> TagIds { get; set; } = [];
+
+    /// <summary>Tags users suggested whose votes reached the limit (<see cref="Mod.CommunityTagIds"/>).</summary>
+    [Parameter] public IReadOnlyCollection<int> CommunityTagIds { get; set; } = [];
 
     /// <summary>At most this many chips; the rest are counted in a "+n" chip.</summary>
     [Parameter] public int Limit { get; set; } = int.MaxValue;

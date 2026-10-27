@@ -359,7 +359,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, Ta
             }
 
             if (createdGroup && dto.TagIds.Count > 0)
-                await tags.SetGroupTagsAsync(group.Id, dto.TagIds, ct);
+                await tags.SetGroupTagsAsync(group.Id, dto.TagIds, ct: ct);
 
             // ── Create version record ──
             mod = new Mod

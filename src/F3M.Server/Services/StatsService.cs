@@ -102,6 +102,26 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
             });
         }
 
+        // Tag suggestions per week, from the suggestions themselves (a request keeps its name after it became a tag).
+        var thisWeek = result.To.AddDays(-(((int)result.To.DayOfWeek + 6) % 7));
+        var firstWeek = thisWeek.AddDays(-7 * 11);
+        var since = firstWeek.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var suggestions = await db.TagSuggestions.AsNoTracking()
+            .Where(t => t.CreatedAt >= since || t.DecidedAt >= since)
+            .Select(t => new { t.CreatedAt, t.DecidedAt, IsRequest = t.RequestedName != null })
+            .ToListAsync(ct);
+        for (var week = firstWeek; week <= thisWeek; week = week.AddDays(7))
+        {
+            var last = week.AddDays(6);
+            result.TagSuggestions.Add(new WeeklyTagSuggestions
+            {
+                Week = week,
+                Suggested = suggestions.Count(t => !t.IsRequest && InRange(t.CreatedAt, week, last)),
+                Requested = suggestions.Count(t => t.IsRequest && InRange(t.CreatedAt, week, last)),
+                Decided = suggestions.Count(t => t.DecidedAt is { } at && InRange(at, week, last))
+            });
+        }
+
         // By type tag; a mod of several types counts for each of them.
         var typesByGroup = (await (
                     from link in db.ModGroupTags.AsNoTracking()
@@ -215,6 +235,8 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
         result.SearchesWithoutResults = Top(StatsRecorder.Metrics.SearchWithoutResults, TopSearchCount);
         result.TagFilters = Top(StatsRecorder.Metrics.TagFilter, TopSearchCount);
         result.DesktopVersions = Top(StatsRecorder.Metrics.DesktopSync, TopCount);
+        result.TagsSuggested = Top(StatsRecorder.Metrics.TagSuggested, TopSearchCount);
+        result.TagsRequested = Top(StatsRecorder.Metrics.TagRequested, TopSearchCount);
     }
 
     /// <summary>Warnings and errors per day, from the site log (which keeps 90 days).</summary>
