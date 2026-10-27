@@ -29,5 +29,5 @@
 
 @code {
     [Parameter, EditorRequired] public Mod Mod { get; set; } = default!;
-    private void NavigateToDetail() => Nav.NavigateTo($"/mod/{Mod.Id}");
+    private void NavigateToDetail() => Nav.NavigateTo(Paths.ModDetail(Mod.Id));
 }

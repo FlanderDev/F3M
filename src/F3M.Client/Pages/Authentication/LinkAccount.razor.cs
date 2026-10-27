@@ -103,7 +103,7 @@ public partial class LinkAccount
                     // The server signed us in with a cookie during the check; show that everywhere right away. The
                     // profile page is [Authorize]d and waits for this refreshed state, then shows a welcome note.
                     Acct.RefreshAuthenticationState();
-                    Navigation.NavigateTo($"/profile?welcome={(result.IsNewUser ? "new" : "back")}");
+                    Navigation.NavigateTo($"{Paths.Profile}?welcome={(result.IsNewUser ? "new" : "back")}");
                     break;
 
                 case VerificationState.Pending when result.ProfileHidden:

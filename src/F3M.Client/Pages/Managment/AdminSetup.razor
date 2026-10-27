@@ -158,7 +158,7 @@
             <p class="small mb-3">
                 The mods that mod types need. The upload form names them as requirements, so players get them too.
                 The import downloads them from F95zone and imports them as unclaimed mods, like the
-                <a href="/admin/import">F95zone import</a> does, without the other community mods.
+                <a href="@Paths.AdminImport">F95zone import</a> does, without the other community mods.
             </p>
 
             @foreach (var framework in status.Frameworks)
@@ -169,7 +169,7 @@
                         <div class="fw-semibold">
                             @if (framework.ModId is { } modId)
                             {
-                                <a href="/mod/@modId" class="text-decoration-none">@framework.Name</a>
+                                <a href="@Paths.ModDetail(modId)" class="text-decoration-none">@framework.Name</a>
                             }
                             else
                             {
@@ -194,7 +194,7 @@
                 </button>
                 @if (JobRunning && job?.Kind != ImportJobKind.Frameworks)
                 {
-                    <span class="small f3m-import-muted">Another import step is running; see the <a href="/admin/import">F95zone import</a>.</span>
+                    <span class="small f3m-import-muted">Another import step is running; see the <a href="@Paths.AdminImport">F95zone import</a>.</span>
                 }
             </div>
 
@@ -225,7 +225,7 @@
                     {
                         <div class="small mt-1">
                             @frameworksJob.Summary
-                            <a href="/admin/import" class="ms-1">Details</a>
+                            <a href="@Paths.AdminImport" class="ms-1">Details</a>
                         </div>
                     }
                 </div>

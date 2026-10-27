@@ -87,7 +87,7 @@ public sealed record CollectionLink(IReadOnlyList<int> GroupIds, string? Name)
     }
 
     /// <summary>Relative path of the web page, e.g. <c>/collection?mods=45,67</c>.</summary>
-    public string ToWebPath() => "/collection?" + ToQuery();
+    public string ToWebPath() => $"{Paths.Collection}?{ToQuery()}";
 
     /// <summary>
     /// Protocol link opened by the desktop app for the site at <paramref name="server"/>, e.g.

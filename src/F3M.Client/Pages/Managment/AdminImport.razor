@@ -302,7 +302,7 @@
                                 <td class="align-middle text-end text-nowrap">
                                     @if (mod.ModId is { } modId)
                                     {
-                                        <a href="/mod/@modId" class="me-2" title="The mod on F3M"><i class="bi bi-box-seam"></i></a>
+                                        <a href="@Paths.ModDetail(modId)" class="me-2" title="The mod on F3M"><i class="bi bi-box-seam"></i></a>
                                     }
                                     @if (mod.SourceUrl is not null)
                                     {

@@ -6,7 +6,7 @@
     <h4 class="fw-black mb-2">@(IsNewVersion ? "New version uploaded!" : "Mod uploaded!")</h4>
     <p class="small mb-4">Your mod is now live.</p>
     <div class="d-flex justify-content-center gap-3">
-        <a href="/mod/@ModId" class="btn btn-warning fw-bold px-4">View Mod</a>
+        <a href="@Paths.ModDetail(ModId)" class="btn btn-warning fw-bold px-4">View Mod</a>
         <button class="btn btn-outline-secondary" @onclick="OnUploadAnother">Upload Another</button>
     </div>
 </div>

@@ -81,7 +81,7 @@
                     }
                     @if (!string.IsNullOrWhiteSpace(entry.UserName))
                     {
-                        <div><span class="f3m-import-muted">User:</span> <a href="@($"profile/{Uri.EscapeDataString(entry.UserName)}")">@entry.UserName</a></div>
+                        <div><span class="f3m-import-muted">User:</span> <a href="@Paths.PublicProfile(entry.UserName)">@entry.UserName</a></div>
                     }
                     @if (!string.IsNullOrWhiteSpace(entry.RequestPath))
                     {
