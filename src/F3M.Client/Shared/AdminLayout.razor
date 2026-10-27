@@ -9,7 +9,7 @@
         <div class="f3m-admin-nav-title">
             <i class="bi bi-shield-fill text-warning me-2"></i>Admin
         </div>
-        <NavLink class="f3m-admin-nav-link" href="@AdminSections.OverviewHref" Match="NavLinkMatch.All">
+        <NavLink class="f3m-admin-nav-link" href="@Paths.Admin" Match="NavLinkMatch.All">
             <i class="bi bi-grid-1x2-fill"></i><span>Overview</span>
         </NavLink>
         @foreach (var group in AdminSections.All.GroupBy(s => s.Group))
