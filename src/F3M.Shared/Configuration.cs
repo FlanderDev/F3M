@@ -39,7 +39,11 @@ public static class Configuration
     public const int PasswordMaxLength = 256;
 
     public static readonly string[] AllowedFileExtension = [".dll", ".zip", ".rar", ".7z", ".pak", ".mod"];
-    public static readonly string[] AllowedThumbnailExtension = [".jpg", ".jpeg", ".png", ".webp"];
+    /// <summary>
+    /// Preview image types an upload may name. The server checks the bytes as well, keeps PNG, JPEG, GIF and WebP, and
+    /// stores AVIF as WebP (see PreviewImages).
+    /// </summary>
+    public static readonly string[] AllowedThumbnailExtension = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"];
 
     public const int ModDescriptionMaxSize = 10_000;
 
