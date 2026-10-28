@@ -53,7 +53,7 @@ F3M is a mod hub for a BepInEx-modded Unity game. It has two parts:
 - [x] **Optional files:** named groups for parts a mod works without (examples, tutorials, readmes). The form suggests them and they can be marked in the install preview; F3M Desktop installs them only when a player turns a group on.
 - [x] **Mod types** for each file: BepInEx plugin, Custom Missions v1/v2, Cosplay Loader outfit, texture pack, or custom. The type fills in the install path and gives the mod its type tag (it can't be set by hand), a preview shows where every file will land, and checks warn about common packaging mistakes.
 - [x] Mods imported from the community forum stay with their original authors, who claim them by signing in with their forum account
-- [x] Admin page: users and roles, rebuilding the signed catalog, assigning mod owners, managing tags (the tag tree can't get loops)
+- [x] Admin area with a page per task, linked from a sidebar: users and roles, the site log, rebuilding the signed catalog, managing tags (the tag tree can't get loops); mod owners are assigned on the mod page
 - [x] Site setup (admin): a checklist of what a new site still needs, the forum bot account for account linking, and a one-click import of the frameworks
 - [x] Community import (admin): downloads about 200 community mods and imports them step by step, with progress, problems and a review of held-back mods
 - [x] User profiles
@@ -237,7 +237,7 @@ The import's downloads are left out unless `--with-downloads` is given; they can
 
 #### Updating from the admin page
 
-`./admin-updates.sh` installs a small systemd service on the host (it asks for sudo), after which the admin page shows the running version, the new commits waiting on the branch, and an **Update now** button. The page only leaves a request in the storage volume; the service runs `./update.sh --yes` on the host (backup, newest code, rebuild, restart) as the owner of the F3M folder, and reports its progress and log back to the page. It also looks for new commits every 6 hours. The container gets no access to Docker or the host.
+`./admin-updates.sh` installs a small systemd service on the host (it asks for sudo), after which the admin page **Server update** (`/admin/server-update`) shows the running version, the new commits waiting on the branch, and an **Update now** button. The page only leaves a request in the storage volume; the service runs `./update.sh --yes` on the host (backup, newest code, rebuild, restart) as the owner of the F3M folder, and reports its progress and log back to the page. It also looks for new commits every 6 hours. The container gets no access to Docker or the host.
 
 ```bash
 ./admin-updates.sh           # shows the status and asks: install, reinstall or remove

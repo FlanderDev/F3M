@@ -1454,6 +1454,139 @@ a.f3m-tag:hover, a.f3m-tag:focus-visible {
     }
 
 /* ── Admin panel ─────────────────────────────────────────── */
+/* The admin area (Shared/AdminLayout): the sidebar beside the page on wide screens, a row of links above it otherwise. */
+.f3m-admin-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 1.25rem 16px 3rem;
+}
+
+.f3m-admin-content {
+    min-width: 0;
+}
+
+.f3m-admin-nav {
+    display: flex;
+    gap: .25rem;
+    overflow-x: auto;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--f3m-border);
+    scrollbar-width: thin;
+}
+
+.f3m-admin-nav-title, .f3m-admin-nav .f3m-admin-nav-group {
+    display: none;
+}
+
+.f3m-admin-nav-group {
+    font-family: var(--f3m-font-h);
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--f3m-muted);
+}
+
+.f3m-admin-nav-link {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    flex-shrink: 0;
+    padding: .45rem .75rem;
+    border-radius: 8px;
+    color: var(--f3m-text);
+    font-size: .88rem;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background var(--tr), color var(--tr);
+}
+
+    .f3m-admin-nav-link i {
+        color: var(--f3m-muted);
+        transition: color var(--tr);
+    }
+
+    .f3m-admin-nav-link:hover, .f3m-admin-nav-link:focus-visible {
+        background: var(--f3m-surface-2);
+        color: var(--f3m-text);
+    }
+
+    .f3m-admin-nav-link.active {
+        background: var(--f3m-amber-dim);
+        color: var(--f3m-amber);
+        font-weight: 600;
+    }
+
+        .f3m-admin-nav-link.active i {
+            color: var(--f3m-amber);
+        }
+
+@media (min-width: 992px) {
+    .f3m-admin-shell {
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 2rem;
+        padding: 2rem 1.5rem 3rem;
+    }
+
+    .f3m-admin-nav {
+        flex-direction: column;
+        align-self: start;
+        position: sticky;
+        top: calc(56px + 1.5rem);
+        max-height: calc(100vh - 56px - 3rem);
+        overflow-y: auto;
+        padding: .75rem;
+        border: 1px solid var(--f3m-border);
+        border-radius: var(--f3m-radius);
+        background: var(--f3m-surface);
+    }
+
+    .f3m-admin-nav-title {
+        display: block;
+        padding: .25rem .75rem .5rem;
+        font-family: var(--f3m-font-h);
+        font-weight: 700;
+    }
+
+    .f3m-admin-nav .f3m-admin-nav-group {
+        display: block;
+        padding: .9rem .75rem .3rem;
+    }
+}
+
+/* The overview's tiles, one per admin page. */
+.f3m-admin-tile {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    height: 100%;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: var(--f3m-radius);
+    background: var(--f3m-surface);
+    color: var(--f3m-muted);
+    text-decoration: none;
+    transition: border-color var(--tr), transform var(--tr);
+}
+
+    .f3m-admin-tile:hover, .f3m-admin-tile:focus-visible {
+        border-color: rgba(255,193,7,.35);
+        color: var(--f3m-muted);
+        transform: translateY(-2px);
+    }
+
+.f3m-admin-tile-title {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    color: var(--f3m-text);
+    font-family: var(--f3m-font-h);
+    font-weight: 700;
+}
+
 .f3m-admin-table {
     background: transparent !important;
     color: var(--f3m-text);

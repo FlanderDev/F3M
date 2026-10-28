@@ -1,15 +1,12 @@
 @page "/admin/tags"
+@layout AdminLayout
 @attribute [Authorize(Roles = AppRoles.Admin)]
 @inject ITagsApi Api
 @inject TagDirectory Directory
 
 <PageTitle>F3M - Tags</PageTitle>
 
-<div class="container py-5" style="max-width:1200px;">
-    <a href="/admin" class="small d-inline-flex align-items-center gap-1 mb-3">
-        <i class="bi bi-arrow-left"></i> Admin Panel
-    </a>
-
+<div style="max-width:1200px;">
     <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-4">
         <div style="max-width:720px;">
             <h1 class="fw-black mb-1 fs-2">

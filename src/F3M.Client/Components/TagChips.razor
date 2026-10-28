@@ -32,7 +32,7 @@
     [Parameter] public bool IncludeTypes { get; set; }
 
     /// <summary>The browse page filtered by one tag.</summary>
-    public static string BrowseUrl(string name) => $"/?tags={Uri.EscapeDataString(name)}";
+    public static string BrowseUrl(string name) => $"{Paths.Index}?tags={Uri.EscapeDataString(name)}";
 
     protected override async Task OnInitializedAsync()
     {

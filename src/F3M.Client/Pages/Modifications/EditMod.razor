@@ -20,20 +20,20 @@
         <div class="text-center py-5">
             <h3 class="text-warning fw-bold">Access denied</h3>
             <p class="small">You don't have permission to edit this mod.</p>
-            <a href="/" class="btn btn-outline-warning mt-2">Back to Browse</a>
+            <a href="@Paths.Index" class="btn btn-outline-warning mt-2">Back to Browse</a>
         </div>
     }
     else if (mod is null)
     {
         <div class="text-center py-5">
             <h3 class="text-warning fw-bold">Mod not found</h3>
-            <a href="/" class="btn btn-outline-warning mt-2">Back to Browse</a>
+            <a href="@Paths.Index" class="btn btn-outline-warning mt-2">Back to Browse</a>
         </div>
     }
     else
     {
         <div class="mb-4">
-            <a href="/mod/@Id" class="small d-inline-flex align-items-center gap-1 mb-3">
+            <a href="@Paths.ModDetail(Id)" class="small d-inline-flex align-items-center gap-1 mb-3">
                 <i class="bi bi-arrow-left"></i> Back to mod
             </a>
             <h1 class="fw-black mb-1 fs-2">Edit Mod</h1>
@@ -191,7 +191,7 @@
                         }
                         @(saving ? "Saving…" : "Save Changes")
                     </button>
-                    <a href="/mod/@Id" class="btn btn-outline-secondary fw-semibold px-4">Cancel</a>
+                    <a href="@Paths.ModDetail(Id)" class="btn btn-outline-secondary fw-semibold px-4">Cancel</a>
                 </div>
             </EditForm>
         </div>

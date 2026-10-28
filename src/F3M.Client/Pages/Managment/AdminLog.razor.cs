@@ -1,23 +1,11 @@
+using F3M.Client.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Models;
-using FlanderDev.RouteGen.Abstractions;
-using System.Text.Json;
 
 namespace F3M.Client.Pages.Managment;
 
-public partial class Admin
+public partial class AdminLog
 {
-    private List<AdminUserDto> users = [];
-    private bool loading = true;
-    private string? loadError;
-    private string? actionError;
-    private string search = string.Empty;
-    private int? busyId;
-    private AdminUserDto? deleteTarget;
-    private bool rebuilding;
-    private CatalogRebuildResult? rebuildResult;
-    private string? rebuildError;
-
     // The site log: the first page loads with the page, more on request.
     private const int LogPageSize = 25;
     private readonly List<LogEntry> logEntries = [];
@@ -31,26 +19,7 @@ public partial class Admin
     // Bumped by every reload, so a slower earlier load can't add its entries to the new list.
     private int logGeneration;
 
-    private IEnumerable<AdminUserDto> Filtered => string.IsNullOrWhiteSpace(search)
-        ? users
-        : users.Where(u =>
-            u.Username.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-            (u.F95Username?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            users = await Api.GetUsersAsync();
-        }
-        catch (Exception ex)
-        {
-            loadError = DescribeError(ex);
-        }
-        finally { loading = false; }
-
-        await ReloadLog();
-    }
+    protected override Task OnInitializedAsync() => ReloadLog();
 
     private async Task ReloadLog()
     {
@@ -113,7 +82,7 @@ public partial class Admin
         catch (Exception ex)
         {
             if (generation == logGeneration)
-                logError = DescribeError(ex);
+                logError = ApiErrors.Describe(ex);
         }
         finally
         {
@@ -138,68 +107,4 @@ public partial class Admin
     /// <summary>"F3M.Server.Services.ModsService" → "ModsService"; the full name is in the tooltip.</summary>
     private static string ShortCategory(string? category) =>
         category is { Length: > 0 } ? category[(category.LastIndexOf('.') + 1)..] : string.Empty;
-
-    private async Task ToggleAdmin(AdminUserDto user)
-    {
-        busyId = user.Id; actionError = null;
-        try
-        {
-            var updated = await Api.ToggleAdminAsync(user.Id);
-            var idx = users.FindIndex(u => u.Id == user.Id);
-            if (idx >= 0) users[idx] = updated;
-        }
-        catch (Exception ex) { actionError = DescribeError(ex); }
-        finally { busyId = null; }
-    }
-
-    private void ConfirmDelete(AdminUserDto user)
-    {
-        deleteTarget = user;
-        actionError = null;
-    }
-
-    private async Task ExecuteDelete()
-    {
-        if (deleteTarget is null) return;
-        busyId = deleteTarget.Id; actionError = null;
-        try
-        {
-            await Api.DeleteUserAsync(deleteTarget.Id);
-            users.RemoveAll(u => u.Id == deleteTarget.Id);
-            deleteTarget = null;
-        }
-        catch (Exception ex) { actionError = DescribeError(ex); }
-        finally { busyId = null; }
-    }
-
-    private async Task RebuildCatalog()
-    {
-        rebuilding = true; rebuildError = null; rebuildResult = null;
-        try
-        {
-            rebuildResult = await Api.RebuildCatalogAsync();
-        }
-        catch (Exception ex) { rebuildError = DescribeError(ex); }
-        finally { rebuilding = false; }
-    }
-
-    /// <summary>
-    /// ApiException.Message is a generic "API call failed with status 400" string — the actual
-    /// server-provided detail (e.g. "You cannot delete your own account.") is in ResponseBody,
-    /// JSON-serialized as a plain string by BadRequest(ex.Message) on the server.
-    /// </summary>
-    private static string DescribeError(Exception ex)
-    {
-        if (ex is not ApiException { ResponseBody: { Length: > 0 } body })
-            return ex.Message;
-
-        try
-        {
-            return JsonSerializer.Deserialize<string>(body) ?? body;
-        }
-        catch (JsonException)
-        {
-            return body;
-        }
-    }
 }

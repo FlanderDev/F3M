@@ -1,0 +1,19 @@
+@page "/admin/server-update"
+@layout AdminLayout
+@attribute [Authorize(Roles = AppRoles.Admin)]
+
+<PageTitle>F3M - Server update</PageTitle>
+
+<div style="max-width:900px;">
+    <div class="mb-4">
+        <h1 class="fw-black mb-1 fs-2">
+            <i class="bi bi-cloud-arrow-up-fill text-warning me-2"></i>Server update
+        </h1>
+        <p class="small mb-0">
+            The version this server runs and the commits waiting for it. An update makes a backup, gets the newest code,
+            rebuilds and restarts; the host does the work (see admin-updates.sh).
+        </p>
+    </div>
+
+    <ServerUpdateCard />
+</div>

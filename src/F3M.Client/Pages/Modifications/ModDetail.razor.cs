@@ -163,7 +163,7 @@ public partial class ModDetail
 
             // If it was the last version, go home; otherwise reload versions
             if (allVersions.Count <= 1)
-                Nav.NavigateTo("/");
+                Nav.NavigateTo(Paths.Index);
             else
             {
                 allVersions.Remove(selectedVersion);
@@ -207,7 +207,7 @@ public partial class ModDetail
         try
         {
             await ModsApi.DeleteGroup(group.Id);
-            Nav.NavigateTo("/");
+            Nav.NavigateTo(Paths.Index);
         }
         catch (ApiException ex)
         {

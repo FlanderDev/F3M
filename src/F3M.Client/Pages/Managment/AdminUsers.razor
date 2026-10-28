@@ -1,0 +1,166 @@
+@page "/admin/users"
+@layout AdminLayout
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IAdminApi Api
+
+<PageTitle>F3M - Users</PageTitle>
+
+<div style="max-width:1000px;">
+    <div class="mb-4">
+        <h1 class="fw-black mb-1 fs-2">
+            <i class="bi bi-people-fill text-warning me-2"></i>Users
+        </h1>
+        <p class="small mb-0">Every account, with its F95zone profile and role. Make admins here, or delete accounts.</p>
+    </div>
+
+    @if (loading)
+    {
+        <div class="placeholder-glow">
+            @for (int i = 0; i < 5; i++)
+            {
+                <div class="placeholder w-100 mb-2" style="height:48px;border-radius:8px;"></div>
+            }
+        </div>
+    }
+    else if (loadError is not null)
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@loadError
+        </div>
+    }
+    else
+    {
+        <!-- Search -->
+        <div class="input-group mb-4" style="max-width:360px;">
+            <span class="input-group-text f3m-search-icon"><i class="bi bi-search"></i></span>
+            <input class="form-control f3m-search-input" type="search"
+                   placeholder="Search users…"
+                   @bind="search" @bind:event="oninput" />
+        </div>
+
+        @* Scrolls sideways when the page is narrower than the table. *@
+        <div class="f3m-surface rounded-3 border overflow-auto" style="border-color:var(--f3m-border);">
+            <table class="table table-dark table-hover mb-0 f3m-admin-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>F95zone</th>
+                        <th class="text-center">Mods</th>
+                        <th>Registered</th>
+                        <th class="text-center">Role</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Filtered)
+                    {
+                        var u = user;
+                        <tr class="@(u.IsAdmin ? "f3m-admin-row" : string.Empty)">
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="f3m-user-avatar @(u.IsAdmin ? "admin" : string.Empty)">
+                                        @u.Username[0].ToString().ToUpper()
+                                    </span>
+                                    <a href="@Paths.PublicProfile(u.Username)" class="fw-semibold small text-decoration-none">@u.Username</a>
+                                </div>
+                            </td>
+                            <td class="small align-middle">
+                                @if (u.F95UserId is { } f95UserId)
+                                {
+                                    <a href="@F95Profile.LinkFor(u.F95Username, f95UserId)" target="_blank" rel="noopener noreferrer"
+                                       class="btn btn-sm btn-outline-warning text-nowrap" title="Open @(u.F95Username ?? u.Username)'s F95zone profile in a new tab">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>@(u.F95Username ?? "Profile")
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="fst-italic" style="color:var(--f3m-muted)">Not linked</span>
+                                }
+                            </td>
+                            <td class="text-center align-middle">
+                                <span class="badge bg-secondary">@u.ModCount</span>
+                            </td>
+                            <td class="small align-middle">
+                                @u.RegisteredAt.ToString("MMM d, yyyy")
+                            </td>
+                            <td class="text-center align-middle">
+                                @if (u.IsAdmin)
+                                {
+                                    <span class="badge f3m-badge-admin">
+                                        <i class="bi bi-shield-fill me-1"></i>Admin
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">User</span>
+                                }
+                            </td>
+                            <td class="text-end align-middle">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button class="btn btn-sm @(u.IsAdmin ? "btn-outline-warning" : "btn-outline-secondary") fw-semibold"
+                                            @onclick="() => ToggleAdmin(u)"
+                                            disabled="@(busyId == u.Id)">
+                                        @if (busyId == u.Id)
+                                        {
+                                            <span class="spinner-border spinner-border-sm"></span>
+                                        }
+                                        else if (u.IsAdmin)
+                                        {
+                                            <span><i class="bi bi-shield-minus me-1"></i>Revoke</span>
+                                        }
+                                        else
+                                        {
+                                            <span><i class="bi bi-shield-plus me-1"></i>Make Admin</span>
+                                        }
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            title="Delete user"
+                                            @onclick="() => ConfirmDelete(u)"
+                                            disabled="@(busyId == u.Id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Filtered.Any())
+                    {
+                        <tr><td colspan="6" class="text-center py-4 small">No users match your search.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <p class="small mt-3">@users.Count total user@(users.Count != 1 ? "s" : string.Empty)</p>
+    }
+</div>
+
+<!-- Delete confirm modal (CSS-only, no JS modal needed) -->
+@if (deleteTarget is not null)
+{
+    <div class="f3m-modal-backdrop" @onclick="() => deleteTarget = null">
+        <div class="f3m-modal" @onclick:stopPropagation="true">
+            <h5 class="fw-black mb-2">Delete user?</h5>
+            <p class="small mb-1">
+                This will permanently delete <strong>@deleteTarget.Username</strong>'s account.
+                Their mods stay on the site, unclaimed: they go to their F95zone uploader on that user's next sign-in, or you assign them on the mod page.
+            </p>
+            @if (actionError is not null)
+            {
+                <p class="text-danger small mb-2">@actionError</p>
+            }
+            <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-danger fw-bold flex-grow-1"
+                        @onclick="ExecuteDelete"
+                        disabled="@(busyId == deleteTarget.Id)">
+                    @if (busyId == deleteTarget.Id)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    Delete
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="() => deleteTarget = null">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
