@@ -21,6 +21,8 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="HtmlAgilityPack" Version="1.13.0" />
+		<!-- Converts AVIF previews (F95zone serves its attachments as AVIF) to WebP, which the desktop app can read. -->
+		<PackageReference Include="Magick.NET-Q8-AnyCPU" Version="15.0.0" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
 			<PrivateAssets>all</PrivateAssets>

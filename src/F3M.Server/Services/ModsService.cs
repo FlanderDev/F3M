@@ -226,6 +226,9 @@ public partial class ModsService(
             if (bytes.Length > Configuration.MaxImageSize)
                 throw new InvalidDataException("Preview image exceeds 8 MB.");
 
+            // magic bytes decide the format and the extension it is stored with (AVIF becomes WebP).
+            (bytes, extension) = PreviewImages.Normalize(bytes);
+
             var name = $"{Guid.NewGuid():N}{extension}";
             newPreviewPath = Path.Combine(Assets.Images, name);
             await File.WriteAllBytesAsync(newPreviewPath, bytes, ct);
