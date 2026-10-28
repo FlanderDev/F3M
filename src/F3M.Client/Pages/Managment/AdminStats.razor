@@ -275,6 +275,30 @@
                         <CountTable Items="s.SearchesWithoutResults" Header="Search" EmptyText="Every search found something." />
                     </ChartCard>
                 </div>
+                <!-- Tag suggestions -->
+                <div class="col-lg-6">
+                    @{ var suggestions = TagSuggestionPoints; }
+                    <ChartCard Title="Tag suggestions per week" Subtitle="The last 12 weeks: tags suggested for mods, and new tags asked for"
+                               Legend="@([SuggestedSeries, RequestedSeries])">
+                        <ChildContent>
+                            <ColumnChart Labels="suggestions.Labels" ShortLabels="suggestions.ShortLabels"
+                                         Series="@Series(suggestions, SuggestedSeries, RequestedSeries)" AriaLabel="Tag suggestions per week" />
+                        </ChildContent>
+                        <Table>
+                            <PointTable Points="suggestions" Columns="@(["Suggested", "Asked for", "Decided"])" />
+                        </Table>
+                    </ChartCard>
+                </div>
+                <div class="col-lg-6">
+                    <ChartCard Title="Most suggested tags" Subtitle="@($"Tags suggested for mods in the {PeriodName}")">
+                        <CountTable Items="s.TagsSuggested" Header="Tag" EmptyText="No tag was suggested in this period." />
+                    </ChartCard>
+                </div>
+                <div class="col-lg-6">
+                    <ChartCard Title="Most asked-for new tags" Subtitle="@($"Tags people asked to be created, in the {PeriodName}")">
+                        <CountTable Items="s.TagsRequested" Header="Tag" EmptyText="Nobody asked for a new tag in this period." />
+                    </ChartCard>
+                </div>
                 <div class="col-lg-6">
                     <ChartCard Title="Top tag filters" Subtitle="The tags people filtered the browse page by">
                         <CountTable Items="s.TagFilters" Header="Tag" EmptyText="Nobody filtered by a tag in this period yet." />

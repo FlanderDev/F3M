@@ -101,6 +101,8 @@ builder.Services.AddScoped<IModsApi, ModsService>();
 builder.Services.AddSingleton<TagIndex>();
 builder.Services.AddScoped<TagService>();
 builder.Services.AddScoped<ITagsApi>(sp => sp.GetRequiredService<TagService>());
+builder.Services.AddScoped<SiteSettings>();
+builder.Services.AddScoped<ITagSuggestionsApi, TagSuggestionService>();
 builder.Services.AddScoped<ModUploadService>();
 builder.Services.AddScoped<ModOwnershipService>();
 builder.Services.AddScoped<ModImportService>();

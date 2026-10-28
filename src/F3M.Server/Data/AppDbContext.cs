@@ -22,6 +22,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<TagInclusion> TagInclusions => Set<TagInclusion>();
     public DbSet<ModGroupTag> ModGroupTags => Set<ModGroupTag>();
+    public DbSet<TagSuggestion> TagSuggestions => Set<TagSuggestion>();
+    public DbSet<TagVote> TagVotes => Set<TagVote>();
+    public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
     // No longer written: browser errors go to the site log (Logging/LogStore). Kept so the schema matches the migration.
     public DbSet<Telemetry.ErrorReport> TelemetryErrorReports => Set<Telemetry.ErrorReport>();
 
@@ -89,6 +92,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Ignore(m => m.Dependencies);
             e.Ignore(m => m.ShippedPaths);
             e.Ignore(m => m.TagIds);
+            e.Ignore(m => m.CommunityTagIds);
         });
 
         modelBuilder.Entity<Tag>(e =>
@@ -155,6 +159,39 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             // Stored as a JSON array; the patterns are only ever read with their group.
             e.PrimitiveCollection(x => x.Patterns);
             e.HasIndex(x => x.ModId);
+        });
+
+        modelBuilder.Entity<TagSuggestion>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.RequestedName).HasMaxLength(TagRules.MaxNameLength);
+            e.Property(s => s.RequestedNormalizedName).HasMaxLength(TagRules.MaxNameLength);
+            e.Property(s => s.Reason).HasMaxLength(TagSuggestionLimits.MaxReasonLength);
+            e.Property(s => s.State).HasConversion<string>().HasMaxLength(20);
+            // One per mod and tag: voting goes to the open one, and a rejected one blocks suggesting the tag again.
+            e.HasIndex(s => new { s.ModGroupId, s.TagId }).IsUnique().HasFilter("\"TagId\" IS NOT NULL");
+            // The filters look for open suggestions that reached the limit.
+            e.HasIndex(s => new { s.State, s.Score });
+            e.HasIndex(s => s.SuggestedById);
+            e.HasOne<ModGroup>().WithMany().HasForeignKey(s => s.ModGroupId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Tag>().WithMany().HasForeignKey(s => s.TagId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(s => s.SuggestedById).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(s => s.DecidedById).OnDelete(DeleteBehavior.SetNull);
+            e.HasMany(s => s.Votes).WithOne().HasForeignKey(v => v.SuggestionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TagVote>(e =>
+        {
+            e.HasKey(v => new { v.SuggestionId, v.UserId });
+            e.HasIndex(v => v.UserId);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(v => v.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SiteSetting>(e =>
+        {
+            e.HasKey(s => s.Key);
+            e.Property(s => s.Key).HasMaxLength(100);
+            e.Property(s => s.Value).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<AppUser>(e =>

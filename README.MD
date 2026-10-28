@@ -46,6 +46,7 @@ F3M is a mod hub for a BepInEx-modded Unity game. It has two parts:
 
 - [x] Browse mods with search, type chips, tag filter, sorting and infinite scroll
 - [x] **Tags:** a mod can have several, from a list admins manage. A tag can include others (*Clothing* includes *Lingerie*), so filtering by a tag also finds mods tagged with the tags it includes. A filtered list's address can be shared.
+- [x] **Tag suggestions:** signed-in visitors suggest tags for mods (or ask for new ones) and vote on them. From a vote limit set on the admin page a suggestion counts in filters and searches; the mod's owner or an admin approves or rejects it. A daily limit per account keeps the queue small.
 - [x] Mod pages with a Markdown description, versions, requirements, statistics, and links to the author's F3M and community forum profiles
 - [x] Download in the browser, or open the mod straight in F3M Desktop (`f3m://` link)
 - [x] Accounts with sign-up and login, plus linking a community forum account (verified through a post on the forum profile)

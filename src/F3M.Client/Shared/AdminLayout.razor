@@ -3,6 +3,7 @@
 @inherits LayoutComponentBase
 @layout MainLayout
 @inject IJSRuntime JS
+@inject ITagSuggestionsApi Suggestions
 
 <div class="f3m-admin-shell">
     <nav class="f3m-admin-nav" aria-label="Admin pages" @ref="nav">
@@ -19,6 +20,10 @@
             {
                 <NavLink class="f3m-admin-nav-link" href="@section.Href">
                     <i class="bi @section.Icon"></i><span>@section.Title</span>
+                    @if (section.Href == Paths.AdminTags && openSuggestions > 0)
+                    {
+                        <span class="badge bg-warning text-dark ms-auto" title="Open tag suggestions">@openSuggestions</span>
+                    }
                 </NavLink>
             }
         }
@@ -29,6 +34,22 @@
 
 @code {
     private ElementReference nav;
+
+    // Open tag suggestions, for the badge next to Tags.
+    private int openSuggestions;
+
+    // Body changes with every admin page, so the count is looked up again on each.
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            openSuggestions = await Suggestions.GetOpenCount();
+        }
+        catch
+        {
+            // Only the badge.
+        }
+    }
 
     // The layout renders again for every admin page, so the current one's link scrolls into the row on small screens.
     protected override async Task OnAfterRenderAsync(bool firstRender)

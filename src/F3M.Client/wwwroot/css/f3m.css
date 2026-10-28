@@ -1366,6 +1366,122 @@ a.f3m-tag:hover, a.f3m-tag:focus-visible {
     text-transform: uppercase;
 }
 
+/* A tag that counts through visitors' votes (a suggestion past the limit), not the mod's own. */
+.f3m-tag-community {
+    border-style: dashed;
+    border-color: rgba(255,193,7,.45);
+}
+
+/* A requested tag that doesn't exist yet. */
+.f3m-tag-request {
+    gap: 3px;
+    border-style: dotted;
+    color: var(--f3m-muted);
+}
+
+/* ── Tag suggestions (mod page, admin queue) ────────────── */
+.f3m-suggestion-muted {
+    color: var(--f3m-muted);
+}
+
+.f3m-suggestion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem .75rem;
+    padding: .35rem 0;
+    border-bottom: 1px solid var(--f3m-border);
+}
+
+    .f3m-suggestion:last-child {
+        border-bottom: 0;
+    }
+
+.f3m-suggestion-tag {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .5rem;
+    min-width: 0;
+}
+
+.f3m-suggestion-actions {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    margin-left: auto;
+}
+
+.f3m-suggestion-score {
+    min-width: 1.5rem;
+    text-align: center;
+    font-family: var(--f3m-font-h);
+    font-weight: 700;
+    font-size: .85rem;
+}
+
+.f3m-vote {
+    border: 1px solid var(--f3m-border);
+    background: transparent;
+    color: var(--f3m-muted);
+    border-radius: 6px;
+    padding: .1rem .4rem;
+    line-height: 1.4;
+    transition: color var(--tr), border-color var(--tr);
+}
+
+    .f3m-vote:hover:not(:disabled), .f3m-vote:focus-visible {
+        color: var(--f3m-text);
+        border-color: var(--f3m-muted);
+    }
+
+    .f3m-vote.active {
+        color: var(--f3m-status-good);
+        border-color: var(--f3m-status-good);
+    }
+
+    .f3m-vote.down.active {
+        color: var(--f3m-status-critical);
+        border-color: var(--f3m-status-critical);
+    }
+
+/* The unit after a number box ("points", "a day"). */
+.f3m-input-unit {
+    background: var(--f3m-surface-2);
+    border-color: var(--f3m-border);
+    color: var(--f3m-muted);
+}
+
+.f3m-suggest-form {
+    padding: .75rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: 8px;
+    background: var(--f3m-surface-2);
+}
+
+/* Tabs on admin pages (the tags page's Tags | Suggestions). */
+.f3m-tabs {
+    border-color: var(--f3m-border);
+}
+
+    .f3m-tabs .nav-link {
+        color: var(--f3m-muted);
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+    }
+
+        .f3m-tabs .nav-link:hover {
+            color: var(--f3m-text);
+        }
+
+        .f3m-tabs .nav-link.active {
+            color: var(--f3m-amber);
+            border-bottom-color: var(--f3m-amber);
+            background: transparent;
+        }
+
 .f3m-tag-locked {
     gap: 4px;
     font-size: .8rem;

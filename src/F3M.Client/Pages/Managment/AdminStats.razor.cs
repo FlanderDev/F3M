@@ -121,6 +121,13 @@ public partial class AdminStats
         stats.Growth.Select(m => m.Month.ToString("MMM", CultureInfo.InvariantCulture)).ToList(),
         stats.Growth.Select(m => new double[] { m.NewMods, m.NewVersions, m.NewUsers }).ToList());
 
+    private ChartPoints TagSuggestionPoints => new(
+        stats!.TagSuggestions.Select(w => $"Week of {w.Week.ToString("MMM d, yyyy", CultureInfo.InvariantCulture)}").ToList(),
+        stats.TagSuggestions.Select(w => w.Week.ToString("MMM d", CultureInfo.InvariantCulture)).ToList(),
+        stats.TagSuggestions.Select(w => new double[] { w.Suggested, w.Requested, w.Decided }).ToList());
+
+    private static readonly (string, string) SuggestedSeries = ("Suggested", ChartColors.Series1);
+    private static readonly (string, string) RequestedSeries = ("Asked for", ChartColors.Series2);
     private static readonly (string, string) BrowserSeries = ("Browser", ChartColors.Series1);
     private static readonly (string, string) DesktopSeries = ("Desktop app", ChartColors.Series2);
     private static readonly (string, string) PasswordSeries = ("Password", ChartColors.Series1);

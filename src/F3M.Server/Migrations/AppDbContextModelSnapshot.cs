@@ -15,7 +15,7 @@ namespace F3M.Server.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
             modelBuilder.Entity("F3M.Server.Models.AppUser", b =>
                 {
@@ -157,6 +157,22 @@ namespace F3M.Server.Migrations
                     b.ToTable("ModGroupTags");
                 });
 
+            modelBuilder.Entity("F3M.Server.Models.SiteSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("SiteSettings");
+                });
+
             modelBuilder.Entity("F3M.Server.Models.Tag", b =>
                 {
                     b.Property<int>("Id")
@@ -209,6 +225,88 @@ namespace F3M.Server.Migrations
                     b.HasIndex("ChildId");
 
                     b.ToTable("TagInclusions");
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.TagSuggestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("DecidedById")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ModGroupId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedName")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedNormalizedName")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SuggestedById")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("TagId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedById");
+
+                    b.HasIndex("SuggestedById");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("ModGroupId", "TagId")
+                        .IsUnique()
+                        .HasFilter("\"TagId\" IS NOT NULL");
+
+                    b.HasIndex("State", "Score");
+
+                    b.ToTable("TagSuggestions");
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.TagVote", b =>
+                {
+                    b.Property<int>("SuggestionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("SuggestionId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TagVotes");
                 });
 
             modelBuilder.Entity("F3M.Shared.Models.Mod", b =>
@@ -668,6 +766,45 @@ namespace F3M.Server.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("F3M.Server.Models.TagSuggestion", b =>
+                {
+                    b.HasOne("F3M.Server.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("DecidedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("F3M.Shared.Models.ModGroup", null)
+                        .WithMany()
+                        .HasForeignKey("ModGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("F3M.Server.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("SuggestedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("F3M.Server.Models.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.TagVote", b =>
+                {
+                    b.HasOne("F3M.Server.Models.TagSuggestion", null)
+                        .WithMany("Votes")
+                        .HasForeignKey("SuggestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("F3M.Server.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("F3M.Shared.Models.ModFile", b =>
                 {
                     b.HasOne("F3M.Shared.Models.Mod", null)
@@ -768,6 +905,11 @@ namespace F3M.Server.Migrations
                         .HasForeignKey("ModId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.TagSuggestion", b =>
+                {
+                    b.Navigation("Votes");
                 });
 
             modelBuilder.Entity("F3M.Shared.Models.Mod", b =>

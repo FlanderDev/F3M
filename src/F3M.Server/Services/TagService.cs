@@ -48,7 +48,7 @@ public sealed class TagSnapshot(IReadOnlyList<Tag> tags, TagGraph graph)
 /// Server side of <see cref="ITagsApi"/>, and the tag work the mod pages need (filters, a mod's tags). Every change is
 /// checked against the whole tree (see <see cref="TagGraph.Problem"/>), not only against the tags it touches.
 /// </summary>
-public sealed class TagService(AppDbContext db, TagIndex index, CatalogService catalog, ILogger<TagService> logger) : ITagsApi
+public sealed class TagService(AppDbContext db, TagIndex index, CatalogService catalog, SiteSettings settings, ILogger<TagService> logger) : ITagsApi
 {
     // ── Reading ─────────────────────────────────────────────────────────────
 
@@ -226,6 +226,15 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
                 .Select(t => t.ModGroupId).ToListAsync(ct);
             db.ModGroupTags.AddRange(groups.Except(haveTarget).Select(g => new ModGroupTag { ModGroupId = g, TagId = targetId }));
 
+            // Suggestions: to the target, unless the mod has it or a suggestion of it already (those go with the source).
+            var suggestions = await db.TagSuggestions.Where(s => s.TagId == id).ToListAsync(ct);
+            var suggestedGroups = suggestions.Select(s => s.ModGroupId).ToList();
+            var targetTaken = (await db.TagSuggestions.Where(s => s.TagId == targetId && suggestedGroups.Contains(s.ModGroupId))
+                    .Select(s => s.ModGroupId).ToListAsync(ct))
+                .Concat(groups).Concat(haveTarget).ToHashSet();
+            foreach (var suggestion in suggestions.Where(s => !targetTaken.Contains(s.ModGroupId)))
+                suggestion.TagId = targetId;
+
             // The source with its inclusions and mod links (cascade), then the target's new inclusions.
             db.Tags.Remove(await db.Tags.FindAsync([id], ct) ?? throw new KeyNotFoundException($"No tag with id {id} was found."));
             await db.SaveChangesAsync(ct);
@@ -334,9 +343,27 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
             .GroupBy(t => t.ModGroupId)
             .ToDictionary(g => g.Key, g => g.Select(t => t.TagId).Order().ToList());
 
+        var threshold = await settings.TagSuggestionThresholdAsync(ct);
+        var communityByGroup = (await CountingSuggestions(threshold)
+                .Where(s => groupIds.Contains(s.ModGroupId))
+                .Select(s => new { s.ModGroupId, TagId = s.TagId!.Value })
+                .ToListAsync(ct))
+            .GroupBy(s => s.ModGroupId)
+            .ToDictionary(g => g.Key, g => g.Select(s => s.TagId).Order().ToList());
+
         foreach (var mod in mods)
+        {
             mod.TagIds = byGroup.TryGetValue(mod.ModGroupId, out var ids) ? [.. ids] : [];
+            mod.CommunityTagIds = communityByGroup.TryGetValue(mod.ModGroupId, out var community) ? [.. community] : [];
+        }
     }
+
+    /// <summary>
+    /// The open suggestions of a tag whose score reached <paramref name="threshold"/>: they count in filters and searches
+    /// like the mods' own tags until the owner or an admin decides.
+    /// </summary>
+    public IQueryable<TagSuggestion> CountingSuggestions(int threshold) =>
+        db.TagSuggestions.Where(s => s.State == TagSuggestionState.Open && s.TagId != null && s.Score >= threshold);
 
     /// <summary>
     /// Why a mod can't have these tags (unknown, or too many); null when it can. Type tags among them don't count:
@@ -359,7 +386,7 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
     /// not: they follow the files (<see cref="SyncTypeTagsAsync"/>). Throws <see cref="InvalidDataException"/> for an
     /// unknown tag or too many.
     /// </summary>
-    public async Task SetGroupTagsAsync(int groupId, IEnumerable<int> tagIds, CancellationToken ct = default)
+    public async Task SetGroupTagsAsync(int groupId, IEnumerable<int> tagIds, int? decidedById = null, CancellationToken ct = default)
     {
         var requested = tagIds.ToList();
         if (await TagIdsProblemAsync(requested, ct) is { } problem)
@@ -371,7 +398,19 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
 
         var current = (await db.ModGroupTags.Where(t => t.ModGroupId == groupId).ToListAsync(ct)).Where(t => Ordinary(t.TagId)).ToList();
         db.ModGroupTags.RemoveRange(current.Where(t => !ids.Contains(t.TagId)));
-        db.ModGroupTags.AddRange(ids.Where(id => current.All(t => t.TagId != id)).Select(id => new ModGroupTag { ModGroupId = groupId, TagId = id }));
+        var added = ids.Where(id => current.All(t => t.TagId != id)).ToList();
+        db.ModGroupTags.AddRange(added.Select(id => new ModGroupTag { ModGroupId = groupId, TagId = id }));
+
+        // Users suggested a tag the owner now added themselves: that suggestion is approved.
+        var settled = await db.TagSuggestions
+            .Where(s => s.ModGroupId == groupId && s.State == TagSuggestionState.Open && s.TagId != null && added.Contains(s.TagId.Value))
+            .ToListAsync(ct);
+        foreach (var suggestion in settled)
+        {
+            suggestion.State = TagSuggestionState.Approved;
+            suggestion.DecidedById = decidedById;
+            suggestion.DecidedAt = DateTime.UtcNow;
+        }
     }
 
     // ── Type tags ───────────────────────────────────────────────────────────

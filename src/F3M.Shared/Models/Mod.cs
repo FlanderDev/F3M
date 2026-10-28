@@ -108,6 +108,12 @@ public class Mod : IId, IName
     /// AppDbContext.Ignore); filled from ModGroupTags by ModsService. The pages look the names up in the tag list.
     /// </summary>
     public List<int> TagIds { get; set; } = [];
+
+    /// <summary>
+    /// Tags users suggested whose votes reached the limit: they count in filters until the owner or an admin decides.
+    /// NOT persisted on the version; filled with <see cref="TagIds"/>.
+    /// </summary>
+    public List<int> CommunityTagIds { get; set; } = [];
 }
 
 // ── ModFile ───────────────────────────────────────────────────────────────────
