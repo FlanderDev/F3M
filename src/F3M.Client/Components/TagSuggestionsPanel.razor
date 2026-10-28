@@ -1,0 +1,157 @@
+@* The mod page's tag suggestions: visitors suggest tags (or ask for new ones) and vote on them; from the vote limit on
+   a suggestion counts in searches. The mod's owner and admins approve or reject them here. *@
+@implements IDisposable
+@inject ITagSuggestionsApi Api
+@inject TagDirectory Directory
+
+<div class="f3m-suggestions mb-4">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h6 class="fw-bold mb-0">Suggested tags</h6>
+        @if (data is not null)
+        {
+            <i class="bi bi-info-circle f3m-suggestion-muted" tabindex="0" role="img"
+               title="@($"Tags visitors suggest for this mod. With {data.Threshold} points a tag counts in searches, until the mod's owner or an admin decides on it.")"
+               aria-label="About suggested tags"></i>
+        }
+    </div>
+
+    @if (data is null)
+    {
+        @if (loadError is not null)
+        {
+            <p class="small text-danger mb-0">@loadError</p>
+        }
+    }
+    else
+    {
+        @if (data.Items.Count == 0)
+        {
+            <p class="small f3m-suggestion-muted mb-2">No suggestions yet.</p>
+        }
+        else
+        {
+            <ul class="list-unstyled mb-2">
+                @foreach (var item in data.Items)
+                {
+                    var s = item;
+                    <li class="f3m-suggestion">
+                        <div class="f3m-suggestion-tag">
+                            @if (s.IsRequest)
+                            {
+                                <span class="f3m-tag f3m-tag-request" title="A tag that doesn't exist yet; an admin creates it">
+                                    <i class="bi bi-plus-lg"></i>@s.RequestedName
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="f3m-tag @(s.Counts ? "f3m-tag-community" : string.Empty)"
+                                      title="@(s.Counts ? "Counts in searches" : $"Counts in searches from {data.Threshold} points")">
+                                    @NameOf(s)
+                                </span>
+                            }
+                            @if (s.Reason is { } reason)
+                            {
+                                <span class="small f3m-suggestion-muted text-break">@reason</span>
+                            }
+                        </div>
+
+                        <div class="f3m-suggestion-actions">
+                            @if (data.CanVote)
+                            {
+                                <button type="button" class="f3m-vote @(s.MyVote > 0 ? "active" : string.Empty)" disabled="@(busyId == s.Id)"
+                                        aria-label="@($"Vote for {NameOf(s)}")" aria-pressed="@(s.MyVote > 0 ? "true" : "false")"
+                                        @onclick="() => VoteAsync(s, s.MyVote > 0 ? 0 : 1)">
+                                    <i class="bi bi-hand-thumbs-up@(s.MyVote > 0 ? "-fill" : string.Empty)"></i>
+                                </button>
+                            }
+                            <span class="f3m-suggestion-score" title="@($"{s.Up} for, {s.Down} against")">@s.Score</span>
+                            @if (data.CanVote)
+                            {
+                                <button type="button" class="f3m-vote down @(s.MyVote < 0 ? "active" : string.Empty)" disabled="@(busyId == s.Id)"
+                                        aria-label="@($"Vote against {NameOf(s)}")" aria-pressed="@(s.MyVote < 0 ? "true" : "false")"
+                                        @onclick="() => VoteAsync(s, s.MyVote < 0 ? 0 : -1)">
+                                    <i class="bi bi-hand-thumbs-down@(s.MyVote < 0 ? "-fill" : string.Empty)"></i>
+                                </button>
+                            }
+                            @if (data.CanDecide)
+                            {
+                                @if (!s.IsRequest)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-warning py-0" disabled="@(busyId == s.Id)"
+                                            @onclick="() => ApproveAsync(s)">Approve</button>
+                                }
+                                else if (data.IsAdmin)
+                                {
+                                    <a class="btn btn-sm btn-outline-warning py-0" href="@SuggestionQueueUrl">Create…</a>
+                                }
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0" disabled="@(busyId == s.Id)"
+                                        @onclick="() => RejectAsync(s)">Reject</button>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (error is not null)
+        {
+            <div class="alert alert-danger small py-2 mb-2">@error</div>
+        }
+
+        <AuthorizeView>
+            <Authorized>
+                @if (data.CanVote)
+                {
+                    @if (!suggesting)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-warning" @onclick="() => suggesting = true"
+                                disabled="@(data.RemainingToday == 0)"
+                                title="@(data.RemainingToday == 0 ? "You suggested as many tags as you can today." : null)">
+                            <i class="bi bi-tag me-1"></i>Suggest a tag
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="f3m-suggest-form">
+                            @if (!requesting)
+                            {
+                                <TagPicker Selected="pickedTag" SelectedChanged="ids => pickedTag = ids" Max="1" Offer="CanSuggest"
+                                           Placeholder="Pick a tag that fits this mod…" AriaLabel="Tag to suggest"
+                                           EmptyText="No matching tag the mod doesn't have yet." />
+                                <button type="button" class="btn btn-link btn-sm px-0" @onclick="() => requesting = true">
+                                    No tag fits? Ask for a new one
+                                </button>
+                            }
+                            else
+                            {
+                                <input class="form-control f3m-input mb-2" maxlength="@TagRules.MaxNameLength" placeholder="Name of the new tag"
+                                       aria-label="Name of the new tag" @bind="newTagName" @bind:event="oninput" />
+                                <button type="button" class="btn btn-link btn-sm px-0" @onclick="() => requesting = false">
+                                    Pick an existing tag instead
+                                </button>
+                            }
+                            <input class="form-control f3m-input form-control-sm mb-2" maxlength="@TagSuggestionLimits.MaxReasonLength"
+                                   placeholder="Why does it fit? (optional)" aria-label="Why the tag fits" @bind="reason" @bind:event="oninput" />
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-warning fw-semibold" @onclick="SuggestAsync"
+                                        disabled="@(sending || (requesting ? string.IsNullOrWhiteSpace(newTagName) : pickedTag.Count == 0))">
+                                    @(requesting ? "Ask for it" : "Suggest")
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseForm">Cancel</button>
+                                @if (data.RemainingToday is { } left)
+                                {
+                                    <span class="small f3m-suggestion-muted">@left more today</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            </Authorized>
+            <NotAuthorized>
+                <p class="small f3m-suggestion-muted mb-0">
+                    <a href="@Paths.Login">Sign in</a> to suggest tags or vote on them.
+                </p>
+            </NotAuthorized>
+        </AuthorizeView>
+    }
+</div>

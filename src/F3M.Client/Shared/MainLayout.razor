@@ -10,7 +10,7 @@
 <div class="f3m-wrapper">
     <nav class="navbar navbar-expand-lg navbar-dark f3m-navbar sticky-top">
         <div class="container-fluid px-2">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="@Paths.Index">
                 <span class="f3m-logo-badge">F3M</span>
                 <span class="f3m-brand-text d-none d-sm-inline">Mod Manager</span>
             </a>
@@ -21,7 +21,7 @@
             <div class="collapse navbar-collapse" id="navMenu">
                 <ul class="navbar-nav me-auto gap-1">
                     <li class="nav-item">
-                        <NavLink class="nav-link px-3 py-2 rounded" href="/" Match="NavLinkMatch.All">
+                        <NavLink class="nav-link px-3 py-2 rounded" href="@Paths.Index" Match="NavLinkMatch.All">
                             <i class="bi bi-house me-1"></i>Home
                         </NavLink>
                     </li>
@@ -40,7 +40,7 @@
                             @if (context.User.IsInRole(AppRoles.Admin))
                             {
                                 <li class="nav-item">
-                                    <NavLink class="nav-link px-3 py-2 rounded" href="/admin">
+                                    <NavLink class="nav-link px-3 py-2 rounded" href="@Paths.Admin">
                                         <i class="bi bi-shield-fill me-1 text-warning"></i>Admin
                                     </NavLink>
                                 </li>

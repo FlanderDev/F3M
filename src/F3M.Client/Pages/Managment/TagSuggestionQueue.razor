@@ -1,0 +1,179 @@
+@* The admin tags page's "Suggestions" view: every suggestion and request for a new tag, with who voted, the decisions,
+   and the limits. Open ones that already count in searches come first. *@
+@inject ITagSuggestionsApi Api
+@inject TagDirectory Directory
+
+<!-- Limits -->
+<div class="f3m-surface rounded-3 border p-3 mb-3" style="border-color:var(--f3m-border);">
+    <div class="d-flex flex-wrap align-items-end gap-3">
+        <div>
+            <label class="form-label small fw-semibold mb-1" for="suggestion-threshold">Counts in searches from</label>
+            <div class="input-group input-group-sm" style="width:150px;">
+                <input id="suggestion-threshold" type="number" min="1" max="1000" class="form-control f3m-input" @bind="limits.Threshold" />
+                <span class="input-group-text f3m-input-unit">points</span>
+            </div>
+        </div>
+        <div>
+            <label class="form-label small fw-semibold mb-1" for="suggestion-daily">Suggestions per account</label>
+            <div class="input-group input-group-sm" style="width:150px;">
+                <input id="suggestion-daily" type="number" min="1" max="1000" class="form-control f3m-input" @bind="limits.DailyLimit" />
+                <span class="input-group-text f3m-input-unit">a day</span>
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-warning" @onclick="SaveLimitsAsync" disabled="@busy">Save</button>
+        <div class="ms-auto">
+            <button type="button" class="btn btn-sm btn-warning fw-semibold" @onclick="ApproveCountingAsync"
+                    disabled="@(busy || CountingCount == 0)"
+                    title="Puts every open suggestion that reached the limit on its mod">
+                <i class="bi bi-check2-all me-1"></i>Approve all that count (@CountingCount)
+            </button>
+        </div>
+    </div>
+    <p class="small f3m-suggestion-muted mt-2 mb-0">
+        A score is upvotes minus downvotes. Owners decide on their own mods' suggestions too, on the mod page.
+    </p>
+</div>
+
+<!-- Filters -->
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="d-flex flex-wrap gap-2" role="group" aria-label="State">
+        @foreach (var (value, label) in States)
+        {
+            <button type="button" class="f3m-chip @(state == value ? "active" : string.Empty)" aria-pressed="@(state == value ? "true" : "false")"
+                    @onclick="() => SelectStateAsync(value)">@label</button>
+        }
+    </div>
+    <div class="input-group input-group-sm ms-auto" style="max-width:280px;">
+        <span class="input-group-text f3m-search-icon"><i class="bi bi-search"></i></span>
+        <input class="form-control f3m-search-input" type="search" placeholder="Mod or tag…" aria-label="Search suggestions"
+               @bind="search" @bind:event="oninput" />
+    </div>
+</div>
+
+@if (notice is not null)
+{
+    <div class="alert alert-success small py-2"><i class="bi bi-check-circle-fill me-2"></i>@notice</div>
+}
+@if (error is not null)
+{
+    <div class="alert alert-danger small py-2">@error</div>
+}
+
+@if (loading)
+{
+    <div class="text-center py-4"><span class="spinner-border spinner-border-sm text-warning"></span></div>
+}
+else if (Filtered.ToList() is { Count: 0 })
+{
+    <p class="small py-3 text-center mb-0">@(items.Count == 0 ? "Nothing here." : "No suggestion matches the search.")</p>
+}
+else
+{
+    <div class="f3m-surface rounded-3 border overflow-auto" style="border-color:var(--f3m-border);">
+        <table class="table table-dark mb-0 f3m-admin-table">
+            <thead>
+                <tr>
+                    <th>Tag</th>
+                    <th>Mod</th>
+                    <th class="text-center">Score</th>
+                    <th>Suggested</th>
+                    <th class="text-end">@(state == TagSuggestionState.Open ? "Decide" : "State")</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Filtered)
+                {
+                    var s = item;
+                    <tr>
+                        <td>
+                            @if (s.IsRequest)
+                            {
+                                <span class="f3m-tag f3m-tag-request" title="A tag that doesn't exist yet"><i class="bi bi-plus-lg"></i>@s.RequestedName</span>
+                            }
+                            else
+                            {
+                                <span class="f3m-tag @(s.Counts ? "f3m-tag-community" : string.Empty)" title="@(s.Counts ? "Counts in searches" : null)">@NameOf(s)</span>
+                                @if (s.RequestedName is { } asked && !string.Equals(asked, NameOf(s), StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span class="small f3m-suggestion-muted ms-1">asked as "@asked"</span>
+                                }
+                            }
+                            @if (s.Reason is { } reason)
+                            {
+                                <div class="small f3m-suggestion-muted text-break mt-1">@reason</div>
+                            }
+                        </td>
+                        <td class="small">
+                            @if (s.ModId > 0)
+                            {
+                                <a href="@Paths.ModDetail(s.ModId)">@s.ModName</a>
+                            }
+                            else
+                            {
+                                @s.ModName
+                            }
+                        </td>
+                        <td class="text-center">
+                            <span class="f3m-suggestion-score" title="@VotersTitle(s)">@s.Score</span>
+                            <div class="small f3m-suggestion-muted text-nowrap">+@s.Up / −@s.Down</div>
+                        </td>
+                        <td class="small text-nowrap">
+                            @(s.SuggestedBy ?? "deleted account")
+                            <div class="f3m-suggestion-muted">@s.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</div>
+                        </td>
+                        <td class="text-end">
+                            @if (s.State == TagSuggestionState.Open)
+                            {
+                                <div class="d-flex flex-wrap justify-content-end gap-1">
+                                    @if (s.IsRequest)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-warning" disabled="@busy" @onclick="() => StartCreate(s)">Create tag…</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-warning" disabled="@busy" @onclick="() => ApproveAsync(s)">Approve</button>
+                                    }
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => RejectAsync(s)">Reject</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="badge @(s.State == TagSuggestionState.Approved ? "bg-success" : "bg-secondary")">@s.State</span>
+                                <div class="small f3m-suggestion-muted">
+                                    @(s.DecidedBy ?? "the edit page") @(s.DecidedAt is { } at ? at.ToLocalTime().ToString("MMM d") : null)
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                    @if (creatingId == s.Id && creating is not null)
+                    {
+                        <tr>
+                            <td colspan="5">
+                                <div class="f3m-suggest-form">
+                                    <p class="small mb-2">
+                                        Creates the tag and turns this request, and the other open requests for the same name,
+                                        into suggestions of it. Approve them afterwards, or let the votes decide.
+                                    </p>
+                                    <div class="row g-2 align-items-start">
+                                        <div class="col-md-4">
+                                            <input class="form-control form-control-sm f3m-input" maxlength="@TagRules.MaxNameLength" aria-label="Tag name"
+                                                   @bind="creating.Name" @bind:event="oninput" />
+                                        </div>
+                                        <div class="col-md-5">
+                                            <TagPicker Selected="creating.IncludedInIds" SelectedChanged="ids => creating.IncludedInIds = ids"
+                                                       Offer="t => !t.IsType" Placeholder="Included in… (optional)" AriaLabel="Tags that include the new tag" />
+                                        </div>
+                                        <div class="col-md-3 d-flex gap-2">
+                                            <button type="button" class="btn btn-sm btn-warning fw-semibold" disabled="@busy" @onclick="CreateAsync">Create</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => creatingId = null">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+}

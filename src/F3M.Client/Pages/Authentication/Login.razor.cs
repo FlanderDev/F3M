@@ -1,4 +1,5 @@
 using F3M.Client.Identity.Models;
+using F3M.Shared;
 using F3M.Shared.Models;
 using Microsoft.AspNetCore.Components;
 
@@ -22,7 +23,7 @@ public partial class Login
         loading = false;
 
         if (formResult.Succeeded)
-            Navigation.NavigateTo(IsLocal(ReturnUrl) ? ReturnUrl! : "/", forceLoad: false);
+            Navigation.NavigateTo(IsLocal(ReturnUrl) ? ReturnUrl! : Paths.Index, forceLoad: false);
     }
 
     private static bool IsLocal(string? url) =>

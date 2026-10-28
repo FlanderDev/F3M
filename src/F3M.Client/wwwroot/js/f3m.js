@@ -148,6 +148,19 @@ window.f3m = {
         }
     },
 
+    /**
+     * Scrolls a row of links that is wider than the screen (the admin sidebar on small screens) sideways, so the active
+     * link is in view. Does nothing when the row fits.
+     */
+    revealActiveLink: function (row) {
+        setTimeout(function () {
+            const active = row && row.querySelector('.active');
+            if (!active || row.scrollWidth <= row.clientWidth) return;
+            const offset = active.getBoundingClientRect().left - row.getBoundingClientRect().left;
+            row.scrollLeft += offset - (row.clientWidth - active.offsetWidth) / 2;
+        }, 0);
+    },
+
     /** Reads a value from localStorage. Returns null when storage is blocked or empty. */
     getItem: function (key) {
         try { return window.localStorage.getItem(key); } catch { return null; }

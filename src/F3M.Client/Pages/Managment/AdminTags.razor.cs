@@ -1,7 +1,9 @@
+using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using FlanderDev.RouteGen.Abstractions;
+using Microsoft.AspNetCore.Components;
 using System.Text.Json;
 
 namespace F3M.Client.Pages.Managment;
@@ -33,8 +35,37 @@ public partial class AdminTags
 
     private TagDto? Original => editingId is { } id and not NewId ? Directory.Find(id) : null;
 
+    /// <summary>"suggestions" shows the suggestions users made instead of the tags.</summary>
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? View { get; set; }
+
+    private bool ShowSuggestions => string.Equals(View, "suggestions", StringComparison.OrdinalIgnoreCase);
+
+    private static string SuggestionsUrl => $"{Paths.AdminTags}?view=suggestions";
+
+    private int openSuggestions;
+
+    private async Task LoadOpenSuggestionsAsync()
+    {
+        try
+        {
+            openSuggestions = await Suggestions.GetOpenCount();
+        }
+        catch
+        {
+            // Only the badge.
+        }
+    }
+
+    private async Task OnSuggestionsChanged()
+    {
+        await LoadOpenSuggestionsAsync();
+        await Directory.ReloadAsync();
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        await LoadOpenSuggestionsAsync();
         try
         {
             // Fresh counts, not the copy loaded earlier in the visit.

@@ -49,6 +49,17 @@ public partial class ModDetail
 
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
+    /// <summary>A suggested tag was approved: every version shows it as the mod's own now.</summary>
+    private void OnTagApproved(int tagId)
+    {
+        foreach (var version in allVersions.Append(selectedVersion).OfType<Mod>().Distinct())
+        {
+            if (!version.TagIds.Contains(tagId))
+                version.TagIds.Add(tagId);
+            version.CommunityTagIds.Remove(tagId);
+        }
+    }
+
     // The id the page shows. Following a link to another mod (a requirement) keeps this component and only changes
     // Id, so the page loads whenever Id differs from it, not just once.
     private int? loadedId;
@@ -163,7 +174,7 @@ public partial class ModDetail
 
             // If it was the last version, go home; otherwise reload versions
             if (allVersions.Count <= 1)
-                Nav.NavigateTo("/");
+                Nav.NavigateTo(Paths.Index);
             else
             {
                 allVersions.Remove(selectedVersion);
@@ -207,7 +218,7 @@ public partial class ModDetail
         try
         {
             await ModsApi.DeleteGroup(group.Id);
-            Nav.NavigateTo("/");
+            Nav.NavigateTo(Paths.Index);
         }
         catch (ApiException ex)
         {

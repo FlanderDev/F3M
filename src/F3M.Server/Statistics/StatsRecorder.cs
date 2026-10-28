@@ -24,6 +24,8 @@ public sealed class StatsRecorder : BackgroundService
         public const string Search = "search";                       // search term
         public const string SearchWithoutResults = "search.empty";   // search term
         public const string TagFilter = "tag.filter";                // tag name
+        public const string TagSuggested = "tag.suggested";          // tag name
+        public const string TagRequested = "tag.requested";          // requested tag name
         public const string SignInPassword = "signin.password";      // ""
         public const string SignInF95 = "signin.f95";                // ""
         public const string DesktopSync = "desktop.sync";            // desktop app version

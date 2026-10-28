@@ -26,6 +26,11 @@ builder.Services.AddRazorPages();
 builder.Services.Configure<CatalogOptions>(builder.Configuration.GetSection(CatalogOptions.SectionName));
 builder.Services.AddScoped<CatalogService>();
 
+// Preview images: ImageMagick's security policy first (only the preview formats, of a sane size), before any image is
+// read; the stored previews are checked once after startup.
+var imageMagickStatus = PreviewImages.Initialize();
+builder.Services.AddHostedService<PreviewRepair>();
+
 #region FileSystemPreparation
 Directory.CreateDirectory(Assets.Files);
 Directory.CreateDirectory(Assets.Images);
@@ -101,6 +106,8 @@ builder.Services.AddScoped<IModsApi, ModsService>();
 builder.Services.AddSingleton<TagIndex>();
 builder.Services.AddScoped<TagService>();
 builder.Services.AddScoped<ITagsApi>(sp => sp.GetRequiredService<TagService>());
+builder.Services.AddScoped<SiteSettings>();
+builder.Services.AddScoped<ITagSuggestionsApi, TagSuggestionService>();
 builder.Services.AddScoped<ModUploadService>();
 builder.Services.AddScoped<ModOwnershipService>();
 builder.Services.AddScoped<ModImportService>();
@@ -131,6 +138,7 @@ builder.Services.AddHealthChecks().AddCheck<SiteHealthCheck>("site");
 builder.Services.AddValidation();
 
 var app = builder.Build();
+app.Logger.LogInformation("{ImageMagick}", imageMagickStatus);
 
 #region Endpoints
 // Sign-ins and sign-outs in the site log.

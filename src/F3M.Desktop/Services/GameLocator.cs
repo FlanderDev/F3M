@@ -20,7 +20,7 @@ public static partial class GameLocator
     /// How deep the folder scan goes below a user folder (Downloads, Desktop) and below a drive root, and how many
     /// folders it looks at in total. Drive roots stay shallow: D:\Games\SFM is found, a whole disk is not walked.
     /// </summary>
-    private const int ScanDepth = 3;
+    private const int ScanDepth = 5;
     private const int DriveScanDepth = 2;
     private const int ScanBudget = 40_000;
 

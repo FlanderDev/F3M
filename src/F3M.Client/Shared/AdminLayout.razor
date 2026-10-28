@@ -1,0 +1,66 @@
+@* The admin area: a sidebar linking every admin page (AdminSections), next to the page. On small screens the sidebar
+   becomes a row of links above the page that scrolls sideways. Admin pages opt in with @layout AdminLayout. *@
+@inherits LayoutComponentBase
+@layout MainLayout
+@inject IJSRuntime JS
+@inject ITagSuggestionsApi Suggestions
+
+<div class="f3m-admin-shell">
+    <nav class="f3m-admin-nav" aria-label="Admin pages" @ref="nav">
+        <div class="f3m-admin-nav-title">
+            <i class="bi bi-shield-fill text-warning me-2"></i>Admin
+        </div>
+        <NavLink class="f3m-admin-nav-link" href="@Paths.Admin" Match="NavLinkMatch.All">
+            <i class="bi bi-grid-1x2-fill"></i><span>Overview</span>
+        </NavLink>
+        @foreach (var group in AdminSections.All.GroupBy(s => s.Group))
+        {
+            <div class="f3m-admin-nav-group">@group.Key</div>
+            @foreach (var section in group)
+            {
+                <NavLink class="f3m-admin-nav-link" href="@section.Href">
+                    <i class="bi @section.Icon"></i><span>@section.Title</span>
+                    @if (section.Href == Paths.AdminTags && openSuggestions > 0)
+                    {
+                        <span class="badge bg-warning text-dark ms-auto" title="Open tag suggestions">@openSuggestions</span>
+                    }
+                </NavLink>
+            }
+        }
+    </nav>
+
+    <div class="f3m-admin-content">@Body</div>
+</div>
+
+@code {
+    private ElementReference nav;
+
+    // Open tag suggestions, for the badge next to Tags.
+    private int openSuggestions;
+
+    // Body changes with every admin page, so the count is looked up again on each.
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            openSuggestions = await Suggestions.GetOpenCount();
+        }
+        catch
+        {
+            // Only the badge.
+        }
+    }
+
+    // The layout renders again for every admin page, so the current one's link scrolls into the row on small screens.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("f3m.revealActiveLink", nav);
+        }
+        catch (JSException)
+        {
+            // An outdated f3m.js: the row just isn't scrolled.
+        }
+    }
+}

@@ -171,15 +171,28 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, Ta
             cleanTemplates.Add(template);
         }
 
-        // Reject a bad preview image now, not after the mod group has already been created.
+        // Reject a bad preview image now, not after the mod group has already been created. Its bytes decide its format
+        // (and so the extension it is stored with), not its name: imported previews named .jpg are often AVIF.
+        byte[]? previewBytes = null;
         var imgExt = string.Empty;
         if (previewImage is { Length: > 0 })
         {
-            imgExt = Path.GetExtension(previewImage.FileName).ToLowerInvariant();
-            if (!Configuration.AllowedThumbnailExtension.Contains(imgExt))
-                return UploadResult.Fail($"Image type '{imgExt}' not allowed.");
+            var namedExt = Path.GetExtension(previewImage.FileName).ToLowerInvariant();
+            if (!Configuration.AllowedThumbnailExtension.Contains(namedExt))
+                return UploadResult.Fail($"Image type '{namedExt}' not allowed.");
             if (previewImage.Length > Configuration.MaxImageSize)
                 return UploadResult.Fail("Preview image exceeds 8 MB.");
+
+            using var buffer = new MemoryStream();
+            await previewImage.CopyToAsync(buffer, ct);
+            try
+            {
+                (previewBytes, imgExt) = PreviewImages.Normalize(buffer.ToArray());
+            }
+            catch (InvalidDataException ex)
+            {
+                return UploadResult.Fail(ex.Message);
+            }
         }
 
         // ── Validate generated-file patterns (syntax here; collisions need the file contents) ──
@@ -332,12 +345,11 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, Ta
 
             // ── Save preview image ──
             string? previewName = null;
-            if (previewImage is { Length: > 0 })
+            if (previewBytes is not null)
             {
                 previewName = $"{Guid.NewGuid():N}{imgExt}";
                 newPreviewPath = Path.Combine(Assets.Images, previewName);
-                await using var imgStream = File.Create(newPreviewPath);
-                await previewImage.CopyToAsync(imgStream, ct);
+                await File.WriteAllBytesAsync(newPreviewPath, previewBytes, ct);
             }
             else if (dto.ModGroupId.HasValue)
             {
@@ -359,7 +371,7 @@ public sealed class ModUploadService(AppDbContext db, CatalogService catalog, Ta
             }
 
             if (createdGroup && dto.TagIds.Count > 0)
-                await tags.SetGroupTagsAsync(group.Id, dto.TagIds, ct);
+                await tags.SetGroupTagsAsync(group.Id, dto.TagIds, ct: ct);
 
             // ── Create version record ──
             mod = new Mod

@@ -12,7 +12,10 @@ COPY ./src /source
 
 WORKDIR /source/F3M.Server
 
-RUN dotnet publish --configuration ${CONFIGURATION} --self-contained false -p:F3MSourceCommit=${SOURCE_COMMIT} -o /app
+# For this image's platform only: the native libraries of the others (ImageMagick has one per platform, about 25 MB
+# each) would be dead weight.
+RUN case "$(uname -m)" in aarch64) RID=linux-musl-arm64 ;; *) RID=linux-musl-x64 ;; esac \
+    && dotnet publish --configuration ${CONFIGURATION} --runtime $RID --self-contained false -p:F3MSourceCommit=${SOURCE_COMMIT} -o /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-alpine AS final
 WORKDIR /app
