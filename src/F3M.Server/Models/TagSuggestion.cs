@@ -14,7 +14,9 @@ public class TagSuggestion
     /// <summary>Null while it is a request: <see cref="RequestedName"/> names the tag to create.</summary>
     public int? TagId { get; set; }
 
-    /// <summary>A request's tag name (cleaned), kept after the tag was created.</summary>
+    /// <summary>
+    /// The name of a tag this suggestion created (as a proposed tag), or of a request for one an admin creates. Cleaned.
+    /// </summary>
     public string? RequestedName { get; set; }
 
     /// <summary>TagRules.Normalize of <see cref="RequestedName"/>, to find open requests for the same name.</summary>

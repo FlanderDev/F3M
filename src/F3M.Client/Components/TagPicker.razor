@@ -55,6 +55,10 @@
                     <button type="button" class="dropdown-item @(index == highlighted ? "active" : string.Empty)"
                             @onmousedown="() => PickAsync(tag)" @onmousedown:preventDefault="true">
                         <span class="fw-semibold">@tag.Name</span>
+                        @if (tag.IsProposed)
+                        {
+                            <span class="f3m-tree-new" title="A tag users created, still voted on">new</span>
+                        }
                         @if (parents.Length > 0)
                         {
                             <span class="f3m-tag-picker-parents small">in @parents</span>

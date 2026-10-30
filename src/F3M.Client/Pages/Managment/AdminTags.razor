@@ -103,6 +103,10 @@
                                             {
                                                 <span class="f3m-tag-admin-type" title="The tag of a mod type: mods get it from their files' types.">type</span>
                                             }
+                                            @if (tag.IsProposed)
+                                            {
+                                                <span class="f3m-tree-new" title="A tag a user created, still voted on: accept or reject it under Suggestions">new</span>
+                                            }
                                             @if (repeated)
                                             {
                                                 <span class="f3m-tag-admin-note small" title="This tag is included by several tags, so it shows under each of them.">also elsewhere</span>

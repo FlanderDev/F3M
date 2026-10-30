@@ -28,6 +28,7 @@ public class TagSuggestionDto
     public int? TagId { get; set; }
 
     public string? RequestedName { get; set; }
+
     public string? Reason { get; set; }
 
     public TagSuggestionState State { get; set; }
@@ -72,6 +73,9 @@ public sealed class ModTagSuggestions
 
     public int Threshold { get; set; }
 
+    /// <summary>The points a proposed tag needs to be a regular one.</summary>
+    public int TagThreshold { get; set; }
+
     /// <summary>Signed in, and not the mod's owner (owners decide instead of voting).</summary>
     public bool CanVote { get; set; }
 
@@ -79,6 +83,9 @@ public sealed class ModTagSuggestions
     public bool CanDecide { get; set; }
 
     public bool IsAdmin { get; set; }
+
+    /// <summary>Tags rejected for this mod: they can't be suggested again.</summary>
+    public List<int> RejectedTagIds { get; set; } = [];
 
     /// <summary>New suggestions and requests the visitor may still start today; null without a limit (admins).</summary>
     public int? RemainingToday { get; set; }
@@ -92,8 +99,44 @@ public sealed class TagSuggestRequest
     [MaxLength(TagRules.MaxNameLength)]
     public string? NewTagName { get; set; }
 
+    /// <summary>For a new tag: the existing tag it goes under. Optional.</summary>
+    public int? ParentTagId { get; set; }
+
+    /// <summary>For a new tag: what it means. Optional.</summary>
+    [MaxLength(TagRules.MaxDescriptionLength)]
+    public string? NewTagDescription { get; set; }
+
     [MaxLength(TagSuggestionLimits.MaxReasonLength)]
     public string? Reason { get; set; }
+}
+
+/// <summary>A tag a user created, with the votes on whether it should exist.</summary>
+public sealed class TagProposalDto
+{
+    public int TagId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public List<int> ParentIds { get; set; } = [];
+
+    public int Score { get; set; }
+    public int Up { get; set; }
+    public int Down { get; set; }
+
+    /// <summary>The signed-in visitor's vote: 1, -1 or 0 for none.</summary>
+    public int MyVote { get; set; }
+
+    /// <summary>False once accepted: by votes or by an admin.</summary>
+    public bool IsProposed { get; set; }
+
+    public string? ProposedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+
+    /// <summary>Mods it's on or suggested for.</summary>
+    public int ModCount { get; set; }
+
+    /// <summary>Admins only: who voted.</summary>
+    public List<string> UpVoters { get; set; } = [];
+    public List<string> DownVoters { get; set; } = [];
 }
 
 public sealed class TagVoteRequest
@@ -108,6 +151,7 @@ public sealed class TagSuggestionLimits
 {
     public const int DefaultThreshold = 3;
     public const int DefaultDailyLimit = 5;
+    public const int DefaultTagThreshold = 5;
     public const int MaxReasonLength = 200;
 
     /// <summary>The score from which an open suggestion counts in filters and searches.</summary>
@@ -117,4 +161,8 @@ public sealed class TagSuggestionLimits
     /// <summary>New suggestions and requests one account may start per 24 hours (admins have no limit).</summary>
     [Range(1, 1000)]
     public int DailyLimit { get; set; } = DefaultDailyLimit;
+
+    /// <summary>The score from which a tag a user created is a regular tag.</summary>
+    [Range(1, 1000)]
+    public int TagThreshold { get; set; } = DefaultTagThreshold;
 }

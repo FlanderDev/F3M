@@ -213,6 +213,253 @@ a {
         border-color: var(--f3m-amber);
     }
 
+/* ── Browse page: header and filters ────────────────────── */
+.f3m-browse-head {
+    position: relative;
+    border-bottom: 1px solid var(--f3m-border);
+    background:
+        radial-gradient(900px 260px at 10% -40%, rgba(255,193,7,.10), transparent 70%),
+        radial-gradient(700px 240px at 95% -60%, rgba(57,135,229,.07), transparent 70%),
+        var(--f3m-surface);
+}
+
+.f3m-browse-title {
+    font-family: var(--f3m-font-h);
+    font-weight: 800;
+    font-size: clamp(1.5rem, 2.2vw, 1.9rem);
+    letter-spacing: -.01em;
+    margin: 0;
+}
+
+.f3m-browse-count {
+    color: var(--f3m-muted);
+    font-size: .9rem;
+}
+
+    .f3m-browse-count strong {
+        color: var(--f3m-amber);
+        font-family: var(--f3m-font-h);
+        font-weight: 700;
+    }
+
+.f3m-filter-panel {
+    padding: .75rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: 14px;
+    background: rgba(13,14,16,.55);
+    box-shadow: 0 12px 32px rgba(0,0,0,.25);
+}
+
+.f3m-filter-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 210px;
+    gap: .6rem;
+}
+
+/* One look for the search box, the tag box and the sort menu: an icon, then the control without its own frame. */
+.f3m-filter-field {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 46px;
+    padding: 0 .4rem 0 .85rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: 10px;
+    background: var(--f3m-surface-2);
+    transition: border-color var(--tr), box-shadow var(--tr);
+}
+
+    .f3m-filter-field:focus-within {
+        border-color: var(--f3m-amber);
+        box-shadow: 0 0 0 3px var(--f3m-amber-dim);
+    }
+
+    .f3m-filter-field > .bi {
+        color: var(--f3m-muted);
+        flex-shrink: 0;
+    }
+
+    .f3m-filter-field:focus-within > .bi {
+        color: var(--f3m-amber);
+    }
+
+.f3m-filter-search input {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--f3m-text);
+    font-size: .95rem;
+}
+
+    .f3m-filter-search input::placeholder {
+        color: var(--f3m-muted);
+    }
+
+    /* The box has its own clear button. */
+    .f3m-filter-search input::-webkit-search-cancel-button {
+        display: none;
+    }
+
+.f3m-filter-clear {
+    border: 0;
+    background: transparent;
+    color: var(--f3m-muted);
+    padding: .25rem .4rem;
+    border-radius: 6px;
+}
+
+    .f3m-filter-clear:hover, .f3m-filter-clear:focus-visible {
+        color: var(--f3m-text);
+    }
+
+.f3m-filter-tags .f3m-tag-picker {
+    flex: 1;
+    min-width: 0;
+}
+
+.f3m-filter-tags .f3m-tag-picker-control,
+.f3m-filter-tags .f3m-tag-picker.open .f3m-tag-picker-control,
+.f3m-filter-tags .f3m-tag-picker-control:focus-within {
+    min-height: 44px;
+    padding-left: 0;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none;
+}
+
+.f3m-filter-sort .f3m-select-menu {
+    flex: 1;
+    min-width: 0;
+}
+
+    .f3m-filter-sort .f3m-select-menu .form-select {
+        height: 44px;
+        padding-left: 0;
+        border: 0 !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+.f3m-filter-types {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .75rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--f3m-border);
+}
+
+.f3m-type-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
+.f3m-type-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .35rem .8rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: 99px;
+    background: var(--f3m-surface-2);
+    color: var(--f3m-text);
+    font-size: .82rem;
+    font-weight: 500;
+    transition: border-color var(--tr), color var(--tr), background var(--tr);
+}
+
+    .f3m-type-pill .bi {
+        color: var(--f3m-muted);
+        transition: color var(--tr);
+    }
+
+    .f3m-type-pill:hover, .f3m-type-pill:focus-visible {
+        border-color: rgba(255,193,7,.45);
+    }
+
+    .f3m-type-pill.active {
+        border-color: var(--f3m-amber);
+        background: var(--f3m-amber-dim);
+        color: var(--f3m-amber);
+        font-weight: 600;
+    }
+
+        .f3m-type-pill.active .bi {
+            color: var(--f3m-amber);
+        }
+
+.f3m-type-pill-count {
+    min-width: 1.4rem;
+    padding: 0 .35rem;
+    border-radius: 99px;
+    background: rgba(255,255,255,.06);
+    color: var(--f3m-muted);
+    font-family: var(--f3m-font-h);
+    font-size: .7rem;
+    text-align: center;
+}
+
+.f3m-type-pill.active .f3m-type-pill-count {
+    background: rgba(255,193,7,.18);
+    color: var(--f3m-amber);
+}
+
+.f3m-filter-reset {
+    margin-left: auto;
+    border: 0;
+    background: transparent;
+    color: var(--f3m-muted);
+    font-size: .82rem;
+    padding: .35rem .5rem;
+    border-radius: 8px;
+}
+
+    .f3m-filter-reset:hover, .f3m-filter-reset:focus-visible {
+        color: var(--f3m-amber);
+    }
+
+@media (max-width: 991.98px) {
+    .f3m-filter-main {
+        grid-template-columns: minmax(0, 1fr) 190px;
+    }
+
+    .f3m-filter-search {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .f3m-filter-panel {
+        padding: .6rem;
+    }
+
+    .f3m-filter-main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* Sideways scrolling instead of three rows of pills. */
+    .f3m-type-pills {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        margin: 0 -.6rem;
+        padding: 0 .6rem .15rem;
+        scrollbar-width: none;
+    }
+
+    .f3m-type-pill {
+        flex-shrink: 0;
+    }
+
+    .f3m-filter-reset {
+        margin-left: 0;
+    }
+}
+
 /* ── Mod grid ───────────────────────────────────────────── */
 .mod-grid {
     display: grid;
@@ -1458,6 +1705,324 @@ a.f3m-tag:hover, a.f3m-tag:focus-visible {
     border: 1px solid var(--f3m-border);
     border-radius: 8px;
     background: var(--f3m-surface-2);
+}
+
+/* A suggestion on the mod page: a tag chip with its score. */
+.f3m-suggestion-chip {
+    gap: .35rem;
+    cursor: pointer;
+}
+
+    .f3m-suggestion-chip:hover, .f3m-suggestion-chip:focus-visible {
+        border-color: var(--f3m-amber);
+    }
+
+.f3m-suggestion-chip-score {
+    font-family: var(--f3m-font-h);
+    font-weight: 700;
+    color: var(--f3m-amber);
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+/* ── Tag dialog (mod page) ──────────────────────────────── */
+.f3m-tagdlg {
+    display: flex;
+    flex-direction: column;
+    width: min(1040px, calc(100vw - 2rem));
+    height: min(760px, calc(100vh - 2rem));
+    background: var(--f3m-surface);
+    border: 1px solid var(--f3m-border);
+    border-radius: 14px;
+    box-shadow: 0 32px 80px rgba(0,0,0,.6);
+    overflow: hidden;
+    outline: none;
+}
+
+.f3m-tagdlg-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--f3m-border);
+}
+
+.f3m-tagdlg-body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+.f3m-tagdlg-tree {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 1rem 1rem 0 1.25rem;
+    border-right: 1px solid var(--f3m-border);
+}
+
+.f3m-tagdlg-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0 -.5rem;
+    padding: 0 .5rem 1rem;
+}
+
+.f3m-tagdlg-side {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1rem 1.25rem;
+}
+
+.f3m-tagdlg-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem 1rem;
+    margin-bottom: .5rem;
+    color: var(--f3m-muted);
+}
+
+.f3m-tagdlg-compose {
+    padding: .85rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: 10px;
+    background: var(--f3m-surface-2);
+}
+
+.f3m-tagdlg-item {
+    padding: .7rem .75rem;
+    margin-bottom: .5rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: 10px;
+    transition: border-color var(--tr);
+}
+
+    .f3m-tagdlg-item.selected {
+        border-color: rgba(255,193,7,.5);
+    }
+
+    .f3m-tagdlg-item button.f3m-tag {
+        cursor: pointer;
+    }
+
+.f3m-tagdlg-votes {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .15rem;
+}
+
+.f3m-tagdlg-progress {
+    height: 4px;
+    border-radius: 99px;
+    background: var(--f3m-surface-2);
+    overflow: hidden;
+}
+
+.f3m-tagdlg-progress-bar {
+    height: 100%;
+    background: var(--f3m-muted);
+    transition: width var(--tr);
+}
+
+    .f3m-tagdlg-progress-bar.done {
+        background: var(--f3m-amber);
+    }
+
+/* Stacked on small screens: the tree on top, the list below, the whole dialog scrolls. */
+@media (max-width: 767.98px) {
+    .f3m-tagdlg {
+        height: calc(100vh - 1rem);
+        width: calc(100vw - 1rem);
+    }
+
+    .f3m-tagdlg-body {
+        display: block;
+        overflow-y: auto;
+    }
+
+    .f3m-tagdlg-tree {
+        border-right: 0;
+        border-bottom: 1px solid var(--f3m-border);
+        padding-bottom: .5rem;
+    }
+
+    .f3m-tagdlg-scroll {
+        max-height: 45vh;
+    }
+
+    .f3m-tagdlg-side {
+        overflow: visible;
+    }
+}
+
+/* ── Tag tree ───────────────────────────────────────────── */
+.f3m-tree, .f3m-tree ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.f3m-tree-row {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    min-height: 2rem;
+    padding: 0 .35rem 0 calc(.25rem + var(--depth, 0) * 1.15rem);
+    border-radius: 7px;
+    transition: background var(--tr);
+}
+
+    .f3m-tree-row:hover {
+        background: rgba(255,255,255,.035);
+    }
+
+    .f3m-tree-row.selected {
+        background: var(--f3m-amber-dim);
+    }
+
+    .f3m-tree-row.on-mod .f3m-tree-name {
+        color: var(--f3m-status-good);
+        font-weight: 600;
+    }
+
+    .f3m-tree-row.muted .f3m-tree-name {
+        color: var(--f3m-muted);
+    }
+
+    .f3m-tree-row.suggested .f3m-tree-name {
+        color: var(--f3m-amber);
+    }
+
+.f3m-tree-fold {
+    flex: 0 0 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.4rem;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--f3m-muted);
+    font-size: .75rem;
+}
+
+    button.f3m-tree-fold:hover:not(:disabled) {
+        color: var(--f3m-text);
+        background: var(--f3m-surface-2);
+    }
+
+.f3m-tree-name {
+    flex: 1;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    border: 0;
+    background: transparent;
+    color: var(--f3m-text);
+    padding: .2rem .1rem;
+    text-align: left;
+    font-size: .875rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.f3m-tree-match {
+    color: var(--f3m-amber);
+    font-weight: 600;
+}
+
+.f3m-tree-count {
+    font-size: .68rem;
+    color: var(--f3m-muted);
+    border: 1px solid var(--f3m-border);
+    border-radius: 99px;
+    padding: 0 .35rem;
+}
+
+.f3m-tree-actions {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    flex-shrink: 0;
+}
+
+.f3m-tree-state {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    font-size: .72rem;
+    color: var(--f3m-muted);
+    white-space: nowrap;
+}
+
+    .f3m-tree-state.good {
+        color: var(--f3m-status-good);
+    }
+
+    .f3m-tree-state.counts {
+        color: var(--f3m-amber);
+        font-weight: 600;
+    }
+
+.f3m-tree-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    border: 1px solid var(--f3m-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--f3m-text);
+    font-size: .72rem;
+    padding: .1rem .45rem;
+    transition: border-color var(--tr), color var(--tr), opacity var(--tr);
+}
+
+    .f3m-tree-btn:hover:not(:disabled), .f3m-tree-btn:focus-visible {
+        border-color: var(--f3m-amber);
+        color: var(--f3m-amber);
+    }
+
+    .f3m-tree-btn:disabled {
+        opacity: .4;
+    }
+
+/* A tag users created that's still voted on. */
+.f3m-tree-new {
+    display: inline-block;
+    padding: 0 .35rem;
+    border-radius: 99px;
+    border: 1px dashed rgba(255,193,7,.5);
+    color: var(--f3m-amber);
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    line-height: 1.5;
+}
+
+/* The "new tag under this one" button only shows up on the row you're on (always on touch screens). */
+.f3m-tree-btn-quiet {
+    border-color: transparent;
+    color: var(--f3m-muted);
+    opacity: 0;
+}
+
+    .f3m-tree-row:hover .f3m-tree-btn-quiet, .f3m-tree-row.selected .f3m-tree-btn-quiet, .f3m-tree-btn-quiet:focus-visible {
+        opacity: 1;
+    }
+
+@media (hover: none) {
+    .f3m-tree-btn-quiet {
+        opacity: 1;
+    }
 }
 
 /* Tabs on admin pages (the tags page's Tags | Suggestions). */

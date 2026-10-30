@@ -11,17 +11,19 @@ public sealed class SiteSettings(AppDbContext db)
 {
     private const string TagSuggestionThresholdKey = "TagSuggestions.Threshold";
     private const string TagSuggestionDailyLimitKey = "TagSuggestions.DailyLimit";
+    private const string TagProposalThresholdKey = "TagSuggestions.TagThreshold";
 
     public async Task<TagSuggestionLimits> TagSuggestionLimitsAsync(CancellationToken ct = default)
     {
         var values = await db.SiteSettings.AsNoTracking()
-            .Where(s => s.Key == TagSuggestionThresholdKey || s.Key == TagSuggestionDailyLimitKey)
+            .Where(s => s.Key == TagSuggestionThresholdKey || s.Key == TagSuggestionDailyLimitKey || s.Key == TagProposalThresholdKey)
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
 
         return new TagSuggestionLimits
         {
             Threshold = Int(values, TagSuggestionThresholdKey) ?? TagSuggestionLimits.DefaultThreshold,
-            DailyLimit = Int(values, TagSuggestionDailyLimitKey) ?? TagSuggestionLimits.DefaultDailyLimit
+            DailyLimit = Int(values, TagSuggestionDailyLimitKey) ?? TagSuggestionLimits.DefaultDailyLimit,
+            TagThreshold = Int(values, TagProposalThresholdKey) ?? TagSuggestionLimits.DefaultTagThreshold
         };
     }
 
@@ -32,6 +34,7 @@ public sealed class SiteSettings(AppDbContext db)
     {
         await SetAsync(TagSuggestionThresholdKey, limits.Threshold.ToString(CultureInfo.InvariantCulture), ct);
         await SetAsync(TagSuggestionDailyLimitKey, limits.DailyLimit.ToString(CultureInfo.InvariantCulture), ct);
+        await SetAsync(TagProposalThresholdKey, limits.TagThreshold.ToString(CultureInfo.InvariantCulture), ct);
         await db.SaveChangesAsync(ct);
     }
 

@@ -125,6 +125,7 @@ public partial class Index
     private async Task LoadMods()
     {
         var current = ++generation;
+        var filtered = searchTerm.Trim().Length > 0 || selectedTags.Count > 0;
         loading = true;
         loadingMore = false;
         StateHasChanged();
@@ -145,6 +146,9 @@ public partial class Index
         mods.Clear();
         mods.AddRange(page.Items);
         totalCount = page.TotalCount;
+        shownFiltered = filtered;
+        if (!filtered)
+            allCount = totalCount;
         nextPage = 2;
         loading = false;
         StateHasChanged();
@@ -258,6 +262,45 @@ public partial class Index
     /// <summary>A type chip: that type instead of any other picked; null for all types. The other tags stay.</summary>
     private Task SelectType(int? typeTagId) =>
         OnTagsPicked([.. selectedTags.Where(id => !Tags.IsType(id)), .. typeTagId is { } id ? [id] : Array.Empty<int>()]);
+
+    private bool HasFilters => searchTerm.Length > 0 || selectedTags.Count > 0 || sortBy != SortBy.Newest;
+
+    // How many mods there are without filters, from the last load that had none; null until then.
+    private int? allCount;
+
+    // Whether the list shown was filtered (by text or tags); the box may hold text not searched for yet.
+    private bool shownFiltered;
+
+    // After the bold number: " of 48 mods match", " mods match", " mods to choose from".
+    private string CountText
+    {
+        get
+        {
+            if (shownFiltered && allCount is { } all && all != totalCount)
+                return $" of {all} mods match";
+            var noun = totalCount == 1 ? "mod" : "mods";
+            return shownFiltered ? $" {noun} {(totalCount == 1 ? "matches" : "match")}" : $" {noun} to choose from";
+        }
+    }
+
+    private static string TypeIcon(TagDto type) => type.TypeId switch
+    {
+        ModTemplates.BepInExPlugin => "bi-plug",
+        ModTemplates.MissionsV1 or ModTemplates.MissionsV2 => "bi-flag",
+        ModTemplates.Cosplay => "bi-person-bounding-box",
+        ModTemplates.TexturePack => "bi-palette",
+        _ => "bi-box"
+    };
+
+    /// <summary>The tag box holds the ordinary tags; the type pills the type tags.</summary>
+    private Task OnOrdinaryTagsPicked(List<int> tags) => OnTagsPicked([.. tags, .. selectedTags.Where(Tags.IsType)]);
+
+    private async Task ClearSearch()
+    {
+        searchTerm = string.Empty;
+        _debounce?.Dispose();
+        await LoadMods();
+    }
 
     private async Task ClearFilters()
     {

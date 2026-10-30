@@ -15,7 +15,10 @@ public interface ITagSuggestionsApi
     [Get("mod/{groupId:int}")]
     Task<ModTagSuggestions> GetForMod(int groupId, CancellationToken ct = default);
 
-    /// <summary>Suggests a tag, or requests a new one. One that is open already gets the visitor's vote instead.</summary>
+    /// <summary>
+    /// Suggests a tag. With a new name it creates that tag first, as a proposed tag. A suggestion that is open already
+    /// gets the visitor's vote instead.
+    /// </summary>
     [Post("mod/{groupId:int}")]
     [GenAuthorize]
     Task<TagSuggestionDto> Suggest(int groupId, [Body] TagSuggestRequest request, CancellationToken ct = default);
@@ -34,6 +37,27 @@ public interface ITagSuggestionsApi
     [GenAuthorize]
     Task<TagSuggestionDto> Reject(int id, CancellationToken ct = default);
 
+    // ── Tags users created ──
+
+    /// <summary>Tags users created that are still being voted on, newest first. Admins also see who voted.</summary>
+    [Get("proposals")]
+    Task<List<TagProposalDto>> GetProposals(CancellationToken ct = default);
+
+    /// <summary>Votes on whether a proposed tag should exist; enough points make it a regular tag.</summary>
+    [Post("proposals/{tagId:int}/vote")]
+    [GenAuthorize]
+    Task<TagProposalDto> VoteProposal(int tagId, [Body] TagVoteRequest vote, CancellationToken ct = default);
+
+    /// <summary>Makes a proposed tag a regular one, whatever its votes.</summary>
+    [Post("proposals/{tagId:int}/accept")]
+    [GenAuthorize(Roles = AppRoles.Admin)]
+    Task<TagProposalDto> AcceptProposal(int tagId, CancellationToken ct = default);
+
+    /// <summary>Deletes a proposed tag, and with it its place on mods and its suggestions.</summary>
+    [Delete("proposals/{tagId:int}")]
+    [GenAuthorize(Roles = AppRoles.Admin)]
+    Task RejectProposal(int tagId, CancellationToken ct = default);
+
     // ── Admins ──
 
     /// <summary>The queue, newest first; <paramref name="state"/> null for every state.</summary>
@@ -41,7 +65,7 @@ public interface ITagSuggestionsApi
     [GenAuthorize(Roles = AppRoles.Admin)]
     Task<List<TagSuggestionAdminDto>> GetQueue([Query] TagSuggestionState? state = TagSuggestionState.Open, CancellationToken ct = default);
 
-    /// <summary>Open suggestions and requests, for the badge in the admin sidebar.</summary>
+    /// <summary>Open suggestions and proposed tags, for the badge in the admin sidebar.</summary>
     [Get("admin/open-count")]
     [GenAuthorize(Roles = AppRoles.Admin)]
     Task<int> GetOpenCount(CancellationToken ct = default);
@@ -58,6 +82,16 @@ public interface ITagSuggestionsApi
     [Post("admin/approve-counting")]
     [GenAuthorize(Roles = AppRoles.Admin)]
     Task<int> ApproveCounting(CancellationToken ct = default);
+
+    /// <summary>Deletes a rejected suggestion, so the tag can be suggested for that mod again.</summary>
+    [Delete("{id:int}")]
+    [GenAuthorize(Roles = AppRoles.Admin)]
+    Task Delete(int id, CancellationToken ct = default);
+
+    /// <summary>Deletes every rejected suggestion; returns how many.</summary>
+    [Delete("admin/rejected")]
+    [GenAuthorize(Roles = AppRoles.Admin)]
+    Task<int> DeleteRejected(CancellationToken ct = default);
 
     [Get("admin/limits")]
     [GenAuthorize(Roles = AppRoles.Admin)]

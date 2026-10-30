@@ -20,19 +20,106 @@
                 <span class="input-group-text f3m-input-unit">a day</span>
             </div>
         </div>
+        <div>
+            <label class="form-label small fw-semibold mb-1" for="suggestion-tag-threshold">New tags are regular from</label>
+            <div class="input-group input-group-sm" style="width:150px;">
+                <input id="suggestion-tag-threshold" type="number" min="1" max="1000" class="form-control f3m-input" @bind="limits.TagThreshold" />
+                <span class="input-group-text f3m-input-unit">points</span>
+            </div>
+        </div>
         <button type="button" class="btn btn-sm btn-outline-warning" @onclick="SaveLimitsAsync" disabled="@busy">Save</button>
-        <div class="ms-auto">
-            <button type="button" class="btn btn-sm btn-warning fw-semibold" @onclick="ApproveCountingAsync"
-                    disabled="@(busy || CountingCount == 0)"
-                    title="Puts every open suggestion that reached the limit on its mod">
-                <i class="bi bi-check2-all me-1"></i>Approve all that count (@CountingCount)
-            </button>
+        <div class="ms-auto d-flex flex-wrap gap-2">
+            @if (state is TagSuggestionState.Rejected or null && RejectedCount > 0)
+            {
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => confirmDeleteAll = true" disabled="@busy"
+                        title="Deletes every rejected suggestion: their tags can be suggested for those mods again">
+                    <i class="bi bi-trash me-1"></i>Delete all rejected (@RejectedCount)
+                </button>
+            }
+            @if (state is TagSuggestionState.Open or null)
+            {
+                <button type="button" class="btn btn-sm btn-warning fw-semibold" @onclick="ApproveCountingAsync"
+                        disabled="@(busy || CountingCount == 0)"
+                        title="Puts every open suggestion that reached the limit on its mod">
+                    <i class="bi bi-check2-all me-1"></i>Approve all that count (@CountingCount)
+                </button>
+            }
         </div>
     </div>
     <p class="small f3m-suggestion-muted mt-2 mb-0">
         A score is upvotes minus downvotes. Owners decide on their own mods' suggestions too, on the mod page.
     </p>
 </div>
+
+<!-- Tags users created -->
+@if (proposals.Count > 0)
+{
+    <h6 class="fw-bold mb-2">New tags <span class="small f3m-suggestion-muted fw-normal">created by users, @proposals.Count waiting</span></h6>
+    <div class="f3m-surface rounded-3 border overflow-auto mb-4" style="border-color:var(--f3m-border);">
+        <table class="table table-dark mb-0 f3m-admin-table">
+            <thead>
+                <tr>
+                    <th>Tag</th>
+                    <th class="text-center">Score</th>
+                    <th class="text-center">Mods</th>
+                    <th>Created</th>
+                    <th class="text-end">Decide</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var proposal in proposals)
+                {
+                    var p = proposal;
+                    <tr>
+                        <td>
+                            <span class="f3m-tag">@p.Name</span>
+                            @if (p.ParentIds.Count > 0)
+                            {
+                                <span class="small f3m-suggestion-muted ms-1">under @string.Join(", ", p.ParentIds.Select(id => Directory.Find(id)?.Name ?? $"#{id}"))</span>
+                            }
+                            @if (p.Description is { } meaning)
+                            {
+                                <div class="small f3m-suggestion-muted text-break mt-1">@meaning</div>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <span class="f3m-suggestion-score" title="@($"For: {(p.UpVoters.Count > 0 ? string.Join(", ", p.UpVoters) : "nobody")}\nAgainst: {(p.DownVoters.Count > 0 ? string.Join(", ", p.DownVoters) : "nobody")}")">@p.Score</span>
+                            <div class="small f3m-suggestion-muted text-nowrap">of @limits.TagThreshold</div>
+                        </td>
+                        <td class="text-center small">@p.ModCount</td>
+                        <td class="small text-nowrap">
+                            @(p.ProposedBy ?? "deleted account")
+                            <div class="f3m-suggestion-muted">@p.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</div>
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex flex-wrap justify-content-end gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-warning" disabled="@busy" @onclick="() => AcceptProposalAsync(p)">Accept</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => rejectingProposal = p"
+                                        title="Deletes the tag, from the mods that have it too">Reject</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (rejectingProposal is { } rejecting)
+{
+    <div class="f3m-modal-backdrop f3m-scroll-lock" @onclick="() => rejectingProposal = null">
+        <div class="f3m-modal" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+            <h5 class="fw-bold mb-2">Reject the new tag @rejecting.Name?</h5>
+            <p class="small mb-3">
+                The tag is deleted@(rejecting.ModCount > 0 ? $", from the {rejecting.ModCount} {(rejecting.ModCount == 1 ? "mod" : "mods")} it's on or suggested for too" : string.Empty).
+            </p>
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => rejectingProposal = null">Cancel</button>
+                <button type="button" class="btn btn-sm btn-danger" disabled="@busy" @onclick="RejectProposalAsync">Reject</button>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Filters -->
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -49,6 +136,23 @@
                @bind="search" @bind:event="oninput" />
     </div>
 </div>
+
+@if (confirmDeleteAll)
+{
+    <div class="f3m-modal-backdrop f3m-scroll-lock" @onclick="() => confirmDeleteAll = false">
+        <div class="f3m-modal" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+            <h5 class="fw-bold mb-2">Delete all rejected suggestions?</h5>
+            <p class="small mb-3">
+                @(RejectedCount == 1 ? "1 rejected suggestion goes" : $"{RejectedCount} rejected suggestions go") for good, and their
+                tags can be suggested for those mods again.
+            </p>
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => confirmDeleteAll = false">Cancel</button>
+                <button type="button" class="btn btn-sm btn-danger" disabled="@busy" @onclick="DeleteAllRejectedAsync">Delete</button>
+            </div>
+        </div>
+    </div>
+}
 
 @if (notice is not null)
 {
@@ -139,6 +243,13 @@ else
                             else
                             {
                                 <span class="badge @(s.State == TagSuggestionState.Approved ? "bg-success" : "bg-secondary")">@s.State</span>
+                                @if (s.State == TagSuggestionState.Rejected)
+                                {
+                                    <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-danger" disabled="@busy" @onclick="() => DeleteAsync(s)"
+                                            title="Delete it: the tag can be suggested for this mod again" aria-label="@($"Delete the rejected suggestion {NameOf(s)}")">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
                                 <div class="small f3m-suggestion-muted">
                                     @(s.DecidedBy ?? "the edit page") @(s.DecidedAt is { } at ? at.ToLocalTime().ToString("MMM d") : null)
                                 </div>
