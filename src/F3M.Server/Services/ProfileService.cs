@@ -18,6 +18,7 @@ namespace F3M.Server.Services;
 public class ProfileService(
     AppDbContext db,
     UserManager<AppUser> userManager,
+    SignInManager<AppUser> signInManager,
     IHttpContextAccessor httpContextAccessor,
     ILogger<ProfileService> logger) : IProfileApi
 {
@@ -129,6 +130,8 @@ public class ProfileService(
         if (!result.Succeeded)
             return ApiResult.Fail(string.Join(" ", result.Errors.Select(e => e.Description)));
 
+        // A new password signs out every session, so give this one a fresh cookie.
+        await signInManager.RefreshSignInAsync(user);
         logger.LogInformation("User '{Username}' changed their password.", user.UserName);
         return ApiResult.Ok();
     }

@@ -131,6 +131,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Events.OnRedirectToAccessDenied = async context => context.Response.StatusCode = StatusCodes.Status403Forbidden;
 });
 
+// Re-check the account on every request, so role changes, deleted accounts and password changes kick in right away.
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
+
 builder.Services.AddAuthorizationBuilder();
 
 // /healthz: database, storage and signing key. Used by Docker's HEALTHCHECK and the server scripts.
