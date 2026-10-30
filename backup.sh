@@ -84,7 +84,6 @@ if [ -n "$RESTORE" ]; then
     command -v tar >/dev/null 2>&1 || fail "tar is not installed."
     tar -tzf "$RESTORE" Storage >/dev/null 2>&1 || fail "$RESTORE is not an F3M backup (it has no Storage folder)."
 
-    restore_dir=$(cd "$(dirname "$RESTORE")" && pwd)
     restore_name=$(basename "$RESTORE")
     has_env=false
     tar -tzf "$RESTORE" .env >/dev/null 2>&1 && has_env=true
@@ -121,7 +120,8 @@ if [ -n "$RESTORE" ]; then
     # Everything in the volume is replaced, except the import's downloads when the backup has none.
     keep_downloads=true
     tar -tzf "$RESTORE" Storage/Import/files >/dev/null 2>&1 && keep_downloads=false
-    run_in_image -v "$restore_dir:/backup:ro" "$SERVICE" -c "
+    # The backup comes in through the container's input, not a mounted folder (see the backup below).
+    run_in_image -T "$SERVICE" -c "
         set -e
         cd /app/Storage
         for entry in * .[!.]*; do
@@ -132,9 +132,9 @@ if [ -n "$RESTORE" ]; then
                 rm -rf \"\$entry\"
             fi
         done
-        tar -xzf \"/backup/$restore_name\" -C /app Storage
+        tar -xzf - -C /app Storage
         chown -R $app_user:$app_user /app/Storage
-    " || fail "The restore failed. The server stays stopped, so it does not start on half-restored data; fix the cause and run the restore again."
+    " <"$RESTORE" || fail "The restore failed. The server stays stopped, so it does not start on half-restored data; fix the cause and run the restore again."
 
     if [ "$replace_env" = true ]; then
         [ -f "$ENV_FILE" ] && cp -p "$ENV_FILE" "$ENV_FILE.bak"
@@ -163,23 +163,26 @@ name="f3m-backup-$(date '+%Y%m%d-%H%M%S').tar.gz"
 exclude=""
 [ "$WITH_DOWNLOADS" = true ] || exclude="--exclude=Storage/Import/files"
 
-env_mount=()
 env_entry=""
-if [ -f "$ENV_FILE" ]; then
-    env_mount=(-v "$PWD/$ENV_FILE:/app/.env:ro")
-    env_entry=".env"
-fi
+[ -f "$ENV_FILE" ] && env_entry="$ENV_FILE"
 
 step "Backing up to $BACKUP_DIR/$name"
+command -v tar >/dev/null 2>&1 || fail "tar is not installed."
+command -v gzip >/dev/null 2>&1 || fail "gzip is not installed."
+part="$BACKUP_DIR/$name.part"
+trap 'rm -f "$part.tar" "$part.tar.gz"; start_server_again' EXIT
 stop_server
-run_in_image -v "$BACKUP_DIR:/backup" ${env_mount[@]+"${env_mount[@]}"} "$SERVICE" -c "
-    set -e
-    tar -czf /backup/$name.part $exclude --exclude='Storage/.health-*' -C /app Storage $env_entry
-    chown $(id -u):$(id -g) /backup/$name.part
-    chmod 600 /backup/$name.part
-"
-mv "$BACKUP_DIR/$name.part" "$BACKUP_DIR/$name"
+# The container writes the archive to its output instead of into a mounted folder: SELinux, user namespaces or
+# rootless Docker can keep even its root user from writing to a folder of the host.
+(umask 077 && run_in_image -T "$SERVICE" -c "tar -cf - $exclude --exclude='Storage/.health-*' -C /app Storage" >"$part.tar")
 start_server_again
+[ -n "$env_entry" ] && tar -rf "$part.tar" "$env_entry"
+gzip "$part.tar"
+mv "$part.tar.gz" "$BACKUP_DIR/$name"
+# Made with sudo: the backup belongs to the user who ran it, so fetch-backup.sh can download it over SSH as them.
+if [ -n "${SUDO_UID:-}" ] && [ -n "${SUDO_GID:-}" ]; then
+    chown "$SUDO_UID:$SUDO_GID" "$BACKUP_DIR" "$BACKUP_DIR/$name"
+fi
 
 size=$(du -h "$BACKUP_DIR/$name" | cut -f1)
 info "${GREEN}${BOLD}Backup done:${RESET} $BACKUP_DIR/$name ($size)"

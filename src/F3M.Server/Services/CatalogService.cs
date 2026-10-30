@@ -536,7 +536,11 @@ public sealed class CatalogService(
         catch (CryptographicException ex)
         {
             key.Dispose();
-            throw new InvalidOperationException("The catalog signing key could not be decrypted. Check Catalog__KeyPassword.", ex);
+            var hint = string.IsNullOrEmpty(_opts.KeyPassword) && environment.IsDevelopment()
+                ? " No password is set, so the Development default was tried. For a key from a server backup, set the server's "
+                  + "password (F3M_CATALOG_KEY_PASSWORD in the backup's .env) with: dotnet user-secrets set Catalog:KeyPassword <password>"
+                : " Check Catalog__KeyPassword.";
+            throw new InvalidOperationException("The catalog signing key could not be decrypted." + hint, ex);
         }
     }
 

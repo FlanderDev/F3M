@@ -28,4 +28,10 @@ public interface IAccountManagement
     /// happened outside <see cref="LoginAsync"/>, such as F95zone verification.
     /// </summary>
     public void RefreshAuthenticationState();
+
+    /// <summary>
+    /// Asks the server for the current account and roles, and updates the views if they changed.
+    /// At most every 30 seconds, unless <paramref name="force"/> is set.
+    /// </summary>
+    public Task RevalidateAsync(bool force = false);
 }

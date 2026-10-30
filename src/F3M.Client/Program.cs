@@ -13,6 +13,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // Register the cookie handler for API and account-management requests.
 builder.Services.AddTransient<CookieHandler>();
+builder.Services.AddSingleton<AuthStateSignal>();
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CookieAuthenticationStateProvider>();

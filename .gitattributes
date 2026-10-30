@@ -6,6 +6,9 @@
 # Shell scripts run on Linux: always LF, also in a Windows checkout.
 *.sh text eol=lf
 
+# Batch files run on Windows, where cmd misreads labels and goto in LF files: always CRLF.
+*.bat text eol=crlf
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

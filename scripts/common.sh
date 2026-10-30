@@ -1,4 +1,5 @@
-# Shared by setup.sh, update.sh, backup.sh and admin-updates.sh in the project root. Not meant to be run on its own.
+# Shared by the scripts in the project root and in tools/; they all run from the project root. Not meant to be run on
+# its own.
 # shellcheck shell=bash
 
 ENV_FILE=".env"
