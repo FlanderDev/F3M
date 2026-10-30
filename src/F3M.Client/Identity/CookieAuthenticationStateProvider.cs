@@ -12,13 +12,31 @@ namespace F3M.Client.Identity;
 /// <summary>
 /// Handles state for cookie-based auth.
 /// </summary>
-/// <remarks>
-/// Create a new instance of the auth provider.
-/// </remarks>
-/// <param name="httpClientFactory">Factory to retrieve auth client.</param>
-public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFactory, ILogger<CookieAuthenticationStateProvider> logger)
-    : AuthenticationStateProvider, IAccountManagement
+public class CookieAuthenticationStateProvider : AuthenticationStateProvider, IAccountManagement
 {
+    /// <summary>Minimum gap between <see cref="RevalidateAsync"/> checks, unless forced.</summary>
+    private static readonly TimeSpan RevalidateInterval = TimeSpan.FromSeconds(30);
+
+    private readonly ILogger<CookieAuthenticationStateProvider> logger;
+
+    /// <summary>
+    /// Create a new instance of the auth provider.
+    /// </summary>
+    /// <param name="httpClientFactory">Factory to retrieve auth client.</param>
+    /// <param name="authState">Tells when the server refused an API call.</param>
+    /// <param name="logger">Logs failed requests.</param>
+    public CookieAuthenticationStateProvider(
+        IHttpClientFactory httpClientFactory,
+        AuthStateSignal authState,
+        ILogger<CookieAuthenticationStateProvider> logger)
+    {
+        this.logger = logger;
+        httpClient = httpClientFactory.CreateClient("Auth");
+
+        // A refused call usually means our roles are stale.
+        authState.Refused += () => _ = RevalidateAsync(force: true);
+    }
+
     /// <summary>
     /// Map the JavaScript-formatted properties to C#-formatted classes.
     /// </summary>
@@ -31,7 +49,7 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
     /// <summary>
     /// Special auth client.
     /// </summary>
-    private readonly HttpClient httpClient = httpClientFactory.CreateClient("Auth");
+    private readonly HttpClient httpClient;
 
     /// <summary>
     /// Authentication state.
@@ -42,6 +60,12 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
     /// Default principal for anonymous (not authenticated) users.
     /// </summary>
     private readonly ClaimsPrincipal unauthenticated = new(new ClaimsIdentity());
+
+    /// <summary>Name and roles from the last check; empty when signed out.</summary>
+    private string signature = string.Empty;
+
+    private DateTime lastRead = DateTime.MinValue;
+    private Task? revalidating;
 
     /// <summary>
     /// User login.
@@ -171,9 +195,36 @@ public class CookieAuthenticationStateProvider(IHttpClientFactory httpClientFact
             logger.LogError(ex, "App error");
         }
 
+        signature = SignatureOf(user);
+        lastRead = DateTime.UtcNow;
+
         // return the state
         return new AuthenticationState(user);
     }
+
+    public Task RevalidateAsync(bool force = false)
+    {
+        // Pages load data in parallel, so several refusals can come in at once: one check is enough.
+        if (revalidating is { IsCompleted: false })
+            return revalidating;
+        if (!force && DateTime.UtcNow - lastRead < RevalidateInterval)
+            return Task.CompletedTask;
+
+        return revalidating = RevalidateNowAsync();
+    }
+
+    private async Task RevalidateNowAsync()
+    {
+        var before = signature;
+        var state = await GetAuthenticationStateAsync();
+        if (signature != before)
+            NotifyAuthenticationStateChanged(Task.FromResult(state));
+    }
+
+    private static string SignatureOf(ClaimsPrincipal user) =>
+        user.Identity?.IsAuthenticated == true
+            ? $"{user.Identity.Name}|{string.Join(",", user.FindAll(ClaimTypes.Role).Select(c => c.Value).Order(StringComparer.Ordinal))}"
+            : string.Empty;
 
     public async Task LogoutAsync()
     {

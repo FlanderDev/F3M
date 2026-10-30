@@ -88,10 +88,12 @@
 
 @code {
     // Blazor changes pages without loading one, so the menu opened on a small screen would stay open over the new page.
-    protected override void OnInitialized() => Navigation.LocationChanged += CloseMenu;
+    // Also a good moment to pick up role changes.
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
 
-    private async void CloseMenu(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
+        _ = Acct.RevalidateAsync();
         try
         {
             await JS.InvokeVoidAsync("f3m.closeNavMenu");
@@ -102,7 +104,7 @@
         }
     }
 
-    public void Dispose() => Navigation.LocationChanged -= CloseMenu;
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
