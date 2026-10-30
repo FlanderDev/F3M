@@ -10,6 +10,8 @@
     -->
 		<AspNetCoreVersion>10.*-*</AspNetCoreVersion>
 		<EFVersion>9.*-*</EFVersion>
+		<!-- Local settings kept out of the repository, e.g. Catalog:KeyPassword for a signing key from a server backup. -->
+		<UserSecretsId>26345dca-e32d-421a-9a9b-60cf1ba8b2fc</UserSecretsId>
 	</PropertyGroup>
 	<ItemGroup Condition="'$(F3MSourceCommit)' != ''">
 		<!-- The git commit being built (the Dockerfile passes it); the admin page shows it as the running version. -->

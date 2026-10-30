@@ -117,6 +117,7 @@ F3M/
 ├── update.sh               # Pulls the newest code, rebuilds and restarts the server
 ├── admin-updates.sh        # Installs or removes the service that lets the admin page run update.sh
 ├── scripts/                # Helpers shared by the scripts, and the update service's runner
+├── tools/                  # Scripts for your own computer, e.g. backups.sh to use a server backup locally
 └── .env.example            # Every setting the container needs
 ```
 
@@ -233,6 +234,17 @@ docker compose up --build -d
 ```
 
 The import's downloads are left out unless `--with-downloads` is given; they can be downloaded again. Making a backup asks nothing, so it can run from cron (`0 4 * * * /path/to/F3M/backup.sh --keep 14`). `./backup.sh --help` lists every option.
+
+To keep a copy on your own computer, or to run the local server on the server's data, use `tools/backups.sh` from a checkout of this repository (Linux, macOS, or Git Bash on Windows). It lists the backups in `backups/` (git-ignored), newest first:
+
+- **Placing** one replaces the local server's storage (`src/F3M.Server/Storage`). The previous storage moves to `backups/replaced/`, and the menu can put it back. It warns when the backup's database has migrations your branch doesn't have yet (checked with `sqlite3` or Python), and refuses while the local server runs. Afterwards it asks which signing key to use: the backup's (sets `Catalog:KeyPassword` in the server's user secrets from the backup's `.env`) or a new development key (rebuild the catalog on the admin page then).
+- **Downloading** takes the newest backup from a server over SSH. Pick a `Host` from `~/.ssh/config` or a saved connection, or `0` to enter one (user@host, port, key in `~/.ssh`, the F3M folder, `~/F3M` by default), which it offers to save. Backups made with `sudo` by an older `backup.sh` belong to root; it then asks for the sudo password on the server.
+- **Deleting old backups** keeps the newest backups and replaced storages.
+
+```bash
+tools/backups.sh              # the menu
+tools/backups.sh fetch        # download the newest backup from a server, then offer to place it
+```
 
 `./update.sh` fetches the branch's newest commits, offers a backup, rebuilds and restarts the container, and waits until it is healthy. If the new version doesn't start, it prints how to go back to the previous one. `--yes` asks nothing, makes the backup, and only rebuilds when there is something new.
 

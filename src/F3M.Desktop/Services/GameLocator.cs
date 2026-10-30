@@ -32,19 +32,19 @@ public static partial class GameLocator
         var found = new List<GameInstall>();
         var seen = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
-        void Add(string exePath, string? appId, string source)
-        {
-            var folder = Path.GetDirectoryName(Path.GetFullPath(exePath));
-            if (folder is null || !seen.Add(folder)) return;
-            found.Add(new GameInstall(folder, Path.GetFileName(exePath), appId, source));
-        }
-
         Try(() => FromRunningGame(Add));
         ct.ThrowIfCancellationRequested();
         Try(() => FromSteam(Add, ct));
         ct.ThrowIfCancellationRequested();
         Try(() => FromFolderScan(Add, ct));
         return found;
+
+        void Add(string exePath, string? appId, string source)
+        {
+            var folder = Path.GetDirectoryName(Path.GetFullPath(exePath));
+            if (folder is null || !seen.Add(folder)) return;
+            found.Add(new GameInstall(folder, Path.GetFileName(exePath), appId, source));
+        }
     }
 
     private static void Try(Action step)
