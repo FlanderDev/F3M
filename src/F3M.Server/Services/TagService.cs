@@ -72,6 +72,7 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
                 Name = t.Name,
                 Description = t.Description,
                 TypeId = t.TypeId,
+                IsProposed = t.IsProposed,
                 ParentIds = [.. snapshot.Graph.ParentsOf(t.Id).Order()],
                 ModCount = groupsByTag.TryGetValue(t.Id, out var own) ? own.Count : 0,
                 TotalModCount = snapshot.Graph.SelfAndDescendants(t.Id)
@@ -86,7 +87,10 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
 
     // ── Changes (admins) ────────────────────────────────────────────────────
 
-    public async Task<TagDto> Create(TagEditDto dto, CancellationToken ct = default)
+    public Task<TagDto> Create(TagEditDto dto, CancellationToken ct = default) => Create(dto, null, ct);
+
+    /// <summary>Creates a tag; with <paramref name="proposedById"/> a proposed one that account created.</summary>
+    public async Task<TagDto> Create(TagEditDto dto, int? proposedById, CancellationToken ct = default)
     {
         int id;
         await index.WriteLock.WaitAsync(ct);
@@ -99,7 +103,14 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
             CheckTree(snapshot, 0, name, dto);
 
             await using var transaction = await db.Database.BeginTransactionAsync(ct);
-            var tag = new Tag { Name = name, NormalizedName = TagRules.Normalize(name), Description = description };
+            var tag = new Tag
+            {
+                Name = name,
+                NormalizedName = TagRules.Normalize(name),
+                Description = description,
+                IsProposed = proposedById is not null,
+                ProposedById = proposedById
+            };
             db.Tags.Add(tag);
             await db.SaveChangesAsync(ct);
             AddInclusions(tag.Id, dto);
@@ -108,7 +119,10 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
 
             id = tag.Id;
             index.Invalidate();
-            logger.LogInformation("Tag {TagId} ({Name}) was created.", id, name);
+            if (proposedById is null)
+                logger.LogInformation("Tag {TagId} ({Name}) was created.", id, name);
+            else
+                logger.LogInformation("Tag {TagId} ({Name}) was proposed by user {UserId}.", id, name, proposedById);
         }
         finally
         {

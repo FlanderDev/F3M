@@ -39,7 +39,7 @@ public sealed class SiteStats
     public List<NamedCount> TagFilters { get; set; } = [];
     public List<NamedCount> DesktopVersions { get; set; } = [];
 
-    /// <summary>The tags people suggested for mods, and the new tags they asked for (names in lower case).</summary>
+    /// <summary>The tags people suggested for mods, and the new tags they created (names in lower case).</summary>
     public List<NamedCount> TagsSuggested { get; set; } = [];
     public List<NamedCount> TagsRequested { get; set; } = [];
 

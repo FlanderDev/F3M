@@ -1,8 +1,9 @@
-@* The mod page's tag suggestions: visitors suggest tags (or ask for new ones) and vote on them; from the vote limit on
-   a suggestion counts in searches. The mod's owner and admins approve or reject them here. *@
+@* The mod page's tag suggestions: a short summary on the page, and a dialog with the whole tag tree to suggest tags
+   (also more specific ones, or new ones under a tag), vote on them, and for the owner and admins to decide. *@
 @implements IDisposable
 @inject ITagSuggestionsApi Api
 @inject TagDirectory Directory
+@inject IJSRuntime JS
 
 <div class="f3m-suggestions mb-4">
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -12,6 +13,20 @@
             <i class="bi bi-info-circle f3m-suggestion-muted" tabindex="0" role="img"
                title="@($"Tags visitors suggest for this mod. With {data.Threshold} points a tag counts in searches, until the mod's owner or an admin decides on it.")"
                aria-label="About suggested tags"></i>
+            <button type="button" class="btn btn-sm btn-outline-warning ms-auto py-0" @onclick="() => OpenDialog()">
+                @if (data.CanVote)
+                {
+                    <i class="bi bi-tags me-1"></i>@("Suggest or vote")
+                }
+                else if (data.CanDecide)
+                {
+                    <i class="bi bi-check2-square me-1"></i>@(data.Items.Count > 0 ? $"Review ({data.Items.Count})" : "Open")
+                }
+                else
+                {
+                    <i class="bi bi-diagram-3 me-1"></i>@("Browse tags")
+                }
+            </button>
         }
     </div>
 
@@ -22,136 +37,422 @@
             <p class="small text-danger mb-0">@loadError</p>
         }
     }
+    else if (data.Items.Count == 0)
+    {
+        <p class="small f3m-suggestion-muted mb-0">
+            No suggestions yet.
+            <AuthorizeView>
+                <NotAuthorized><a href="@Paths.Login">Sign in</a> to suggest one.</NotAuthorized>
+            </AuthorizeView>
+        </p>
+    }
     else
     {
-        @if (data.Items.Count == 0)
-        {
-            <p class="small f3m-suggestion-muted mb-2">No suggestions yet.</p>
-        }
-        else
-        {
-            <ul class="list-unstyled mb-2">
-                @foreach (var item in data.Items)
-                {
-                    var s = item;
-                    <li class="f3m-suggestion">
-                        <div class="f3m-suggestion-tag">
-                            @if (s.IsRequest)
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var s in data.Items.Take(SummaryCount))
+            {
+                var suggestion = s;
+                <button type="button" class="f3m-tag f3m-suggestion-chip @ChipClass(suggestion)" title="@ChipTitle(suggestion)"
+                        @onclick="() => OpenDialog(suggestion.TagId)">
+                    @if (suggestion.IsRequest)
+                    {
+                        <i class="bi bi-plus-lg"></i>
+                    }
+                    @NameOf(suggestion)
+                    <span class="f3m-suggestion-chip-score">@Signed(suggestion.Score)</span>
+                </button>
+            }
+            @if (data.Items.Count > SummaryCount)
+            {
+                <button type="button" class="btn btn-link btn-sm p-0 f3m-suggestion-muted" @onclick="() => OpenDialog()">
+                    +@(data.Items.Count - SummaryCount) more
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@if (dialogOpen && data is not null)
+{
+    var progressMax = Math.Max(1, data.Threshold);
+    <div class="f3m-modal-backdrop f3m-scroll-lock" @onclick="CloseDialog">
+        <div class="f3m-tagdlg" role="dialog" aria-modal="true" aria-labelledby="tagdlg-title" tabindex="-1" @ref="dialog"
+             @onclick:stopPropagation="true" @onkeydown="OnDialogKey">
+
+            <header class="f3m-tagdlg-head">
+                <div class="min-w-0">
+                    <h5 class="mb-0 fw-bold" id="tagdlg-title"><i class="bi bi-tags me-2 text-warning"></i>Tags</h5>
+                    <div class="small f3m-suggestion-muted">
+                        @(data.CanVote ? "Suggest tags that fit this mod and vote on the others'." : data.CanDecide ? "It's your mod: approve or reject what visitors suggest." : "What visitors suggest for this mod.")
+                        A suggestion counts in searches from <strong>@data.Threshold</strong> @(data.Threshold == 1 ? "point" : "points").
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="CloseDialog"></button>
+            </header>
+
+            <div class="f3m-tagdlg-body">
+                <!-- The tree -->
+                <section class="f3m-tagdlg-tree" aria-label="All tags">
+                    <div class="d-flex gap-2 mb-2">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text f3m-search-icon"><i class="bi bi-search"></i></span>
+                            <input class="form-control f3m-search-input" type="search" placeholder="Find a tag…" aria-label="Find a tag"
+                                   @bind="search" @bind:event="oninput" />
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" @onclick="ToggleAll"
+                                title="@(AllExpanded ? "Fold every branch" : "Unfold every branch")">
+                            <i class="bi bi-arrows-@(AllExpanded ? "collapse" : "expand")"></i>
+                        </button>
+                    </div>
+                    <div class="f3m-tagdlg-legend small">
+                        <span><i class="bi bi-check-circle-fill text-success"></i> on the mod</span>
+                        <span><i class="bi bi-arrow-down-right-circle text-warning"></i> more specific than one of its tags</span>
+                        <span><i class="bi bi-hand-thumbs-up"></i> suggested</span>
+                        <span><span class="f3m-tree-new">new</span> a tag users created, still voted on</span>
+                    </div>
+                    <div class="f3m-tagdlg-scroll">
+                        <TagTree Expanded="expanded" Search="@search" Show="t => !t.IsType" Selected="selectedTagId" SelectedChanged="Pick"
+                                 RowClass="RowClass" AriaLabel="All tags">
+                            <Actions Context="tag">
+                                @{
+                                    var status = StatusOf(tag);
+                                }
+                                @if (tag.IsProposed && ProposalOf(tag.Id) is { } proposal)
+                                {
+                                    <span class="f3m-tree-new" title="@($"A tag users created: {Signed(proposal.Score)} of {data.TagThreshold} points to be a regular tag. Vote on it under New tags.")">
+                                        new @Signed(proposal.Score)
+                                    </span>
+                                }
+                                @switch (status.Kind)
+                                {
+                                    case TagStatus.OnMod:
+                                        <span class="f3m-tree-state good"><i class="bi bi-check-circle-fill"></i><span class="d-none d-sm-inline">on the mod</span></span>
+                                        break;
+                                    case TagStatus.Implied:
+                                        <span class="f3m-tree-state" title="@($"The mod counts as {tag.Name} through {status.Via}.")">via @status.Via</span>
+                                        break;
+                                    case TagStatus.Rejected:
+                                        <span class="f3m-tree-state" title="Rejected for this mod: it can't be suggested again.">rejected</span>
+                                        break;
+                                    case TagStatus.Suggested:
+                                        <span class="f3m-tree-state @(status.Suggestion!.Counts ? "counts" : string.Empty)"
+                                              title="@($"{status.Suggestion.Up} for, {status.Suggestion.Down} against")">
+                                            <i class="bi bi-hand-thumbs-up"></i>@Signed(status.Suggestion.Score)
+                                        </span>
+                                        break;
+                                    case TagStatus.Refines:
+                                    case TagStatus.Open:
+                                        @if (data.CanVote)
+                                        {
+                                            <button type="button" class="f3m-tree-btn" disabled="@(OutOfSuggestions)" @onclick="() => Pick(tag)"
+                                                    title="@(status.Kind == TagStatus.Refines ? $"More specific than {status.Via}: would replace it on the mod" : $"Suggest {tag.Name}")">
+                                                @if (status.Kind == TagStatus.Refines)
+                                                {
+                                                    <i class="bi bi-arrow-down-right-circle text-warning"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-plus-circle"></i>
+                                                }
+                                                <span class="d-none d-sm-inline">Suggest</span>
+                                            </button>
+                                        }
+                                        break;
+                                }
+                                @if (data.CanVote)
+                                {
+                                    <button type="button" class="f3m-tree-btn f3m-tree-btn-quiet" disabled="@(OutOfSuggestions)"
+                                            title="@($"Create a new tag under {tag.Name}")" aria-label="@($"Create a new tag under {tag.Name}")"
+                                            @onclick="() => StartCreate(tag.Id)">
+                                        <i class="bi bi-node-plus"></i>
+                                    </button>
+                                }
+                            </Actions>
+                        </TagTree>
+                    </div>
+                </section>
+
+                <!-- Suggesting and the open suggestions -->
+                <aside class="f3m-tagdlg-side">
+                    @if (data.CanVote)
+                    {
+                        <div class="f3m-tagdlg-compose">
+                            @if (mode == ComposeMode.Suggest && Directory.Find(selectedTagId ?? 0) is { } picked)
                             {
-                                <span class="f3m-tag f3m-tag-request" title="A tag that doesn't exist yet; an admin creates it">
-                                    <i class="bi bi-plus-lg"></i>@s.RequestedName
-                                </span>
+                                var status = StatusOf(picked);
+                                <div class="small text-uppercase f3m-suggestion-muted fw-semibold mb-1">Suggest</div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="f3m-tag f3m-tag-picked">@picked.Name</span>
+                                    <span class="small f3m-suggestion-muted text-truncate">@PathOf(picked)</span>
+                                </div>
+                                @if (picked.Description is { Length: > 0 } description)
+                                {
+                                    <p class="small f3m-suggestion-muted mb-2">@description</p>
+                                }
+                                @if (status.Kind == TagStatus.Refines)
+                                {
+                                    <p class="small mb-2"><i class="bi bi-arrow-down-right-circle text-warning me-1"></i>More specific than <strong>@status.Via</strong>: it replaces that tag once approved.</p>
+                                }
+                                <input class="form-control form-control-sm f3m-input mb-2" maxlength="@TagSuggestionLimits.MaxReasonLength"
+                                       placeholder="Why does it fit? (optional)" aria-label="Why the tag fits" @bind="reason" @bind:event="oninput" />
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-warning fw-semibold" disabled="@sending" @onclick="SuggestAsync">Suggest</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ResetCompose">Cancel</button>
+                                    @Remaining()
+                                </div>
+                            }
+                            else if (mode == ComposeMode.Create)
+                            {
+                                <div class="small text-uppercase f3m-suggestion-muted fw-semibold mb-1">Create a new tag</div>
+                                <input class="form-control form-control-sm f3m-input mb-2" maxlength="@TagRules.MaxNameLength" placeholder="Name of the new tag"
+                                       aria-label="Name of the new tag" @bind="newTagName" @bind:event="oninput" />
+                                @if (ExistingNamed(newTagName) is { } existing)
+                                {
+                                    <p class="small mb-2">
+                                        <i class="bi bi-info-circle me-1"></i>There's a tag <strong>@existing.Name</strong> already.
+                                        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @onclick="() => Pick(existing)">Suggest that one</button>
+                                    </p>
+                                }
+                                <div class="d-flex flex-wrap align-items-center gap-2 small mb-2">
+                                    <span class="f3m-suggestion-muted">Goes under</span>
+                                    @if (Directory.Find(createParentId ?? 0) is { } parent)
+                                    {
+                                        <span class="f3m-tag">
+                                            @parent.Name
+                                            <button type="button" class="f3m-tag-remove" aria-label="No parent" @onclick="() => createParentId = null"><i class="bi bi-x"></i></button>
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="f3m-suggestion-muted fst-italic">nothing (a top-level tag)</span>
+                                    }
+                                    <span class="f3m-suggestion-muted">· pick <i class="bi bi-node-plus"></i> in the tree to change it</span>
+                                </div>
+                                <input class="form-control form-control-sm f3m-input mb-2" maxlength="@TagRules.MaxDescriptionLength"
+                                       placeholder="What does it mean? (optional)" aria-label="What the new tag means" @bind="newTagDescription" @bind:event="oninput" />
+                                <input class="form-control form-control-sm f3m-input mb-2" maxlength="@TagSuggestionLimits.MaxReasonLength"
+                                       placeholder="Why does this mod fit it? (optional)" aria-label="Why the mod fits the new tag" @bind="reason" @bind:event="oninput" />
+                                <p class="small f3m-suggestion-muted mb-2">
+                                    It works right away and is suggested for this mod. Everyone votes on whether the tag should exist:
+                                    with @data.TagThreshold @(data.TagThreshold == 1 ? "point" : "points") it's a regular tag.
+                                </p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-warning fw-semibold" disabled="@(sending || string.IsNullOrWhiteSpace(newTagName) || ExistingNamed(newTagName) is not null)"
+                                            @onclick="SuggestAsync">Create and suggest</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ResetCompose">Cancel</button>
+                                    @Remaining()
+                                </div>
                             }
                             else
                             {
-                                <span class="f3m-tag @(s.Counts ? "f3m-tag-community" : string.Empty)"
-                                      title="@(s.Counts ? "Counts in searches" : $"Counts in searches from {data.Threshold} points")">
-                                    @NameOf(s)
-                                </span>
-                            }
-                            @if (s.Reason is { } reason)
-                            {
-                                <span class="small f3m-suggestion-muted text-break">@reason</span>
-                            }
-                        </div>
-
-                        <div class="f3m-suggestion-actions">
-                            @if (data.CanVote)
-                            {
-                                <button type="button" class="f3m-vote @(s.MyVote > 0 ? "active" : string.Empty)" disabled="@(busyId == s.Id)"
-                                        aria-label="@($"Vote for {NameOf(s)}")" aria-pressed="@(s.MyVote > 0 ? "true" : "false")"
-                                        @onclick="() => VoteAsync(s, s.MyVote > 0 ? 0 : 1)">
-                                    <i class="bi bi-hand-thumbs-up@(s.MyVote > 0 ? "-fill" : string.Empty)"></i>
-                                </button>
-                            }
-                            <span class="f3m-suggestion-score" title="@($"{s.Up} for, {s.Down} against")">@s.Score</span>
-                            @if (data.CanVote)
-                            {
-                                <button type="button" class="f3m-vote down @(s.MyVote < 0 ? "active" : string.Empty)" disabled="@(busyId == s.Id)"
-                                        aria-label="@($"Vote against {NameOf(s)}")" aria-pressed="@(s.MyVote < 0 ? "true" : "false")"
-                                        @onclick="() => VoteAsync(s, s.MyVote < 0 ? 0 : -1)">
-                                    <i class="bi bi-hand-thumbs-down@(s.MyVote < 0 ? "-fill" : string.Empty)"></i>
-                                </button>
-                            }
-                            @if (data.CanDecide)
-                            {
-                                @if (!s.IsRequest)
-                                {
-                                    <button type="button" class="btn btn-sm btn-outline-warning py-0" disabled="@(busyId == s.Id)"
-                                            @onclick="() => ApproveAsync(s)">Approve</button>
-                                }
-                                else if (data.IsAdmin)
-                                {
-                                    <a class="btn btn-sm btn-outline-warning py-0" href="@SuggestionQueueUrl">Create…</a>
-                                }
-                                <button type="button" class="btn btn-sm btn-outline-secondary py-0" disabled="@(busyId == s.Id)"
-                                        @onclick="() => RejectAsync(s)">Reject</button>
+                                <p class="small mb-2">
+                                    <i class="bi bi-hand-index me-1 text-warning"></i>Pick a tag in the tree to suggest it, or vote on the suggestions below.
+                                    Missing one? Create it.
+                                </p>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-warning" disabled="@OutOfSuggestions" @onclick="() => StartCreate(null)">
+                                        <i class="bi bi-plus-lg me-1"></i>Create a new tag
+                                    </button>
+                                    @Remaining()
+                                </div>
                             }
                         </div>
-                    </li>
-                }
-            </ul>
-        }
-
-        @if (error is not null)
-        {
-            <div class="alert alert-danger small py-2 mb-2">@error</div>
-        }
-
-        <AuthorizeView>
-            <Authorized>
-                @if (data.CanVote)
-                {
-                    @if (!suggesting)
+                    }
+                    else if (!data.CanDecide)
                     {
-                        <button type="button" class="btn btn-sm btn-outline-warning" @onclick="() => suggesting = true"
-                                disabled="@(data.RemainingToday == 0)"
-                                title="@(data.RemainingToday == 0 ? "You suggested as many tags as you can today." : null)">
-                            <i class="bi bi-tag me-1"></i>Suggest a tag
-                        </button>
+                        <AuthorizeView>
+                            <NotAuthorized>
+                                <div class="f3m-tagdlg-compose small"><a href="@Paths.Login">Sign in</a> to suggest tags or vote on them.</div>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    }
+
+                    @if (error is not null)
+                    {
+                        <div class="alert alert-danger small py-2 my-2">@error</div>
+                    }
+
+                    <div class="d-flex align-items-baseline justify-content-between mt-3 mb-2">
+                        <h6 class="fw-bold mb-0">Open suggestions</h6>
+                        <span class="small f3m-suggestion-muted">@data.Items.Count</span>
+                    </div>
+                    @if (data.Items.Count == 0)
+                    {
+                        <p class="small f3m-suggestion-muted">Nothing suggested yet.</p>
                     }
                     else
                     {
-                        <div class="f3m-suggest-form">
-                            @if (!requesting)
+                        <ul class="list-unstyled mb-0 f3m-tagdlg-list">
+                            @foreach (var item in data.Items)
                             {
-                                <TagPicker Selected="pickedTag" SelectedChanged="ids => pickedTag = ids" Max="1" Offer="CanSuggest"
-                                           Placeholder="Pick a tag that fits this mod…" AriaLabel="Tag to suggest"
-                                           EmptyText="No matching tag the mod doesn't have yet." />
-                                <button type="button" class="btn btn-link btn-sm px-0" @onclick="() => requesting = true">
-                                    No tag fits? Ask for a new one
-                                </button>
+                                var s = item;
+                                var tag = s.TagId is { } id ? Directory.Find(id) : null;
+                                var percent = Math.Clamp(s.Score * 100 / progressMax, 0, 100);
+                                <li class="f3m-tagdlg-item @(s.TagId is { } sel && sel == selectedTagId ? "selected" : string.Empty)">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                                @if (s.IsRequest)
+                                                {
+                                                    <span class="f3m-tag f3m-tag-request" title="A tag that doesn't exist yet; an admin creates it"><i class="bi bi-plus-lg"></i>@s.RequestedName</span>
+                                                    <span class="small f3m-suggestion-muted">new tag</span>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="f3m-tag @(s.Counts ? "f3m-tag-community" : string.Empty)" @onclick="() => Reveal(s.TagId!.Value)"
+                                                            title="Show in the tree">@NameOf(s)</button>
+                                                    @if (tag?.IsProposed == true)
+                                                    {
+                                                        <span class="f3m-tree-new" title="A tag users created, still voted on">new</span>
+                                                    }
+                                                    @if (tag is not null && PathOf(tag) is { Length: > 0 } path)
+                                                    {
+                                                        <span class="small f3m-suggestion-muted text-truncate">@path</span>
+                                                    }
+                                                }
+                                            </div>
+                                            @if (s.Reason is { } why)
+                                            {
+                                                <div class="small text-break mt-1">“@why”</div>
+                                            }
+                                            <div class="f3m-tagdlg-progress mt-2" title="@(s.Counts ? "Counts in searches" : $"{s.Score} of {data.Threshold} points to count in searches")">
+                                                <div class="f3m-tagdlg-progress-bar @(s.Counts ? "done" : string.Empty)" style="width:@(s.IsRequest ? 0 : percent)%"></div>
+                                            </div>
+                                            <div class="small f3m-suggestion-muted mt-1">
+                                                @(s.IsRequest ? "Waits for an admin to create the tag" : s.Counts ? "Counts in searches" : $"{Math.Max(0, data.Threshold - s.Score)} more to count")
+                                                · by @(s.SuggestedBy ?? "a deleted account")
+                                            </div>
+                                        </div>
+                                        <div class="f3m-tagdlg-votes">
+                                            @if (data.CanVote)
+                                            {
+                                                <button type="button" class="f3m-vote @(s.MyVote > 0 ? "active" : string.Empty)" disabled="@(busyId == s.Id)"
+                                                        aria-label="@($"Vote for {NameOf(s)}")" aria-pressed="@(s.MyVote > 0 ? "true" : "false")"
+                                                        @onclick="() => VoteAsync(s, s.MyVote > 0 ? 0 : 1)">
+                                                    <i class="bi bi-hand-thumbs-up@(s.MyVote > 0 ? "-fill" : string.Empty)"></i>
+                                                </button>
+                                            }
+                                            <span class="f3m-suggestion-score" title="@($"{s.Up} for, {s.Down} against")">@Signed(s.Score)</span>
+                                            @if (data.CanVote)
+                                            {
+                                                <button type="button" class="f3m-vote down @(s.MyVote < 0 ? "active" : string.Empty)" disabled="@(busyId == s.Id)"
+                                                        aria-label="@($"Vote against {NameOf(s)}")" aria-pressed="@(s.MyVote < 0 ? "true" : "false")"
+                                                        @onclick="() => VoteAsync(s, s.MyVote < 0 ? 0 : -1)">
+                                                    <i class="bi bi-hand-thumbs-down@(s.MyVote < 0 ? "-fill" : string.Empty)"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                    @if (data.CanDecide)
+                                    {
+                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                            @if (!s.IsRequest)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-success py-0" disabled="@(busyId == s.Id)" @onclick="() => ApproveAsync(s)">
+                                                    <i class="bi bi-check-lg me-1"></i>Approve
+                                                </button>
+                                            }
+                                            else if (data.IsAdmin)
+                                            {
+                                                <a class="btn btn-sm btn-outline-warning py-0" href="@SuggestionQueueUrl">Create it…</a>
+                                            }
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" disabled="@(busyId == s.Id)" @onclick="() => RejectAsync(s)">
+                                                <i class="bi bi-x-lg me-1"></i>Reject
+                                            </button>
+                                        </div>
+                                    }
+                                </li>
                             }
-                            else
-                            {
-                                <input class="form-control f3m-input mb-2" maxlength="@TagRules.MaxNameLength" placeholder="Name of the new tag"
-                                       aria-label="Name of the new tag" @bind="newTagName" @bind:event="oninput" />
-                                <button type="button" class="btn btn-link btn-sm px-0" @onclick="() => requesting = false">
-                                    Pick an existing tag instead
-                                </button>
-                            }
-                            <input class="form-control f3m-input form-control-sm mb-2" maxlength="@TagSuggestionLimits.MaxReasonLength"
-                                   placeholder="Why does it fit? (optional)" aria-label="Why the tag fits" @bind="reason" @bind:event="oninput" />
-                            <div class="d-flex flex-wrap align-items-center gap-2">
-                                <button type="button" class="btn btn-sm btn-warning fw-semibold" @onclick="SuggestAsync"
-                                        disabled="@(sending || (requesting ? string.IsNullOrWhiteSpace(newTagName) : pickedTag.Count == 0))">
-                                    @(requesting ? "Ask for it" : "Suggest")
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseForm">Cancel</button>
-                                @if (data.RemainingToday is { } left)
-                                {
-                                    <span class="small f3m-suggestion-muted">@left more today</span>
-                                }
-                            </div>
-                        </div>
+                        </ul>
                     }
-                }
-            </Authorized>
-            <NotAuthorized>
-                <p class="small f3m-suggestion-muted mb-0">
-                    <a href="@Paths.Login">Sign in</a> to suggest tags or vote on them.
-                </p>
-            </NotAuthorized>
-        </AuthorizeView>
+
+                    @if (proposals.Count > 0)
+                    {
+                        <div class="d-flex align-items-baseline justify-content-between mt-4 mb-1">
+                            <h6 class="fw-bold mb-0">New tags</h6>
+                            <span class="small f3m-suggestion-muted">@proposals.Count</span>
+                        </div>
+                        <p class="small f3m-suggestion-muted mb-2">
+                            Tags users created. Vote on whether they should exist: with @data.TagThreshold @(data.TagThreshold == 1 ? "point" : "points") they're regular tags.
+                        </p>
+                        <ul class="list-unstyled mb-0 f3m-tagdlg-list">
+                            @foreach (var proposal in proposals.Take(showAllProposals ? int.MaxValue : ProposalCount))
+                            {
+                                var p = proposal;
+                                var tag = Directory.Find(p.TagId);
+                                <li class="f3m-tagdlg-item @(p.TagId == selectedTagId ? "selected" : string.Empty)">
+                                    <div class="d-flex align-items-start gap-2">
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                                <button type="button" class="f3m-tag" title="Show in the tree" @onclick="() => Reveal(p.TagId)">@p.Name</button>
+                                                @if (tag is not null && PathOf(tag) is { Length: > 0 } path)
+                                                {
+                                                    <span class="small f3m-suggestion-muted text-truncate">@path</span>
+                                                }
+                                            </div>
+                                            @if (p.Description is { } meaning)
+                                            {
+                                                <div class="small text-break mt-1">@meaning</div>
+                                            }
+                                            <div class="small f3m-suggestion-muted mt-1">
+                                                by @(p.ProposedBy ?? "a deleted account") · on @p.ModCount @(p.ModCount == 1 ? "mod" : "mods")
+                                                · @PointsLeft(p) to be a regular tag
+                                            </div>
+                                        </div>
+                                        @ProposalVotes(tag)
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                        @if (!showAllProposals && proposals.Count > ProposalCount)
+                        {
+                            <button type="button" class="btn btn-link btn-sm px-0" @onclick="() => showAllProposals = true">Show all @proposals.Count</button>
+                        }
+                    }
+                </aside>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string PointsLeft(TagProposalDto p)
+    {
+        var left = Math.Max(1, (data?.TagThreshold ?? 1) - p.Score);
+        return left == 1 ? "1 more point" : $"{left} more points";
     }
-</div>
+
+    /// <summary>The votes on whether a proposed tag should exist.</summary>
+    private RenderFragment ProposalVotes(TagDto? tag) => __builder =>
+    {
+        if (tag is null || ProposalOf(tag.Id) is not { } p)
+            return;
+        <span class="f3m-tagdlg-votes" title="@($"{p.Up} for, {p.Down} against")">
+            @if (SignedIn)
+            {
+                <button type="button" class="f3m-vote @(p.MyVote > 0 ? "active" : string.Empty)" disabled="@(busyProposal == p.TagId)"
+                        aria-label="@($"Keep the new tag {p.Name}")" aria-pressed="@(p.MyVote > 0 ? "true" : "false")"
+                        @onclick="() => VoteProposalAsync(p, p.MyVote > 0 ? 0 : 1)">
+                    <i class="bi bi-hand-thumbs-up@(p.MyVote > 0 ? "-fill" : string.Empty)"></i>
+                </button>
+            }
+            <span class="f3m-suggestion-score">@Signed(p.Score)</span>
+            @if (SignedIn)
+            {
+                <button type="button" class="f3m-vote down @(p.MyVote < 0 ? "active" : string.Empty)" disabled="@(busyProposal == p.TagId)"
+                        aria-label="@($"Drop the new tag {p.Name}")" aria-pressed="@(p.MyVote < 0 ? "true" : "false")"
+                        @onclick="() => VoteProposalAsync(p, p.MyVote < 0 ? 0 : -1)">
+                    <i class="bi bi-hand-thumbs-down@(p.MyVote < 0 ? "-fill" : string.Empty)"></i>
+                </button>
+            }
+        </span>
+    };
+
+    private RenderFragment Remaining() => __builder =>
+    {
+        if (data?.RemainingToday is { } left)
+        {
+            <span class="small f3m-suggestion-muted ms-auto">@left left today</span>
+        }
+    };
+}

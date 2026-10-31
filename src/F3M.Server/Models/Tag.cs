@@ -20,6 +20,27 @@ public class Tag
     public string? TypeId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// A tag a user created. It works like any tag, and everyone votes on whether it should exist; from enough points
+    /// (or when an admin accepts it) it's a regular tag.
+    /// </summary>
+    public bool IsProposed { get; set; }
+
+    /// <summary>Who created it; null for tags admins made, or once that account was deleted.</summary>
+    public int? ProposedById { get; set; }
+
+    /// <summary>Upvotes minus downvotes on the proposal, kept up to date with its votes.</summary>
+    public int ProposalScore { get; set; }
+}
+
+/// <summary>One account's vote on a proposed tag: 1 for, -1 against.</summary>
+public class TagProposalVote
+{
+    public int TagId { get; set; }
+    public int UserId { get; set; }
+    public int Value { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
 /// <summary>"<see cref="ParentId"/> includes <see cref="ChildId"/>": the child is a kind of the parent.</summary>

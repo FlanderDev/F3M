@@ -16,7 +16,11 @@ public sealed record ModTemplate(
     string Description,
     IReadOnlyList<string> Folders,
     string? RequiredModName,
-    string DefaultInstallPath);
+    string DefaultInstallPath,
+    ModTypeThread? Thread = null);
+
+/// <summary>The F95zone thread where a mod type's players and authors meet: news, questions and fixes.</summary>
+public sealed record ModTypeThread(string Title, string Url);
 
 /// <summary>What <see cref="ModTemplates.Suggest"/> derives from a file: its type, install path and archive folder.</summary>
 public sealed record TemplateSuggestion(string TemplateId, string InstallPath, string ArchiveRoot);
@@ -49,6 +53,11 @@ public static class ModTemplates
     public const string MaterialsFolder = "BepInEx/plugins/ModMaterials";
     public const string ImagesFolder = "BepInEx/plugins/ModImages";
 
+    // By thread id: F95zone redirects these to the thread, whose title (with its version number) changes.
+    public static readonly ModTypeThread CustomMissionsThread = new("Custom Missions", "https://f95zone.to/threads/263276/");
+    public static readonly ModTypeThread CosplayLoaderThread = new("Cosplay Loader", "https://f95zone.to/threads/273479/");
+    public static readonly ModTypeThread TextureReplacerThread = new("Texture Replacer", "https://f95zone.to/threads/118422/");
+
     /// <summary>At most this many paths are named in one warning.</summary>
     private const int MaxExamples = 3;
 
@@ -62,19 +71,20 @@ public static class ModTemplates
             PluginFolders, null, PluginsFolder),
         new(MissionsV1, "Custom Missions v1", "Custom-Missions 1",
             "Missions as .json files in the CustomMissions folder. Needs the Custom Missions v1 framework.",
-            [MissionsV1Folder, .. PluginFolders], "Custom Missions v1", MissionsV1Folder),
+            [MissionsV1Folder, .. PluginFolders], "Custom Missions v1", MissionsV1Folder, CustomMissionsThread),
         new(MissionsV2, "Custom Missions v2", "Custom-Missions 2",
             "Missions as folders in CustomMissions2, each with its .code files and optionally a meta.json. " +
             "Needs the Custom Missions v2 framework.",
-            [MissionsV2Folder, .. PluginFolders], "Custom Missions v2", MissionsV2Folder),
-        new(Cosplay, "Cosplay", "Cosplay-Loader",
+            [MissionsV2Folder, .. PluginFolders], "Custom Missions v2", MissionsV2Folder, CustomMissionsThread),
+        // Named after the mod they need, like the other types.
+        new(Cosplay, "Cosplay Loader", "Cosplay-Loader",
             "Outfits for the Cosplay Loader: a folder per outfit in BepInEx/plugins/ModCosplays (.glb model and " +
             ".json description) and its textures in BepInEx/plugins/ModMaterials (.png and .json).",
-            [CosplaysFolder, MaterialsFolder], "Cosplay Loader Mod", PluginsFolder),
-        new(TexturePack, "Texture pack", "Texture Edits",
+            [CosplaysFolder, MaterialsFolder], "Cosplay Loader Mod", PluginsFolder, CosplayLoaderThread),
+        new(TexturePack, "Texture Replacer", "Texture Edits",
             ".png textures in BepInEx/plugins/ModImages, named after the game texture they replace. Sets to switch " +
             "between with F12 go in ModImages/Select/<set name>. Needs Texture Replacer.",
-            [ImagesFolder], "Texture Replacer", ImagesFolder),
+            [ImagesFolder], "Texture Replacer", ImagesFolder, TextureReplacerThread),
         new(Custom, "Custom", "Others",
             "Anything else. You choose the install path; no type rules are checked.",
             [], null, string.Empty),

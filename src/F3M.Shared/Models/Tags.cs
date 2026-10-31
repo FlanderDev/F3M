@@ -18,6 +18,9 @@ public sealed class TagDto
 
     public bool IsType => TypeId is not null;
 
+    /// <summary>A tag a user created that's still being voted on. It works like any tag meanwhile.</summary>
+    public bool IsProposed { get; set; }
+
     /// <summary>The tags that include this one directly: it is a kind of each of them.</summary>
     public List<int> ParentIds { get; set; } = [];
 

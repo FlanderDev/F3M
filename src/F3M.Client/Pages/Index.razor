@@ -12,87 +12,127 @@
 
 <PageTitle>F3M - Browse</PageTitle>
 
-<!-- Header bar -->
-<div class="f3m-page-header">
-    <div class="container-fluid px-4 py-4">
-        <div class="row align-items-center g-3">
-            <div class="col">
-                <h1 class="fw-black mb-0 fs-3">Browse Mods</h1>
-                <p class="small mb-0">@totalCount mods available</p>
+<!-- Header and filters -->
+<section class="f3m-browse-head">
+    <div class="container-fluid px-4 pt-4 pb-4">
+        <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+            <div class="me-auto">
+                <h1 class="f3m-browse-title">Browse mods</h1>
+                <p class="f3m-browse-count mb-0" aria-live="polite">
+                    @if (loading && mods.Count == 0)
+                    {
+                        <span>Loading mods…</span>
+                    }
+                    else
+                    {
+                        <strong>@totalCount</strong>@CountText
+                    }
+                </p>
             </div>
-            <div class="col-auto">
+            <div class="d-flex flex-wrap gap-2">
                 <CollectionBadge />
                 <AuthorizeView>
                     <Authorized>
                         <a href="@Paths.Upload" class="btn btn-warning fw-bold px-4">
-                            <i class="bi bi-cloud-arrow-up me-2"></i>Upload Mod
+                            <i class="bi bi-cloud-arrow-up me-2"></i>Upload mod
                         </a>
                     </Authorized>
                     <NotAuthorized>
                         <a href="@Paths.Login" class="btn btn-outline-warning fw-bold px-4">
-                            <i class="bi bi-cloud-arrow-up me-2"></i>Upload Mod
+                            <i class="bi bi-cloud-arrow-up me-2"></i>Upload mod
                         </a>
                     </NotAuthorized>
                 </AuthorizeView>
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="row g-2 mt-3">
-            <div class="col-12 col-md">
-                <div class="input-group">
-                    <span class="input-group-text f3m-search-icon">
-                        <i class="bi bi-search"></i>
-                    </span>
-                    <input class="form-control f3m-search-input"
-                           type="search"
-                           placeholder="Search mods, authors…"
-                           @bind="searchTerm"
-                           @bind:event="oninput"
-                           @onkeyup="OnSearchKeyUp" />
+        <div class="f3m-filter-panel">
+            <div class="f3m-filter-main">
+                <div class="f3m-filter-field f3m-filter-search">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="search" placeholder="Search mods and authors…" aria-label="Search mods and authors" autocomplete="off"
+                           @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchKeyUp" />
+                    @if (searchTerm.Length > 0)
+                    {
+                        <button type="button" class="f3m-filter-clear" @onclick="ClearSearch" aria-label="Clear the search" title="Clear the search">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </button>
+                    }
+                </div>
+                @if (Tags.Tags.Count > 0)
+                {
+                    @* A mod must have every picked tag (or a tag it includes). *@
+                    <div class="f3m-filter-field f3m-filter-tags">
+                        <i class="bi bi-tags" aria-hidden="true"></i>
+                        <TagPicker Selected="Tags.Ordinary(selectedTags)" SelectedChanged="OnOrdinaryTagsPicked" ShowCounts="true"
+                                   Offer="t => !t.IsType" Placeholder="Filter by tags…" AriaLabel="Filter by tags" />
+                    </div>
+                }
+                <div class="f3m-filter-field f3m-filter-sort">
+                    <i class="bi bi-sort-down" aria-hidden="true"></i>
+                    <SelectMenu TValue="SortBy" @bind-Value="sortBy" @bind-Value:after="LoadMods"
+                                Items="Enum.GetValues<SortBy>()" Text="SortText" AriaLabel="Sort by" />
                 </div>
             </div>
-            @* The menu shares the row with the clear button at every width, so it never wraps onto a row of its own. *@
-            <div class="col col-md-3">
-                <SelectMenu TValue="SortBy" @bind-Value="sortBy" @bind-Value:after="LoadMods"
-                            Items="Enum.GetValues<SortBy>()" Text="SortText" AriaLabel="Sort by" />
-            </div>
-            <div class="col-auto">
-                <button class="btn btn-outline-secondary" @onclick="ClearFilters" title="Clear filters" aria-label="Clear filters">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-            @if (Tags.Tags.Count > 0)
+
+            <!-- Type pills: one click for the type tags, together with the tags picked above -->
+            @if (Tags.TypeTags is { Count: > 0 } types)
             {
-                @* A mod must have every picked tag (or a tag it includes). *@
-                <div class="col-12">
-                    <TagPicker Selected="selectedTags" SelectedChanged="OnTagsPicked" ShowCounts="true"
-                               Placeholder="Filter by tags…" AriaLabel="Filter by tags" />
+                var anyType = selectedTags.Any(Tags.IsType);
+                <div class="f3m-filter-types">
+                    <div class="f3m-type-pills" role="group" aria-label="Mod type">
+                        <button type="button" class="f3m-type-pill @(anyType ? string.Empty : "active")" aria-pressed="@(anyType ? "false" : "true")"
+                                @onclick="() => SelectType(null)">
+                            <i class="bi bi-grid-3x3-gap"></i>All types
+                        </button>
+                        @foreach (var type in types)
+                        {
+                            var active = selectedTags.Contains(type.Id);
+                            <button type="button" class="f3m-type-pill @(active ? "active" : string.Empty)" aria-pressed="@(active ? "true" : "false")"
+                                    title="@type.Description" @onclick="() => SelectType(active ? null : type.Id)">
+                                <i class="bi @TypeIcon(type)"></i>@type.Name
+                                <span class="f3m-type-pill-count">@type.TotalModCount</span>
+                            </button>
+                        }
+                    </div>
+                    @if (HasFilters)
+                    {
+                        <button type="button" class="f3m-filter-reset" @onclick="ClearFilters">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset filters
+                        </button>
+                    }
                 </div>
+
+                @* One type picked: what it is and where its community is. *@
+                @if (types.FirstOrDefault(t => selectedTags.Contains(t.Id)) is { } picked && ModTemplates.Find(picked.TypeId) is { } pickedType)
+                {
+                    <div class="f3m-type-about">
+                        <i class="bi @TypeIcon(picked) f3m-type-about-icon"></i>
+                        <div class="min-w-0 flex-grow-1">
+                            <div class="fw-semibold">@picked.Name</div>
+                            <div class="small f3m-type-about-text">@pickedType.Description</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @if (RequiredModOf(pickedType) is { } required)
+                            {
+                                <a href="@Paths.ModDetail(required.Id)" class="btn btn-sm btn-outline-warning text-nowrap" title="The mod these need, on F3M">
+                                    <i class="bi bi-box-seam me-1"></i>@required.Name
+                                </a>
+                            }
+                            @if (pickedType.Thread is { } thread)
+                            {
+                                <a href="@thread.Url" target="_blank" rel="noopener" class="btn btn-sm btn-outline-warning text-nowrap">
+                                    <img src="favicons/thirdParty/f95zoneLogo.png" alt="" class="f3m-type-about-logo" />@thread.Title thread
+                                    <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
             }
         </div>
-
-        <!-- Type chips: one click for the type tags, together with the tags picked above -->
-        @if (Tags.TypeTags is { Count: > 0 } types)
-        {
-            var anyType = selectedTags.Any(Tags.IsType);
-            <div class="d-flex flex-wrap gap-2 mt-3" role="group" aria-label="Mod type">
-                <button class="f3m-chip @(anyType ? string.Empty : "active")" aria-pressed="@(anyType ? "false" : "true")"
-                        @onclick="() => SelectType(null)">
-                    All
-                </button>
-                @foreach (var type in types)
-                {
-                    var active = selectedTags.Contains(type.Id);
-                    <button class="f3m-chip @(active ? "active" : string.Empty)" aria-pressed="@(active ? "true" : "false")"
-                            title="@type.Description" @onclick="() => SelectType(active ? null : type.Id)">
-                        @type.Name
-                    </button>
-                }
-            </div>
-        }
     </div>
-</div>
+</section>
 
 <!-- Mod grid -->
 <div class="container-fluid px-4 py-4">

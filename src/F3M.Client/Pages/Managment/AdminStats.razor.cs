@@ -127,7 +127,7 @@ public partial class AdminStats
         stats.TagSuggestions.Select(w => new double[] { w.Suggested, w.Requested, w.Decided }).ToList());
 
     private static readonly (string, string) SuggestedSeries = ("Suggested", ChartColors.Series1);
-    private static readonly (string, string) RequestedSeries = ("Asked for", ChartColors.Series2);
+    private static readonly (string, string) RequestedSeries = ("New tags", ChartColors.Series2);
     private static readonly (string, string) BrowserSeries = ("Browser", ChartColors.Series1);
     private static readonly (string, string) DesktopSeries = ("Desktop app", ChartColors.Series2);
     private static readonly (string, string) PasswordSeries = ("Password", ChartColors.Series1);
