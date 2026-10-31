@@ -3265,6 +3265,96 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
     overflow-y: auto;
 }
 
+/* The update's steps, while it runs (and after it failed). */
+.f3m-update-progress {
+    border: 1px solid var(--f3m-border);
+    border-left: 3px solid var(--f3m-amber);
+    border-radius: 8px;
+    padding: .75rem 1rem;
+}
+
+.f3m-update-progress.is-failed {
+    border-left-color: var(--bs-danger);
+}
+
+.f3m-update-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.25rem;
+    list-style: none;
+    padding: 0;
+}
+
+.f3m-update-step {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .8rem;
+    color: var(--f3m-muted);
+}
+
+.f3m-update-step-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    border: 1px solid var(--f3m-border);
+    flex-shrink: 0;
+}
+
+.f3m-update-step-icon .spinner-border {
+    width: .85rem;
+    height: .85rem;
+    border-width: .15em;
+}
+
+.f3m-update-step.is-current {
+    color: var(--f3m-text);
+    font-weight: 600;
+}
+
+.f3m-update-step.is-current .f3m-update-step-icon {
+    border-color: var(--f3m-amber);
+    color: var(--f3m-amber);
+}
+
+.f3m-update-step.is-done .f3m-update-step-icon {
+    background: var(--bs-success);
+    border-color: var(--bs-success);
+    color: #fff;
+}
+
+.f3m-update-step.is-done {
+    color: var(--f3m-text);
+}
+
+.f3m-update-step.is-failed {
+    color: var(--bs-danger);
+    font-weight: 600;
+}
+
+.f3m-update-step.is-failed .f3m-update-step-icon {
+    background: var(--bs-danger);
+    border-color: var(--bs-danger);
+    color: #fff;
+}
+
+.f3m-update-step.is-skipped {
+    opacity: .6;
+}
+
+.f3m-update-step-note {
+    font-size: .7rem;
+    font-style: italic;
+}
+
+.f3m-update-current {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    color: var(--f3m-muted);
+}
+
 .f3m-update-commits li {
     padding: .15rem 0;
 }
