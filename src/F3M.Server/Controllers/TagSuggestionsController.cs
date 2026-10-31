@@ -26,6 +26,12 @@ public sealed class TagSuggestionsController(ITagSuggestionsApi suggestions, ILo
     public override async Task<ActionResult<List<TagProposalDto>>> GetProposals(CancellationToken ct)
         => Ok(await suggestions.GetProposals(ct));
 
+    public override async Task<ActionResult<TagProposalInfo>> GetProposalInfo(CancellationToken ct)
+        => Ok(await suggestions.GetProposalInfo(ct));
+
+    public override Task<ActionResult<TagProposalDto>> Propose(TagProposeRequest request, CancellationToken ct)
+        => Run(() => suggestions.Propose(request, ct));
+
     public override Task<ActionResult<TagProposalDto>> VoteProposal(int tagId, TagVoteRequest vote, CancellationToken ct)
         => Run(() => suggestions.VoteProposal(tagId, vote, ct));
 

@@ -1,0 +1,195 @@
+@page "/tags"
+@implements IDisposable
+@inject ITagSuggestionsApi Api
+@inject TagDirectory Directory
+@inject IJSRuntime JS
+
+<PageTitle>F3M - Tags</PageTitle>
+
+<div class="container-fluid px-3 px-lg-4 py-4 mx-auto f3m-tagpage" @ref="page">
+    <header class="mb-3">
+        <h1 class="fw-black fs-2 mb-1"><i class="bi bi-tags-fill text-warning me-2"></i>Tags</h1>
+        <p class="small mb-0 f3m-suggestion-muted">
+            Every tag a mod can have, from broad to specific. Pick one to see what it means and the mods with it.
+            Missing one? Create it: it works right away, and everyone votes on whether it stays.
+        </p>
+    </header>
+
+    <div class="f3m-tagpage-grid">
+        <!-- The tree -->
+        <section class="f3m-surface rounded-3 border p-3 f3m-tagpage-tree" aria-label="All tags">
+            <div class="d-flex gap-2 mb-2">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text f3m-search-icon"><i class="bi bi-search"></i></span>
+                    <input class="form-control f3m-search-input" type="search" placeholder="Find a tag…" aria-label="Find a tag"
+                           @bind="search" @bind:event="oninput" />
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" @onclick="ToggleAll"
+                        title="@(AllExpanded ? "Fold every branch" : "Unfold every branch")">
+                    <i class="bi bi-arrows-@(AllExpanded ? "collapse" : "expand")"></i>
+                </button>
+            </div>
+            <div class="f3m-tagdlg-legend small">
+                <span><i class="bi bi-grid"></i> mods with it</span>
+                <span><span class="f3m-tree-new">new</span> a tag users created, still voted on</span>
+                @if (CanCreate)
+                {
+                    <span><i class="bi bi-node-plus"></i> create a tag under it</span>
+                }
+            </div>
+            <TagTree Expanded="expanded" Search="@search" Show="t => !t.IsType" Selected="selectedTagId" SelectedChanged="Pick" AriaLabel="All tags">
+                <Actions Context="tag">
+                    @if (tag.IsProposed && ProposalOf(tag.Id) is { } proposal)
+                    {
+                        <span class="f3m-tree-new" title="@($"A tag users created: {Signed(proposal.Score)} of {info?.TagThreshold} points to be a regular tag.")">
+                            new @Signed(proposal.Score)
+                        </span>
+                    }
+                    <a class="f3m-tree-state f3m-tagpage-mods" href="@TagChips.BrowseUrl(tag.Name)"
+                       title="@($"{tag.TotalModCount} {(tag.TotalModCount == 1 ? "mod" : "mods")} with {tag.Name} or a more specific tag")">
+                        <i class="bi bi-grid"></i>@tag.TotalModCount
+                    </a>
+                    @if (CanCreate)
+                    {
+                        <button type="button" class="f3m-tree-btn f3m-tree-btn-quiet" disabled="@OutOfTags"
+                                title="@($"Create a new tag under {tag.Name}")" aria-label="@($"Create a new tag under {tag.Name}")"
+                                @onclick="() => StartCreate(tag.Id)">
+                            <i class="bi bi-node-plus"></i>
+                        </button>
+                    }
+                </Actions>
+            </TagTree>
+        </section>
+
+        <!-- Creating, the picked tag, and the new tags -->
+        <aside class="f3m-tagpage-side">
+            <div class="f3m-tagdlg-compose mb-3">
+                @if (creating)
+                {
+                    <div class="small text-uppercase f3m-suggestion-muted fw-semibold mb-1">Create a new tag</div>
+                    <NewTagForm @bind-Name="newTagName" @bind-Description="newTagDescription" @bind-ParentId="createParentId">
+                        <ExistingAction Context="existing">
+                            <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @onclick="() => Reveal(existing.Id)">Show it</button>
+                        </ExistingAction>
+                    </NewTagForm>
+                    <p class="small f3m-suggestion-muted mb-2">
+                        It works right away: uploaders can pick it, and it can be suggested for mods. Everyone votes on whether
+                        it stays: with @(info?.TagThreshold) @(info?.TagThreshold == 1 ? "point" : "points") it's a regular tag.
+                    </p>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-warning fw-semibold"
+                                disabled="@(sending || string.IsNullOrWhiteSpace(newTagName) || Directory.Taken(newTagName) is not null)"
+                                @onclick="CreateAsync">Create tag</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelCreate">Cancel</button>
+                        @Remaining()
+                    </div>
+                }
+                else if (Directory.Find(selectedTagId ?? 0) is { } picked)
+                {
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span class="f3m-tag f3m-tag-picked">@picked.Name</span>
+                        @if (picked.IsProposed)
+                        {
+                            <span class="f3m-tree-new" title="A tag users created, still voted on">new</span>
+                        }
+                        <span class="small f3m-suggestion-muted text-truncate">@Directory.PathOf(picked)</span>
+                    </div>
+                    <p class="small mb-2 @(picked.Description is null ? "f3m-suggestion-muted fst-italic" : null)">
+                        @(picked.Description ?? "No description yet.")
+                    </p>
+                    var children = Directory.Graph.ChildrenOf(picked.Id).Select(Directory.Find).OfType<TagDto>().Where(t => !t.IsType)
+                        .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToList();
+                    @if (children.Count > 0)
+                    {
+                        <div class="d-flex flex-wrap align-items-center gap-1 small mb-2">
+                            <span class="f3m-suggestion-muted me-1">More specific:</span>
+                            @foreach (var child in children)
+                            {
+                                var c = child;
+                                <button type="button" class="f3m-tag" @onclick="() => Pick(c)">@c.Name</button>
+                            }
+                        </div>
+                    }
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <a class="btn btn-sm btn-warning fw-semibold" href="@TagChips.BrowseUrl(picked.Name)">
+                            <i class="bi bi-grid me-1"></i>@(picked.TotalModCount == 1 ? "1 mod" : $"{picked.TotalModCount} mods")
+                        </a>
+                        @if (CanCreate)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-warning" disabled="@OutOfTags" @onclick="() => StartCreate(picked.Id)">
+                                <i class="bi bi-node-plus me-1"></i>New tag under it
+                            </button>
+                        }
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" @onclick="() => selectedTagId = null">Close</button>
+                    </div>
+                }
+                else if (CanCreate)
+                {
+                    <p class="small mb-2">
+                        <i class="bi bi-hand-index me-1 text-warning"></i>Pick a tag in the tree to see what it means.
+                        Missing one? Create it, or pick <i class="bi bi-node-plus"></i> to put it under a tag.
+                    </p>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-warning" disabled="@OutOfTags" @onclick="() => StartCreate(null)">
+                            <i class="bi bi-plus-lg me-1"></i>Create a new tag
+                        </button>
+                        @Remaining()
+                    </div>
+                }
+                else
+                {
+                    <p class="small mb-0">
+                        <i class="bi bi-hand-index me-1 text-warning"></i>Pick a tag in the tree to see what it means.
+                        @if (info is not null)
+                        {
+                            <span><a href="@Paths.Login">Sign in</a> to create tags and vote on new ones.</span>
+                        }
+                    </p>
+                }
+            </div>
+
+            @if (created is not null)
+            {
+                <div class="alert alert-success small py-2 mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>Created <strong>@created</strong>. It shows as new until it has enough votes.</span>
+                    <button type="button" class="btn-close btn-close-white ms-auto" aria-label="Close" @onclick="() => created = null"></button>
+                </div>
+            }
+            @if (error is not null)
+            {
+                <div class="alert alert-danger small py-2 mb-3">@error</div>
+            }
+
+            <div class="d-flex align-items-baseline justify-content-between mb-1">
+                <h2 class="h6 fw-bold mb-0">New tags</h2>
+                <span class="small f3m-suggestion-muted">@proposals.Count</span>
+            </div>
+            @if (info is not null)
+            {
+                <p class="small f3m-suggestion-muted mb-2">
+                    Tags users created. Vote on whether they should stay: with @info.TagThreshold @(info.TagThreshold == 1 ? "point" : "points") they're regular tags.
+                </p>
+            }
+            @if (proposals.Count == 0)
+            {
+                <p class="small f3m-suggestion-muted">@(loaded ? "None right now." : "Loading…")</p>
+            }
+            else
+            {
+                <TagProposalList Proposals="proposals" TagThreshold="info?.TagThreshold ?? 1" CanVote="CanCreate" SelectedTagId="selectedTagId"
+                                 Reveal="Reveal" Voted="LoadAsync" Limit="8" />
+            }
+        </aside>
+    </div>
+</div>
+
+@code {
+    private RenderFragment Remaining() => __builder =>
+    {
+        if (info?.RemainingToday is { } left)
+        {
+            <span class="small f3m-suggestion-muted ms-auto">@left left today</span>
+        }
+    };
+}

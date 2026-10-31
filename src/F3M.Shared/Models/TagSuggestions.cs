@@ -110,6 +110,32 @@ public sealed class TagSuggestRequest
     public string? Reason { get; set; }
 }
 
+/// <summary>A new tag on its own, not for a mod (the tags page).</summary>
+public sealed class TagProposeRequest
+{
+    [MaxLength(TagRules.MaxNameLength)]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>The existing tag it goes under. Optional.</summary>
+    public int? ParentTagId { get; set; }
+
+    [MaxLength(TagRules.MaxDescriptionLength)]
+    public string? Description { get; set; }
+}
+
+/// <summary>What the tags page needs to offer creating tags.</summary>
+public sealed class TagProposalInfo
+{
+    /// <summary>The points a proposed tag needs to be a regular one.</summary>
+    public int TagThreshold { get; set; }
+
+    /// <summary>Signed in: may create tags and vote on them.</summary>
+    public bool CanCreate { get; set; }
+
+    /// <summary>New tags and suggestions the visitor may still start today; null without a limit (admins).</summary>
+    public int? RemainingToday { get; set; }
+}
+
 /// <summary>A tag a user created, with the votes on whether it should exist.</summary>
 public sealed class TagProposalDto
 {

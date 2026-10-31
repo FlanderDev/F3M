@@ -1,0 +1,114 @@
+@* Tags users created that are still voted on, and the votes on whether they should stay. Used by the tags page and a
+   mod's tag dialog. *@
+@inject ITagSuggestionsApi Api
+@inject TagDirectory Directory
+
+@if (error is not null)
+{
+    <div class="alert alert-danger small py-2 mb-2">@error</div>
+}
+<ul class="list-unstyled mb-0 f3m-tagdlg-list">
+    @foreach (var proposal in Proposals.Take(showAll ? int.MaxValue : Limit))
+    {
+        var p = proposal;
+        var tag = Directory.Find(p.TagId);
+        <li class="f3m-tagdlg-item @(p.TagId == SelectedTagId ? "selected" : string.Empty)">
+            <div class="d-flex align-items-start gap-2">
+                <div class="flex-grow-1 min-w-0">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <button type="button" class="f3m-tag" title="Show in the tree" @onclick="() => Reveal.InvokeAsync(p.TagId)">@p.Name</button>
+                        @if (tag is not null && Directory.PathOf(tag) is { Length: > 0 } path)
+                        {
+                            <span class="small f3m-suggestion-muted text-truncate">@path</span>
+                        }
+                    </div>
+                    @if (p.Description is { } meaning)
+                    {
+                        <div class="small text-break mt-1">@meaning</div>
+                    }
+                    <div class="small f3m-suggestion-muted mt-1">
+                        by @(p.ProposedBy ?? "a deleted account") · on @p.ModCount @(p.ModCount == 1 ? "mod" : "mods")
+                        · @PointsLeft(p) to be a regular tag
+                    </div>
+                </div>
+                <span class="f3m-tagdlg-votes" title="@($"{p.Up} for, {p.Down} against")">
+                    @if (CanVote)
+                    {
+                        <button type="button" class="f3m-vote @(p.MyVote > 0 ? "active" : string.Empty)" disabled="@(busy == p.TagId)"
+                                aria-label="@($"Keep the new tag {p.Name}")" aria-pressed="@(p.MyVote > 0 ? "true" : "false")"
+                                @onclick="() => VoteAsync(p, p.MyVote > 0 ? 0 : 1)">
+                            <i class="bi bi-hand-thumbs-up@(p.MyVote > 0 ? "-fill" : string.Empty)"></i>
+                        </button>
+                    }
+                    <span class="f3m-suggestion-score">@(p.Score > 0 ? $"+{p.Score}" : p.Score.ToString())</span>
+                    @if (CanVote)
+                    {
+                        <button type="button" class="f3m-vote down @(p.MyVote < 0 ? "active" : string.Empty)" disabled="@(busy == p.TagId)"
+                                aria-label="@($"Drop the new tag {p.Name}")" aria-pressed="@(p.MyVote < 0 ? "true" : "false")"
+                                @onclick="() => VoteAsync(p, p.MyVote < 0 ? 0 : -1)">
+                            <i class="bi bi-hand-thumbs-down@(p.MyVote < 0 ? "-fill" : string.Empty)"></i>
+                        </button>
+                    }
+                </span>
+            </div>
+        </li>
+    }
+</ul>
+@if (!showAll && Proposals.Count > Limit)
+{
+    <button type="button" class="btn btn-link btn-sm px-0" @onclick="() => showAll = true">Show all @Proposals.Count</button>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<TagProposalDto> Proposals { get; set; } = [];
+
+    /// <summary>The points a proposed tag needs to be a regular one.</summary>
+    [Parameter] public int TagThreshold { get; set; } = 1;
+
+    /// <summary>Signed in; everyone else only sees the scores.</summary>
+    [Parameter] public bool CanVote { get; set; }
+
+    /// <summary>The tag marked in the tree next to the list; its entry is marked too.</summary>
+    [Parameter] public int? SelectedTagId { get; set; }
+
+    /// <summary>A tag's name was clicked: show it in the tree.</summary>
+    [Parameter] public EventCallback<int> Reveal { get; set; }
+
+    /// <summary>After a vote: the page loads the list again.</summary>
+    [Parameter] public EventCallback Voted { get; set; }
+
+    /// <summary>Entries shown before "Show all".</summary>
+    [Parameter] public int Limit { get; set; } = int.MaxValue;
+
+    private int? busy;
+    private bool showAll;
+    private string? error;
+
+    private string PointsLeft(TagProposalDto p)
+    {
+        var left = Math.Max(1, TagThreshold - p.Score);
+        return left == 1 ? "1 more point" : $"{left} more points";
+    }
+
+    private async Task VoteAsync(TagProposalDto p, int value)
+    {
+        busy = p.TagId;
+        error = null;
+        try
+        {
+            var result = await Api.VoteProposal(p.TagId, new TagVoteRequest { Value = value });
+            // Enough points: a regular tag now.
+            if (!result.IsProposed)
+                await Directory.ReloadAsync();
+            await Voted.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ApiErrors.Describe(ex);
+        }
+        finally
+        {
+            busy = null;
+        }
+    }
+}

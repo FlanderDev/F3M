@@ -1890,6 +1890,55 @@ a.f3m-tag:hover, a.f3m-tag:focus-visible {
     }
 }
 
+/* ── Tags page ──────────────────────────────────────────── */
+.f3m-tagpage {
+    max-width: 1200px;
+}
+
+.f3m-tagpage-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.f3m-tagpage-tree {
+    border-color: var(--f3m-border) !important;
+}
+
+/* The side stays in view while the tree scrolls past. */
+.f3m-tagpage-side {
+    position: sticky;
+    top: 5rem;
+}
+
+/* Scrolled to on a click; keep it out from under the sticky nav bar. */
+.f3m-tagpage .f3m-tagdlg-compose, .f3m-tagpage .f3m-tree-row {
+    scroll-margin-top: 5rem;
+}
+
+.f3m-tagpage-mods {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    text-decoration: none;
+}
+
+    .f3m-tagpage-mods:hover {
+        color: var(--f3m-amber);
+    }
+
+@media (max-width: 991.98px) {
+    .f3m-tagpage-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .f3m-tagpage-side {
+        position: static;
+        order: -1;
+    }
+}
+
 /* ── Tag tree ───────────────────────────────────────────── */
 .f3m-tree, .f3m-tree ul {
     list-style: none;

@@ -43,6 +43,15 @@ public interface ITagSuggestionsApi
     [Get("proposals")]
     Task<List<TagProposalDto>> GetProposals(CancellationToken ct = default);
 
+    /// <summary>For the tags page: whether the visitor may create tags, and how many more today.</summary>
+    [Get("proposals/info")]
+    Task<TagProposalInfo> GetProposalInfo(CancellationToken ct = default);
+
+    /// <summary>Creates a tag without a mod, as a proposed tag with the creator's vote. Counts toward the daily limit.</summary>
+    [Post("proposals")]
+    [GenAuthorize]
+    Task<TagProposalDto> Propose([Body] TagProposeRequest request, CancellationToken ct = default);
+
     /// <summary>Votes on whether a proposed tag should exist; enough points make it a regular tag.</summary>
     [Post("proposals/{tagId:int}/vote")]
     [GenAuthorize]
