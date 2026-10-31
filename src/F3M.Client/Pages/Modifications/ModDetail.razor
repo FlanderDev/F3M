@@ -185,17 +185,18 @@ else
                         @if (isOwner || isAdmin)
                         {
                             <div class="d-flex flex-column gap-2 mt-1">
+                                @* New versions come from the owner only; admins can edit and delete any mod. *@
                                 @if (isOwner)
                                 {
                                     <a href="@Paths.UploadForGroup(selectedVersion.ModGroupId)"
                                        class="btn btn-outline-warning fw-semibold">
                                         <i class="bi bi-arrow-up-circle me-2"></i>Upload New Version
                                     </a>
-                                    <a href="@Paths.EditMod(selectedVersion.Id)"
-                                       class="btn btn-outline-secondary fw-semibold">
-                                        <i class="bi bi-pencil me-2"></i>Edit This Version
-                                    </a>
                                 }
+                                <a href="@Paths.EditMod(selectedVersion.Id)"
+                                   class="btn btn-outline-secondary fw-semibold">
+                                    <i class="bi bi-pencil me-2"></i>Edit This Version
+                                </a>
                                 <button class="btn btn-outline-danger fw-semibold"
                                         @onclick="AskDeleteVersion">
                                     <i class="bi bi-trash me-2"></i>Delete This Version

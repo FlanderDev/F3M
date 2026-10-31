@@ -208,6 +208,7 @@ app.MapGet("/manage/info", async (ClaimsPrincipal principal, UserManager<AppUser
 
     return Results.Ok(new
     {
+        user.Id,
         UserName = user.UserName ?? string.Empty,
         Email = user.Email ?? string.Empty,
         IsEmailConfirmed = user.EmailConfirmed
