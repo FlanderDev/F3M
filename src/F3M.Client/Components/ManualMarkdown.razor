@@ -3,7 +3,7 @@
                @oninput="OnInput"
                @bind-Value="Value" />
 <div style="font-size:.72rem;">@Value.Length/@F3M.Shared.Configuration.ModDescriptionMaxSize</div>
-@((MarkupString)RenderMarkdown())
+<div class="markdown-body mt-2">@((MarkupString)RenderMarkdown())</div>
 
 
 @code {
