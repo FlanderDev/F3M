@@ -171,6 +171,7 @@ F3M_F95BOT_PASSWORD='$BOT_PASSWORD'
 F3M_F95BOT_USER_ID='$BOT_USER_ID'
 EOF
 chmod 600 "$ENV_FILE"
+give_to_folder_owner "$ENV_FILE" "$ENV_FILE.bak"
 info "${GREEN}Saved.${RESET}"
 
 # ── Build and start ─────────────────────────────────────────────────────────
