@@ -161,6 +161,21 @@ window.f3m = {
         }, 0);
     },
 
+    /**
+     * Scrolls a growing box (the server update's log) to its end, unless someone scrolled it up to read: then it stays
+     * where it is until they scroll back down.
+     */
+    followEnd: function (box) {
+        if (!box) return;
+        if (!box._f3mFollow) {
+            box._f3mFollow = true;
+            box.addEventListener('scroll', () => {
+                box._f3mFollow = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+            }, { passive: true });
+        }
+        if (box._f3mFollow) box.scrollTop = box.scrollHeight;
+    },
+
     /** Reads a value from localStorage. Returns null when storage is blocked or empty. */
     getItem: function (key) {
         try { return window.localStorage.getItem(key); } catch { return null; }
