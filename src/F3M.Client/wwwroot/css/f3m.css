@@ -460,6 +460,35 @@ a {
     }
 }
 
+/* The picked type on the browse page: what it is, and its F95zone thread. */
+.f3m-type-about {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem .85rem;
+    margin-top: .75rem;
+    padding: .7rem .85rem;
+    border: 1px solid rgba(255,193,7,.25);
+    border-radius: 10px;
+    background: var(--f3m-amber-dim);
+}
+
+.f3m-type-about-icon {
+    font-size: 1.3rem;
+    color: var(--f3m-amber);
+}
+
+.f3m-type-about-text {
+    color: var(--f3m-muted);
+}
+
+.f3m-type-about-logo {
+    width: 16px;
+    height: 16px;
+    margin-right: .4rem;
+    vertical-align: -3px;
+}
+
 /* ── Mod grid ───────────────────────────────────────────── */
 .mod-grid {
     display: grid;

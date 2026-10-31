@@ -126,6 +126,7 @@ public partial class Index
     {
         var current = ++generation;
         var filtered = searchTerm.Trim().Length > 0 || selectedTags.Count > 0;
+        _ = FindRequiredModAsync();
         loading = true;
         loadingMore = false;
         StateHasChanged();
@@ -294,6 +295,31 @@ public partial class Index
 
     /// <summary>The tag box holds the ordinary tags; the type pills the type tags.</summary>
     private Task OnOrdinaryTagsPicked(List<int> tags) => OnTagsPicked([.. tags, .. selectedTags.Where(Tags.IsType)]);
+
+    // The mods the types need (a framework, a loader), by name; null when this site doesn't have it.
+    private readonly Dictionary<string, Mod?> requiredMods = new(StringComparer.OrdinalIgnoreCase);
+
+    private Mod? RequiredModOf(ModTemplate type) =>
+        type.RequiredModName is { } name ? requiredMods.GetValueOrDefault(name) : null;
+
+    /// <summary>Looks up the mod the picked type needs, once per type, for the link next to its description.</summary>
+    private async Task FindRequiredModAsync()
+    {
+        var type = selectedTags.Select(id => ModTemplates.Find(Tags.Find(id)?.TypeId)).OfType<ModTemplate>().FirstOrDefault();
+        if (type?.RequiredModName is not { } name || requiredMods.ContainsKey(name))
+            return;
+
+        try
+        {
+            var found = await ModsApi.SearchMods(name);
+            requiredMods[name] = found.FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
+            StateHasChanged();
+        }
+        catch
+        {
+            // Just no link.
+        }
+    }
 
     private async Task ClearSearch()
     {

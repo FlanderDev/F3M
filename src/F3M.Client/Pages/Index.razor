@@ -102,6 +102,33 @@
                         </button>
                     }
                 </div>
+
+                @* One type picked: what it is and where its community is. *@
+                @if (types.FirstOrDefault(t => selectedTags.Contains(t.Id)) is { } picked && ModTemplates.Find(picked.TypeId) is { } pickedType)
+                {
+                    <div class="f3m-type-about">
+                        <i class="bi @TypeIcon(picked) f3m-type-about-icon"></i>
+                        <div class="min-w-0 flex-grow-1">
+                            <div class="fw-semibold">@picked.Name</div>
+                            <div class="small f3m-type-about-text">@pickedType.Description</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @if (RequiredModOf(pickedType) is { } required)
+                            {
+                                <a href="@Paths.ModDetail(required.Id)" class="btn btn-sm btn-outline-warning text-nowrap" title="The mod these need, on F3M">
+                                    <i class="bi bi-box-seam me-1"></i>@required.Name
+                                </a>
+                            }
+                            @if (pickedType.Thread is { } thread)
+                            {
+                                <a href="@thread.Url" target="_blank" rel="noopener" class="btn btn-sm btn-outline-warning text-nowrap">
+                                    <img src="favicons/thirdParty/f95zoneLogo.png" alt="" class="f3m-type-about-logo" />@thread.Title thread
+                                    <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
             }
         </div>
     </div>
