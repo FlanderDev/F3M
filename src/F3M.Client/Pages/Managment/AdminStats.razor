@@ -278,14 +278,14 @@
                 <!-- Tag suggestions -->
                 <div class="col-lg-6">
                     @{ var suggestions = TagSuggestionPoints; }
-                    <ChartCard Title="Tag suggestions per week" Subtitle="The last 12 weeks: tags suggested for mods, and new tags asked for"
+                    <ChartCard Title="Tag suggestions per week" Subtitle="The last 12 weeks: tags suggested for mods, and new tags users created"
                                Legend="@([SuggestedSeries, RequestedSeries])">
                         <ChildContent>
                             <ColumnChart Labels="suggestions.Labels" ShortLabels="suggestions.ShortLabels"
                                          Series="@Series(suggestions, SuggestedSeries, RequestedSeries)" AriaLabel="Tag suggestions per week" />
                         </ChildContent>
                         <Table>
-                            <PointTable Points="suggestions" Columns="@(["Suggested", "Asked for", "Decided"])" />
+                            <PointTable Points="suggestions" Columns="@(["Suggested", "New tags", "Decided"])" />
                         </Table>
                     </ChartCard>
                 </div>
@@ -295,8 +295,8 @@
                     </ChartCard>
                 </div>
                 <div class="col-lg-6">
-                    <ChartCard Title="Most asked-for new tags" Subtitle="@($"Tags people asked to be created, in the {PeriodName}")">
-                        <CountTable Items="s.TagsRequested" Header="Tag" EmptyText="Nobody asked for a new tag in this period." />
+                    <ChartCard Title="New tags users created" Subtitle="@($"Tags users created for a mod, in the {PeriodName}")">
+                        <CountTable Items="s.TagsRequested" Header="Tag" EmptyText="Nobody created a tag in this period." />
                     </ChartCard>
                 </div>
                 <div class="col-lg-6">

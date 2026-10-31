@@ -24,6 +24,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ModGroupTag> ModGroupTags => Set<ModGroupTag>();
     public DbSet<TagSuggestion> TagSuggestions => Set<TagSuggestion>();
     public DbSet<TagVote> TagVotes => Set<TagVote>();
+    public DbSet<TagProposalVote> TagProposalVotes => Set<TagProposalVote>();
     public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
     // No longer written: browser errors go to the site log (Logging/LogStore). Kept so the schema matches the migration.
     public DbSet<Telemetry.ErrorReport> TelemetryErrorReports => Set<Telemetry.ErrorReport>();
@@ -105,6 +106,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(t => t.TypeId).HasMaxLength(ModTemplates.MaxIdLength);
             // One tag per mod type.
             e.HasIndex(t => t.TypeId).IsUnique().HasFilter("\"TypeId\" IS NOT NULL");
+            e.HasOne<AppUser>().WithMany().HasForeignKey(t => t.ProposedById).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TagProposalVote>(e =>
+        {
+            e.HasKey(v => new { v.TagId, v.UserId });
+            e.HasIndex(v => v.UserId);
+            e.HasOne<Tag>().WithMany().HasForeignKey(v => v.TagId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(v => v.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Removing a tag removes its inclusions both ways; TagService keeps the rest of the tree free of loops.

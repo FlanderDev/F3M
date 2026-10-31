@@ -186,6 +186,9 @@ namespace F3M.Server.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsProposed")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -196,6 +199,12 @@ namespace F3M.Server.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("ProposalScore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ProposedById")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("TypeId")
                         .HasMaxLength(40)
                         .HasColumnType("TEXT");
@@ -204,6 +213,8 @@ namespace F3M.Server.Migrations
 
                     b.HasIndex("NormalizedName")
                         .IsUnique();
+
+                    b.HasIndex("ProposedById");
 
                     b.HasIndex("TypeId")
                         .IsUnique()
@@ -225,6 +236,27 @@ namespace F3M.Server.Migrations
                     b.HasIndex("ChildId");
 
                     b.ToTable("TagInclusions");
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.TagProposalVote", b =>
+                {
+                    b.Property<int>("TagId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TagId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("TagProposalVotes");
                 });
 
             modelBuilder.Entity("F3M.Server.Models.TagSuggestion", b =>
@@ -751,6 +783,14 @@ namespace F3M.Server.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("F3M.Server.Models.Tag", b =>
+                {
+                    b.HasOne("F3M.Server.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ProposedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("F3M.Server.Models.TagInclusion", b =>
                 {
                     b.HasOne("F3M.Server.Models.Tag", null)
@@ -762,6 +802,21 @@ namespace F3M.Server.Migrations
                     b.HasOne("F3M.Server.Models.Tag", null)
                         .WithMany()
                         .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("F3M.Server.Models.TagProposalVote", b =>
+                {
+                    b.HasOne("F3M.Server.Models.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("F3M.Server.Models.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

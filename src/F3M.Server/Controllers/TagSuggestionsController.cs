@@ -23,6 +23,21 @@ public sealed class TagSuggestionsController(ITagSuggestionsApi suggestions, ILo
     public override Task<ActionResult<TagSuggestionDto>> Reject(int id, CancellationToken ct)
         => Run(() => suggestions.Reject(id, ct));
 
+    public override async Task<ActionResult<List<TagProposalDto>>> GetProposals(CancellationToken ct)
+        => Ok(await suggestions.GetProposals(ct));
+
+    public override Task<ActionResult<TagProposalDto>> VoteProposal(int tagId, TagVoteRequest vote, CancellationToken ct)
+        => Run(() => suggestions.VoteProposal(tagId, vote, ct));
+
+    public override Task<ActionResult<TagProposalDto>> AcceptProposal(int tagId, CancellationToken ct)
+        => Run(() => suggestions.AcceptProposal(tagId, ct));
+
+    public override async Task<IActionResult> RejectProposal(int tagId, CancellationToken ct)
+    {
+        var result = await Run(async () => { await suggestions.RejectProposal(tagId, ct); return true; });
+        return result.Result is OkObjectResult ? NoContent() : result.Result!;
+    }
+
     public override async Task<ActionResult<List<TagSuggestionAdminDto>>> GetQueue(TagSuggestionState? state, CancellationToken ct)
         => Ok(await suggestions.GetQueue(state, ct));
 
@@ -34,6 +49,15 @@ public sealed class TagSuggestionsController(ITagSuggestionsApi suggestions, ILo
 
     public override async Task<ActionResult<int>> ApproveCounting(CancellationToken ct)
         => Ok(await suggestions.ApproveCounting(ct));
+
+    public override async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        var result = await Run(async () => { await suggestions.Delete(id, ct); return true; });
+        return result.Result is OkObjectResult ? NoContent() : result.Result!;
+    }
+
+    public override async Task<ActionResult<int>> DeleteRejected(CancellationToken ct)
+        => Ok(await suggestions.DeleteRejected(ct));
 
     public override async Task<ActionResult<TagSuggestionLimits>> GetLimits(CancellationToken ct)
         => Ok(await suggestions.GetLimits(ct));

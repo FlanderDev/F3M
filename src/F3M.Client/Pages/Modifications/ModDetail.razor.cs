@@ -52,8 +52,11 @@ public partial class ModDetail
     /// <summary>A suggested tag was approved: every version shows it as the mod's own now.</summary>
     private void OnTagApproved(int tagId)
     {
+        // Like the server: the new tag replaces the mod's tags it's a kind of.
+        var replaced = Tags.Graph.SelfAndAncestors(tagId).Where(id => id != tagId && !Tags.IsType(id)).ToHashSet();
         foreach (var version in allVersions.Append(selectedVersion).OfType<Mod>().Distinct())
         {
+            version.TagIds.RemoveAll(replaced.Contains);
             if (!version.TagIds.Contains(tagId))
                 version.TagIds.Add(tagId);
             version.CommunityTagIds.Remove(tagId);

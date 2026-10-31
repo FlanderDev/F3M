@@ -19,6 +19,8 @@ public partial class TagSuggestionQueue
 
     private TagSuggestionState? state = TagSuggestionState.Open;
     private List<TagSuggestionAdminDto> items = [];
+    private List<TagProposalDto> proposals = [];
+    private TagProposalDto? rejectingProposal;
     private TagSuggestionLimits limits = new();
     private bool loading = true;
     private bool busy;
@@ -31,6 +33,8 @@ public partial class TagSuggestionQueue
     private TagEditDto? creating;
 
     private int CountingCount => items.Count(s => s.Counts);
+    private int RejectedCount => items.Count(s => s.State == TagSuggestionState.Rejected);
+    private bool confirmDeleteAll;
 
     private IEnumerable<TagSuggestionAdminDto> Filtered
     {
@@ -63,7 +67,9 @@ public partial class TagSuggestionQueue
         loading = true;
         try
         {
-            items = await Api.GetQueue(state);
+            var loading = Api.GetQueue(state);
+            proposals = await Api.GetProposals();
+            items = await loading;
         }
         catch (Exception ex)
         {
@@ -124,11 +130,40 @@ public partial class TagSuggestionQueue
         });
     }
 
+    private Task AcceptProposalAsync(TagProposalDto p) =>
+        RunAsync(async () =>
+        {
+            await Api.AcceptProposal(p.TagId);
+            await Directory.ReloadAsync();
+            return $"{p.Name} is a regular tag now.";
+        });
+
+    private Task RejectProposalAsync() =>
+        RunAsync(async () =>
+        {
+            var p = rejectingProposal!;
+            rejectingProposal = null;
+            await Api.RejectProposal(p.TagId);
+            await Directory.ReloadAsync();
+            return $"Rejected and deleted the new tag {p.Name}.";
+        });
+
+    private Task DeleteAsync(TagSuggestionAdminDto s) =>
+        RunAsync(async () => { await Api.Delete(s.Id); return $"Deleted the rejected suggestion {NameOf(s)} for {s.ModName}."; });
+
+    private Task DeleteAllRejectedAsync() =>
+        RunAsync(async () =>
+        {
+            confirmDeleteAll = false;
+            var count = await Api.DeleteRejected();
+            return $"Deleted {count} rejected suggestion{(count == 1 ? string.Empty : "s")}.";
+        });
+
     private Task SaveLimitsAsync() =>
         RunAsync(async () =>
         {
             limits = await Api.SetLimits(limits);
-            return $"Suggestions count from {limits.Threshold} points; each account can start {limits.DailyLimit} a day.";
+            return $"Suggestions count from {limits.Threshold} points, each account can start {limits.DailyLimit} a day, and new tags are regular from {limits.TagThreshold} points.";
         });
 
     /// <summary>Runs an action, shows its message, and loads the list again.</summary>

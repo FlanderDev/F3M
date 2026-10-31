@@ -1,0 +1,130 @@
+@* The tag tree with folding branches and a search. A tag under several tags shows under each of them. What each row
+   offers (buttons, states) comes from the page through Actions. *@
+@implements IDisposable
+@inject TagDirectory Directory
+
+@{
+    var roots = Roots();
+}
+@if (roots.Count == 0)
+{
+    <p class="small f3m-suggestion-muted text-center py-4 mb-0">@(Search.Trim().Length > 0 ? $"No tag matches \"{Search.Trim()}\"." : "There are no tags yet.")</p>
+}
+else
+{
+    <ul class="f3m-tree" role="tree" aria-label="@AriaLabel">
+        @foreach (var root in roots)
+        {
+            @Node(root, 0)
+        }
+    </ul>
+}
+
+@code {
+    /// <summary>Which tags show at all; all when not given. A hidden tag hides its branch.</summary>
+    [Parameter] public Func<TagDto, bool>? Show { get; set; }
+
+    /// <summary>Narrows the tree to matching tags and the branches above them.</summary>
+    [Parameter] public string Search { get; set; } = string.Empty;
+
+    /// <summary>The folded-open tags. The page owns it, so it can open branches (e.g. down to the mod's tags).</summary>
+    [Parameter, EditorRequired] public HashSet<int> Expanded { get; set; } = [];
+
+    /// <summary>What's at the end of a row.</summary>
+    [Parameter] public RenderFragment<TagDto>? Actions { get; set; }
+
+    /// <summary>Extra classes for a row, e.g. to mark the mod's own tags.</summary>
+    [Parameter] public Func<TagDto, string?>? RowClass { get; set; }
+
+    [Parameter] public int? Selected { get; set; }
+    [Parameter] public EventCallback<TagDto> SelectedChanged { get; set; }
+
+    [Parameter] public string AriaLabel { get; set; } = "Tags";
+
+    private HashSet<int>? matches;
+    private HashSet<int>? visible;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Directory.Changed += OnTagsChanged;
+        await Directory.LoadAsync();
+    }
+
+    private void OnTagsChanged() => InvokeAsync(StateHasChanged);
+
+    private bool Shown(TagDto tag) => Show?.Invoke(tag) ?? true;
+
+    private List<TagDto> Roots()
+    {
+        var typed = TagRules.Clean(Search);
+        if (typed.Length == 0)
+        {
+            matches = visible = null;
+        }
+        else
+        {
+            matches = [.. Directory.Tags.Where(t => Shown(t) && t.Name.Contains(typed, StringComparison.OrdinalIgnoreCase)).Select(t => t.Id)];
+            visible = [.. matches.SelectMany(Directory.Graph.SelfAndAncestors)];
+        }
+        return Sorted(Directory.Tags.Where(t => t.ParentIds.Count == 0).Select(t => t.Id));
+    }
+
+    private List<TagDto> Sorted(IEnumerable<int> ids) =>
+        [.. ids.Select(Directory.Find).OfType<TagDto>()
+            .Where(t => Shown(t) && (visible is null || visible.Contains(t.Id)))
+            .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)];
+
+    // While searching every branch with a match is open.
+    private bool IsOpen(int id) => visible is not null || Expanded.Contains(id);
+
+    private void Toggle(int id)
+    {
+        if (!Expanded.Remove(id))
+            Expanded.Add(id);
+    }
+
+    private RenderFragment Node(TagDto tag, int depth) => __builder =>
+    {
+        var children = Sorted(Directory.Graph.ChildrenOf(tag.Id));
+        var open = children.Count > 0 && IsOpen(tag.Id);
+        var selected = Selected == tag.Id;
+        var match = matches?.Contains(tag.Id) == true;
+        <li role="treeitem" aria-expanded="@(children.Count > 0 ? (open ? "true" : "false") : null)" aria-selected="@(selected ? "true" : "false")">
+            <div class="f3m-tree-row @(selected ? "selected" : string.Empty) @RowClass?.Invoke(tag)" style="--depth:@depth">
+                @if (children.Count > 0)
+                {
+                    <button type="button" class="f3m-tree-fold" aria-label="@(open ? $"Fold {tag.Name}" : $"Unfold {tag.Name}")"
+                            disabled="@(visible is not null)" @onclick="() => Toggle(tag.Id)">
+                        <i class="bi bi-chevron-@(open ? "down" : "right")"></i>
+                    </button>
+                }
+                else
+                {
+                    <span class="f3m-tree-fold" aria-hidden="true"><i class="bi bi-dot"></i></span>
+                }
+                <button type="button" class="f3m-tree-name" title="@tag.Description" @onclick="() => SelectedChanged.InvokeAsync(tag)">
+                    <span class="@(match ? "f3m-tree-match" : null)">@tag.Name</span>
+                    @if (children.Count > 0 && !open)
+                    {
+                        <span class="f3m-tree-count">@children.Count</span>
+                    }
+                </button>
+                @if (Actions is not null)
+                {
+                    <div class="f3m-tree-actions">@Actions(tag)</div>
+                }
+            </div>
+            @if (open)
+            {
+                <ul role="group">
+                    @foreach (var child in children)
+                    {
+                        @Node(child, depth + 1)
+                    }
+                </ul>
+            }
+        </li>
+    };
+
+    public void Dispose() => Directory.Changed -= OnTagsChanged;
+}

@@ -161,6 +161,16 @@ window.f3m = {
         }, 0);
     },
 
+    /** Scrolls every element matching the selector inside the container into view, if it isn't already. */
+    revealSelected: function (container, selector) {
+        setTimeout(function () {
+            if (!container) return;
+            container.querySelectorAll(selector).forEach(function (el) {
+                el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            });
+        }, 0);
+    },
+
     /** Reads a value from localStorage. Returns null when storage is blocked or empty. */
     getItem: function (key) {
         try { return window.localStorage.getItem(key); } catch { return null; }
