@@ -186,6 +186,20 @@ window.f3m = {
         }, 0);
     },
 
+    /**
+     * The room on screen above and below an element, without what the sticky nav bar and footer cover. Dropdowns use
+     * it to open upwards when there's no room below.
+     */
+    roomAround: function (element) {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        const nav = document.querySelector('.f3m-navbar');
+        const footer = document.querySelector('.f3m-footer');
+        const top = nav ? Math.max(0, nav.getBoundingClientRect().bottom) : 0;
+        const bottom = footer ? Math.min(window.innerHeight, footer.getBoundingClientRect().top) : window.innerHeight;
+        return { above: rect.top - top, below: bottom - rect.bottom };
+    },
+
     /** Reads a value from localStorage. Returns null when storage is blocked or empty. */
     getItem: function (key) {
         try { return window.localStorage.getItem(key); } catch { return null; }

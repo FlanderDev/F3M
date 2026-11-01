@@ -2,7 +2,7 @@
 
 <div class="msd-wrapper">
     <!-- Trigger / selected-chips display -->
-    <div class="msd-control @(_isOpen ? "msd-control--open" : string.Empty)" @onclick="ToggleDropdown">
+    <div class="msd-control @(_isOpen ? "msd-control--open" : string.Empty)" @ref="_control" @onclick="ToggleDropdown">
         <div class="msd-chips">
             @if (SelectedItems.Any())
             {
@@ -30,7 +30,7 @@
     <!-- Dropdown panel -->
     @if (_isOpen)
     {
-        <div class="msd-panel">
+        <div class="msd-panel @(_openUp ? "msd-panel--up" : string.Empty)">
             <!-- Search input -->
             <div class="msd-search">
                 <input class="msd-search__input"
@@ -228,6 +228,20 @@
         animation: panelIn .15s ease;
         overflow: hidden;
     }
+
+    /* Not enough room below (e.g. at the end of the page, above the sticky footer): it opens upwards, the search
+       box next to the field. */
+    .msd-panel--up {
+        top: auto;
+        bottom: calc(100% + 6px);
+        display: flex;
+        flex-direction: column-reverse;
+    }
+
+        .msd-panel--up .msd-search {
+            border-bottom: 0;
+            border-top: 1px solid var(--msd-border);
+        }
 
     @@keyframes panelIn {
         from {
