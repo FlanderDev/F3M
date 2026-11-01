@@ -1,6 +1,7 @@
 using Ganss.Xss;
 using Markdig;
 using Microsoft.AspNetCore.Components.Authorization;
+using System.Text.RegularExpressions;
 
 namespace F3M.Client.Business;
 
@@ -18,6 +19,27 @@ public static class HelperExtensions
         bytes >= 1_048_576
             ? $"{bytes / 1_048_576.0:F1} MB"
             : $"{bytes / 1024.0:F1} KB";
+
+    /// <summary>Markdown as one line of plain text, for short previews like the mod cards' description.</summary>
+    public static string MarkdownToPlainText(string markdown) =>
+        string.IsNullOrWhiteSpace(markdown)
+            ? string.Empty
+            : Regex.Replace(Markdown.ToPlainText(markdown), @"\s+", " ").Trim();
+
+    /// <summary>"3 days ago" and the like, for a UTC time.</summary>
+    public static string TimeAgo(this DateTime utc)
+    {
+        var age = DateTime.UtcNow - DateTime.SpecifyKind(utc, DateTimeKind.Utc);
+        return age.TotalMinutes < 1 ? "just now"
+            : age.TotalHours < 1 ? Count((int)age.TotalMinutes, "minute")
+            : age.TotalDays < 1 ? Count((int)age.TotalHours, "hour")
+            : age.TotalDays < 2 ? "yesterday"
+            : age.TotalDays < 30 ? Count((int)age.TotalDays, "day")
+            : age.TotalDays < 365 ? Count((int)(age.TotalDays / 30), "month")
+            : Count((int)(age.TotalDays / 365), "year");
+
+        static string Count(int n, string unit) => $"{n} {unit}{(n == 1 ? string.Empty : "s")} ago";
+    }
 
     public static string SanatizeMarkdownToHtml(string markdown)
     {

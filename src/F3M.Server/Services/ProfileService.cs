@@ -20,6 +20,7 @@ public class ProfileService(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     IHttpContextAccessor httpContextAccessor,
+    TagService tagService,
     ILogger<ProfileService> logger) : IProfileApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
@@ -59,11 +60,20 @@ public class ProfileService(
             .GroupBy(m => m.ModGroupId)
             .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
 
-        return await db.Mods
+        var mods = await db.Mods
             .Where(m => latestIds.Contains(m.Id))
             .Include(m => m.Files)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync(ct);
+        await FillCardsAsync(mods, ct);
+        return mods;
+    }
+
+    /// <summary>The tags and the rest the mod cards show, as on the browse page.</summary>
+    private async Task FillCardsAsync(List<Mod> mods, CancellationToken ct)
+    {
+        await tagService.FillTagIdsAsync(mods, ct);
+        await ModsService.FillCardInfoAsync(db, mods, ct);
     }
 
     public async Task<PublicProfileDto> GetPublicProfileAsync(string username, CancellationToken ct = default)
@@ -86,6 +96,7 @@ public class ProfileService(
             .Include(m => m.Files)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync(ct);
+        await FillCardsAsync(mods, ct);
 
         return new PublicProfileDto
         {
@@ -111,6 +122,7 @@ public class ProfileService(
 
         if (mods.Count == 0)
             throw new KeyNotFoundException($"No user or author named '{author}' was found.");
+        await FillCardsAsync(mods, ct);
 
         return new PublicProfileDto
         {

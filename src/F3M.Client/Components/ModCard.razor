@@ -1,33 +1,101 @@
-@inject NavigationManager Nav
+@* A mod in a list of mods. The title's link covers the whole card, so a click anywhere opens the mod, and right or
+   middle click work like on any link; the author, tags and buttons sit above it. *@
 
-<div class="mod-card h-100" @onclick="NavigateToDetail">
+<div class="mod-card h-100">
     <div class="mod-card-image">
-        @if (!string.IsNullOrEmpty(Mod.PreviewImageName))
+        @if (!string.IsNullOrEmpty(Mod.PreviewImageName) && !imageFailed)
         {
-            <img src="@F3M.Shared.Helpers.Assets.ImageUrl(Mod.PreviewImageName)" alt="@Mod.Name preview" loading="lazy" />
+            <img src="@F3M.Shared.Helpers.Assets.ImageUrl(Mod.PreviewImageName)" alt="@Mod.Name preview" loading="lazy"
+                 @onerror="() => imageFailed = true" />
         }
         else
         {
             <div class="mod-card-no-image"><i class="bi bi-box-seam"></i></div>
         }
         <TypeBadge TagIds="Mod.TagIds" />
+        @if (Status is { } status)
+        {
+            <span class="mod-card-status mod-card-status--@status.Kind" title="@status.Title">@status.Text</span>
+        }
     </div>
     <div class="mod-card-body">
-        <h6 class="mod-card-title">@Mod.Name</h6>
+        <h6 class="mod-card-title"><a class="mod-card-link" href="@Paths.ModDetail(Mod.Id)">@Mod.Name</a></h6>
         <p class="mod-card-author">
-            by <a href="@Paths.PublicProfile(Mod.Author)" @onclick:stopPropagation="true">@Mod.Author</a>
+            @if (ShowAuthor)
+            {
+                <text>by </text><a href="@Paths.PublicProfile(Mod.Author)" @onclick:stopPropagation="true">@Mod.Author</a>
+                @if (Mod.IsUnclaimed)
+                {
+                    <span class="mod-card-f95" title="Imported from F95zone. Its uploader hasn't claimed it here yet.">F95</span>
+                }
+                <br/>
+            }
+            <time datetime="@Released.ToString("o")" title="@Released.ToLocalTime().ToString("f")">@DateText</time>
         </p>
-        <p class="mod-card-desc">@Mod.Description</p>
+        <p class="mod-card-desc">@excerpt</p>
         <TagChips TagIds="Mod.TagIds" CommunityTagIds="Mod.CommunityTagIds" Limit="3" Class="mod-card-tags" />
         <div class="mod-card-meta">
-            <span><i class="bi bi-download"></i> @Mod.DownloadCount.ToString("N0")</span>
+            <span title="Downloads"><i class="bi bi-download"></i> @Mod.DownloadCount.ToString("N0")</span>
             <span class="mod-card-version">v@(Mod.Version)</span>
-            <DesktopDownloadButton GroupId="@Mod.ModGroupId" Compact="true" />
+            @if (Manage)
+            {
+                <a class="btn btn-sm btn-outline-secondary mod-card-action" href="@Paths.EditMod(Mod.Id)"
+                   title="Edit this version" aria-label="Edit this version"><i class="bi bi-pencil"></i></a>
+                <a class="btn btn-sm btn-outline-warning mod-card-action" href="@Paths.UploadForGroup(Mod.ModGroupId)"
+                   title="Upload a new version" aria-label="Upload a new version"><i class="bi bi-arrow-up-circle"></i></a>
+            }
+            else
+            {
+                <DesktopDownloadButton GroupId="@Mod.ModGroupId" Compact="true" />
+            }
         </div>
     </div>
 </div>
 
 @code {
+    // How long a mod counts as new, or as just updated.
+    private static readonly TimeSpan RecentFor = TimeSpan.FromDays(7);
+
     [Parameter, EditorRequired] public Mod Mod { get; set; } = default!;
-    private void NavigateToDetail() => Nav.NavigateTo(Paths.ModDetail(Mod.Id));
+
+    /// <summary>Off on a profile page, where every card has the same author.</summary>
+    [Parameter] public bool ShowAuthor { get; set; } = true;
+
+    /// <summary>The owner's own list: edit and new-version buttons instead of the download, and whether it's hidden.</summary>
+    [Parameter] public bool Manage { get; set; }
+
+    private bool imageFailed;
+    private string excerpt = string.Empty;
+    private string? excerptOf;
+
+    private DateTime Released => DateTime.SpecifyKind(Mod.UploadedAt, DateTimeKind.Utc);
+    private bool IsUpdate => Mod.FirstUploadedAt is { } first && Mod.UploadedAt - first > TimeSpan.FromMinutes(1);
+    private string DateText
+    {
+        get
+        {
+            var text = $"{(IsUpdate ? "updated" : "released")} {Mod.UploadedAt.TimeAgo()}";
+            // Starts the line when there's no author before it.
+            return ShowAuthor ? text : char.ToUpper(text[0]) + text[1..];
+        }
+    }
+
+    // The badge in the image's top right corner, if any.
+    private (string Text, string Kind, string Title)? Status =>
+        Manage && !Mod.IsApproved ? ("Hidden", "hidden", "Not approved, so only you see it.")
+        : !IsUpdate && Mod.FirstUploadedAt is { } first && IsRecent(first) ? ("New", "new", "Released in the last week.")
+        : IsUpdate && IsRecent(Mod.UploadedAt) ? ("Updated", "updated", "A new version came out in the last week.")
+        : null;
+
+    private static bool IsRecent(DateTime utc) => DateTime.UtcNow - DateTime.SpecifyKind(utc, DateTimeKind.Utc) < RecentFor;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(excerptOf, Mod.Description))
+        {
+            excerptOf = Mod.Description;
+            excerpt = HelperExtensions.MarkdownToPlainText(Mod.Description);
+            imageFailed = false;
+        }
+    }
 }

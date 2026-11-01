@@ -114,6 +114,15 @@ public class Mod : IId, IName
     /// NOT persisted on the version; filled with <see cref="TagIds"/>.
     /// </summary>
     public List<int> CommunityTagIds { get; set; } = [];
+
+    /// <summary>
+    /// When the mod's first version came out, for the cards' "new" badge. NOT persisted (see AppDbContext.Ignore);
+    /// filled by ModsService.FillCardInfoAsync for the mod lists.
+    /// </summary>
+    public DateTime? FirstUploadedAt { get; set; }
+
+    /// <summary>Imported from F95zone, and its uploader hasn't taken it over yet. NOT persisted; filled with <see cref="FirstUploadedAt"/>.</summary>
+    public bool IsUnclaimed { get; set; }
 }
 
 // ── ModFile ───────────────────────────────────────────────────────────────────

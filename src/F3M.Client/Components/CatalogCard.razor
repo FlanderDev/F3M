@@ -15,7 +15,7 @@
         @if (Entry.IsAvailable)
         {
             <p class="mod-card-author">by @Entry.Group!.Author</p>
-            <p class="mod-card-desc">@Entry.Version!.Description</p>
+            <p class="mod-card-desc">@HelperExtensions.MarkdownToPlainText(Entry.Version!.Description)</p>
             <div class="mod-card-meta">
                 <span><i class="bi bi-hdd"></i> @FormatBytes(Entry.TotalBytes)</span>
                 <span><i class="bi bi-files"></i> @Entry.Version!.Files.Count file@(Entry.Version.Files.Count != 1 ? "s" : string.Empty)</span>

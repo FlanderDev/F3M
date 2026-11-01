@@ -498,6 +498,7 @@ a {
 
 /* ── Mod card ───────────────────────────────────────────── */
 .mod-card {
+    position: relative;
     background: var(--f3m-surface);
     border: 1px solid var(--f3m-border);
     border-radius: var(--f3m-radius);
@@ -580,21 +581,97 @@ a {
     -webkit-box-orient: vertical;
 }
 
+/* The title's link stretches over the whole card: a click anywhere opens the mod, and the browser's link menu works. */
+.mod-card-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+    .mod-card-link::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+    }
+
+    .mod-card-link:focus-visible {
+        outline: none;
+    }
+
+        .mod-card-link:focus-visible::after {
+            outline: 2px solid var(--f3m-amber);
+            outline-offset: -2px;
+            border-radius: inherit;
+        }
+
+/* Badges in the image's corners: tabs flush with the edges, rounded only towards the image. Solid, so they read on
+   any picture. */
+.mod-card-image .mod-card-category, .mod-card-status {
+    position: absolute;
+    top: 0;
+    background: rgba(0,0,0,.78);
+    backdrop-filter: none;
+    border: 0;
+    font-family: var(--f3m-font-h);
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    padding: .15rem .45rem;
+}
+
+.mod-card-image .mod-card-category {
+    left: 0;
+    max-width: 70%;
+    border-radius: 0 0 6px 0;
+}
+
+.mod-card-status {
+    right: 0;
+    border-radius: 0 0 0 6px;
+    color: var(--f3m-amber);
+}
+
+.mod-card-status--new {
+    background: var(--f3m-amber);
+    color: #000;
+}
+
+.mod-card-status--hidden {
+    color: var(--f3m-muted);
+}
+
+/* What keeps its own click: above the card's link. */
+.mod-card-author a, .mod-card-tags a, .mod-card .f3m-desktop-btn, .mod-card .f3m-desktop-missing a, .mod-card-action {
+    position: relative;
+    z-index: 2;
+}
+
 .mod-card-author {
     font-size: .75rem;
     color: var(--f3m-muted);
     margin-bottom: 4px;
 }
 
-    .mod-card-author span {
-        color: var(--f3m-amber);
+    .mod-card-author time {
+        white-space: nowrap;
     }
+
+/* Next to the author of an imported mod nobody has claimed yet. */
+.mod-card-f95 {
+    font-size: .6rem;
+    font-weight: 700;
+    border: 1px solid var(--f3m-border);
+    border-radius: 3px;
+    padding: 0 .25rem;
+    margin-left: 3px;
+}
 
 .mod-card-desc {
     font-size: .78rem;
     color: var(--f3m-muted);
     line-height: 1.5;
-    flex: 1;
     margin-bottom: 10px;
     overflow: hidden;
     display: -webkit-box;
@@ -602,7 +679,9 @@ a {
     -webkit-box-orient: vertical;
 }
 
+/* Pushed to the bottom, so the footers line up across a row (stretching the description would undo its 2-line cut). */
 .mod-card-meta {
+    margin-top: auto;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -624,7 +703,7 @@ a {
 }
 
 /* ── Download in the desktop app ────────────────────────── */
-.f3m-desktop-btn {
+.f3m-desktop-btn, .mod-card-action {
     padding: 1px 7px;
     font-size: .75rem;
     line-height: 1.4;
@@ -635,14 +714,14 @@ a {
 
     /* On touch screens: large enough to hit with a finger. */
     @media (pointer: coarse) {
-        .f3m-desktop-btn {
+        .f3m-desktop-btn, .mod-card-action {
             min-width: 40px;
             min-height: 32px;
         }
     }
 
     /* Bootstrap Icons sit their glyphs a little low for running text; alone in the button that's off-centre. */
-    .f3m-desktop-btn i::before {
+    .f3m-desktop-btn i::before, .mod-card-action i::before {
         vertical-align: 0;
     }
 
