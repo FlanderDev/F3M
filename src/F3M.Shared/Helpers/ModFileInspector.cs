@@ -1,9 +1,8 @@
 using System.Security.Cryptography;
-using F3M.Shared.Helpers;
 using F3M.Shared.Models;
 using SharpCompress.Archives;
 
-namespace F3M.Server.Services;
+namespace F3M.Shared.Helpers;
 
 /// <summary>One file the upload will place in the game folder.</summary>
 public sealed record InspectedEntry(string From, string To, long Size, string Sha256, PlacementKind Kind);
@@ -19,7 +18,8 @@ public sealed record InspectionResult(
 /// <summary>
 /// Reads an uploaded file once and derives what the catalog needs: its hash, where it goes, and, for archives,
 /// every file inside with its own target and hash. Failures throw <see cref="InvalidDataException"/> with a message
-/// that is safe to show the uploader.
+/// that is safe to show the uploader. Shared so the server (uploads) and the desktop app (archives added locally)
+/// apply the same rules.
 /// </summary>
 public static class ModFileInspector
 {
