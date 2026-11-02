@@ -97,6 +97,27 @@ namespace F3M.Server.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("F3M.Server.Models.F95CheckResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckedAt");
+
+                    b.ToTable("F95CheckResults");
+                });
+
             modelBuilder.Entity("F3M.Server.Models.F95PendingVerification", b =>
                 {
                     b.Property<int>("Id")
