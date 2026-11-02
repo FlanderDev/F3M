@@ -13,6 +13,7 @@
         <TextBlock Classes="muted" TextWrapping="Wrap"
                    Text="Changes here only reach the game folder when you press Deploy. Dependencies are added and removed for you." />
       </StackPanel>
+      <v:ArchiveDropZone DockPanel.Dock="Bottom" Margin="0,12,0,0" />
       <ScrollViewer>
         <ItemsControl ItemsSource="{Binding Rows}">
           <ItemsControl.ItemTemplate>
@@ -20,7 +21,13 @@
               <Border Classes="card" Margin="0,0,0,8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                   <StackPanel Grid.Column="0" Spacing="3">
-                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+                      <Border Classes="badge" IsVisible="{Binding IsLocal}" VerticalAlignment="Center"
+                              ToolTip.Tip="Added from an archive on this computer. It is not on the site and is left out of share links.">
+                        <TextBlock Text="Local" />
+                      </Border>
+                    </StackPanel>
                     <TextBlock Text="{Binding State}" Classes="muted" />
                     <TextBlock Text="{Binding RequiredBy, StringFormat='Dependency of {0}'}"
                                Classes="muted" IsVisible="{Binding IsDependency}" />
@@ -44,14 +51,14 @@
                   <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Button Content="Config" Command="{Binding ConfigCommand}" IsVisible="{Binding HasConfig}"
                             ToolTip.Tip="Edit this mod's settings file without opening it in a text editor." />
-                    <Button Content="Pin version" Command="{Binding PinCommand}"
+                    <Button Content="Pin version" Command="{Binding PinCommand}" IsVisible="{Binding CanPin}"
                             ToolTip.Tip="Keep this exact version, even when a newer one comes out. Only affects this profile on this computer." />
-                    <Button Content="Unpin" Command="{Binding UnpinCommand}"
+                    <Button Content="Unpin" Command="{Binding UnpinCommand}" IsVisible="{Binding CanPin}"
                             ToolTip.Tip="Follow the latest version again." />
                     <Button Content="Clear generated" Command="{Binding ClearGeneratedCommand}" IsVisible="{Binding IsDeployed}"
                             ToolTip.Tip="Delete files the mod created while the game ran, such as caches or logs. The mod stays installed. You see the list before anything is deleted." />
                     <Button Content="Remove" Command="{Binding RemoveCommand}"
-                            ToolTip.Tip="Take this mod out of the profile. It leaves the game folder on the next Deploy; the download stays in the cache." />
+                            ToolTip.Tip="Take this mod out of the profile. It leaves the game folder on the next Deploy. A download stays in the cache; a local mod's copy is deleted once no profile uses it." />
                   </StackPanel>
                 </Grid>
               </Border>

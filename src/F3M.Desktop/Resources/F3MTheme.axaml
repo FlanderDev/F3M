@@ -57,6 +57,22 @@
     <Setter Property="FontSize" Value="11" />
   </Style>
 
+  <!-- The Library's archive drop zone: amber while a file it accepts is over it, red for one it refuses. -->
+  <Style Selector="Border.dropzone">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource F3M.Brush.Muted}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource F3M.Radius.Card}" />
+    <Setter Property="Padding" Value="14,12" />
+  </Style>
+  <Style Selector="Border.dropzone:pointerover, Border.dropzone.over">
+    <Setter Property="Background" Value="{DynamicResource F3M.Brush.AccentDim}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource F3M.Brush.Accent}" />
+  </Style>
+  <Style Selector="Border.dropzone.refused">
+    <Setter Property="BorderBrush" Value="{DynamicResource F3M.Brush.Error}" />
+  </Style>
+
   <!-- Text roles. -->
   <Style Selector="TextBlock.heading">
     <Setter Property="FontFamily" Value="Syne" />

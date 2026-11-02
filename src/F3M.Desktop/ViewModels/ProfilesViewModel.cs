@@ -42,7 +42,7 @@ public sealed partial class ProfilesViewModel : ObservableObject
         if (value is null) return;
 
         foreach (var groupId in value.GroupIds)
-            Members.Add(_app.Catalog.Group(groupId)?.Name ?? $"Mod {groupId} (not in the catalog)");
+            Members.Add(_app.Catalog.NameOf(groupId) ?? $"Mod {groupId} (not in the catalog)");
     }
 
     public void Reload()
@@ -110,9 +110,12 @@ public sealed partial class ProfilesViewModel : ObservableObject
             return;
         }
 
-        if (!await _shell.ConfirmAsync("Delete profile", $"Delete the profile **{Markup.Escape(Selected.Name)}**?\n\nIts mods stay in the cache, and the game folder is not touched.", "Delete")) return;
+        var hasLocal = Selected.GroupIds.Any(LocalMods.IsLocal);
+        if (!await _shell.ConfirmAsync("Delete profile", $"Delete the profile **{Markup.Escape(Selected.Name)}**?\n\nIts mods stay in the cache, and the game folder is not touched." +
+                (hasLocal ? " Local mods that no other profile uses are deleted; add their archives again to use them." : string.Empty), "Delete")) return;
         _app.Profiles.Delete(Selected);
-        Status = "Deleted.";
+        var deleted = hasLocal ? _app.LocalMods.DeleteUnused() : [];
+        Status = deleted.Count > 0 ? $"Deleted, with {deleted.Count} local mod{(deleted.Count == 1 ? "" : "s")} no other profile used." : "Deleted.";
         Selected = null;
         Reload();
         await _shell.RefreshStateAsync();
@@ -131,8 +134,9 @@ public sealed partial class ProfilesViewModel : ObservableObject
         if (Selected is null) return;
         try
         {
-            ShareLink = _app.Profiles.WebLink(Selected);
-            Status = "Share link ready. Anyone with it can read the mod list.";
+            ShareLink = _app.Profiles.WebLink(Selected, out var localLeftOut);
+            Status = "Share link ready. Anyone with it can read the mod list." +
+                     (localLeftOut > 0 ? $" {localLeftOut} local mod{(localLeftOut == 1 ? " is" : "s are")} left out: they are only on this computer." : string.Empty);
         }
         catch (UserException ex)
         {

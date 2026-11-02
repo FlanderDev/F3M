@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="F3M.Desktop.Views.ArchiveDropZone">
+
+  <!-- Always at the bottom of the Library: drop an archive on it, or click it to choose one. -->
+  <Border x:Name="Zone" Classes="dropzone" DragDrop.AllowDrop="True" Cursor="Hand"
+          ToolTip.Tip="Install a mod that isn't on the site. You see where its files go before anything is added.">
+    <StackPanel Spacing="2" HorizontalAlignment="Center">
+      <TextBlock x:Name="Title" HorizontalAlignment="Center" FontWeight="SemiBold"
+                 Text="Drop a .zip, .7z, .rar or .dll here, or click to choose a file" />
+      <TextBlock x:Name="Hint" HorizontalAlignment="Center" Classes="muted"
+                 Text="Adds a mod from your computer to this profile, like a mod from the site." />
+    </StackPanel>
+  </Border>
+</UserControl>
