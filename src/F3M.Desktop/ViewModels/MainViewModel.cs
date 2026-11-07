@@ -36,6 +36,9 @@ public sealed partial class MainViewModel : ObservableObject
         _app.Catalog.LoadCached();
         _app.Downloads.CleanStaging();
 
+        // A local mod left in no profile (the app closed between adding it and the profile save) is deleted.
+        _app.LocalMods.DeleteUnused();
+
         _gameTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _gameTimer.Tick += (_, _) =>
         {

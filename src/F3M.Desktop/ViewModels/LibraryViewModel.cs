@@ -65,6 +65,10 @@ public sealed partial class LibraryRow : ObservableObject
 
     public int GroupId { get; }
 
+    /// <summary>Added from an archive on this computer: no versions to pin, and its copy goes once no profile uses it.</summary>
+    public bool IsLocal => LocalMods.IsLocal(GroupId);
+    public bool CanPin => !IsLocal;
+
     /// <summary>The version the profile resolves to now, which is the pinned one when a pin exists.</summary>
     public int VersionId { get; }
     public string Name { get; }
@@ -193,7 +197,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             var dependents = await _app.Profiles.DependentIdsAsync(profile, row.GroupId, CancellationToken.None);
             if (dependents.Count > 0)
             {
-                var names = string.Join(", ", dependents.Select(id => $"**{Markup.Escape(_app.Catalog.Group(id)?.Name ?? id.ToString())}**"));
+                var names = string.Join(", ", dependents.Select(id => $"**{Markup.Escape(_app.Catalog.NameOf(id) ?? id.ToString())}**"));
                 var ok = await _shell.ConfirmAsync(
                     "Other mods need this one",
                     $"**{Markup.Escape(row.Name)}** is required by {names}. Without it they will not load.\n\nDisable them as well?",
@@ -204,10 +208,45 @@ public sealed partial class LibraryViewModel : ObservableObject
 
             foreach (var id in toRemove) profile.GroupIds.Remove(id);
             _app.Profiles.Save(profile);
-            _shell.Notify($"Removed {row.Name}. Deploy to apply it.");
+
+            // A local mod that no profile uses any more is deleted right away; Deploy still takes it out of the game.
+            var deleted = toRemove.Any(LocalMods.IsLocal) ? _app.LocalMods.DeleteUnused() : [];
+            _shell.Notify($"Removed {row.Name}. Deploy to apply it." +
+                          (deleted.Count > 0 ? " To use the local copy again, add its archive again." : string.Empty));
             await _shell.RefreshStateAsync();
         }
         catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException)
+        {
+            _shell.Notify(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Adds a mod from an archive on this computer: <paramref name="path"/> comes from the drop zone, or is null to ask
+    /// for a file. The preview window shows where everything goes; the mod joins the active profile when confirmed.
+    /// </summary>
+    public async Task AddArchiveAsync(string? path)
+    {
+        path ??= await _app.PickArchive();
+        if (path is null) return;
+
+        try
+        {
+            var draft = await Task.Run(() => _app.LocalMods.Analyze(path));
+            try
+            {
+                // The preview looks up the framework the mod type needs in the catalog.
+                await _app.Catalog.EnsureIndexAsync(CancellationToken.None);
+            }
+            catch (Exception ex) when (ex is UserException or HttpRequestException or TaskCanceledException)
+            {
+                AppLog.Info($"Adding {draft.FileName} without the catalog: {ex.Message}");
+            }
+
+            var added = await _app.OpenImport(draft);
+            if (added is not null) await _shell.AddToActiveProfileAsync(added.GroupId, added.Name);
+        }
+        catch (UserException ex)
         {
             _shell.Notify(ex.Message);
         }

@@ -92,8 +92,11 @@ public sealed class FactoryReset(AppServices app)
         Folder("Downloaded mods", paths.Cache, isDownload: true);
         Folder("Unfinished downloads", paths.Downloads, isDownload: true);
 
+        // Kept with the downloads: their files are in the cache, and the archive they came from may be gone.
+        Folder("Mods added from archives", paths.LocalMods, isDownload: true);
+
         // settings.json and anything else directly in the data folder. The single-instance socket stays, it is in use.
-        var known = new[] { paths.Profiles, paths.State, paths.Catalog, paths.ConfigBackups, paths.Logs, paths.Journal, paths.Cache, paths.Downloads }
+        var known = new[] { paths.Profiles, paths.State, paths.Catalog, paths.ConfigBackups, paths.Logs, paths.Journal, paths.Cache, paths.Downloads, paths.LocalMods }
             .Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var looseFiles = Directory.EnumerateFiles(paths.Root).Where(f => Path.GetFileName(f) != "f3m.sock").ToList();
         var otherFolders = Directory.EnumerateDirectories(paths.Root).Where(d => !known.Contains(Path.GetFullPath(d))).ToList();
@@ -117,7 +120,8 @@ public sealed class FactoryReset(AppServices app)
         var failed = new List<string>();
         var keep = includeDownloads
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>([Path.GetFullPath(paths.Cache), Path.GetFullPath(paths.Downloads)], StringComparer.OrdinalIgnoreCase);
+            : new HashSet<string>([Path.GetFullPath(paths.Cache), Path.GetFullPath(paths.Downloads), Path.GetFullPath(paths.LocalMods)],
+                StringComparer.OrdinalIgnoreCase);
 
         foreach (var dir in Directory.EnumerateDirectories(paths.Root))
         {

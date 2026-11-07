@@ -6,9 +6,10 @@ namespace F3M.Desktop.Core;
 /// <summary>Where the app keeps its data. Windows: %LocalAppData%\F3M. Linux: $XDG_DATA_HOME/f3m (default ~/.local/share/f3m).</summary>
 public sealed class AppPaths
 {
-    public AppPaths()
+    /// <param name="root">The data folder to use instead of the default; tests pass a temporary one.</param>
+    public AppPaths(string? root = null)
     {
-        var overridePath = Environment.GetEnvironmentVariable("F3M_DATA_DIR");
+        var overridePath = root ?? Environment.GetEnvironmentVariable("F3M_DATA_DIR");
         Root = string.IsNullOrWhiteSpace(overridePath)
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 OperatingSystem.IsWindows() ? "F3M" : "f3m")
@@ -26,6 +27,9 @@ public sealed class AppPaths
     public string Downloads => Path.Combine(Root, "downloads");
     public string Journal => Path.Combine(Root, "journal");
     public string ConfigBackups => Path.Combine(Root, "config-backups");
+
+    /// <summary>Version documents of mods added from an archive on this computer; their files are in <see cref="Cache"/>.</summary>
+    public string LocalMods => Path.Combine(Root, "local-mods");
 
     /// <summary>A file under the catalog folder, mirroring the server layout, e.g. "mods/45/678.json".</summary>
     public string CatalogFile(string relative) =>
@@ -94,12 +98,13 @@ public static class AppLog
 /// </summary>
 public sealed class AppServices : IDisposable
 {
-    public AppPaths Paths { get; } = new();
+    public AppPaths Paths { get; }
     public AppSettings Settings { get; private set; } = new();
     public HttpClient Http { get; }
     public Catalog Catalog { get; }
     public OperationQueue Ops { get; } = new();
     public Downloads Downloads { get; }
+    public LocalMods LocalMods { get; }
     public Profiles Profiles { get; }
     public Deploy Deploy { get; }
     public Game Game { get; }
@@ -125,14 +130,23 @@ public sealed class AppServices : IDisposable
     public Action Restart { get; set; } = () => { };
     public Func<Task<string?>> PickFolder { get; set; } = () => Task.FromResult<string?>(null);
     public Func<Task<string?>> PickFile { get; set; } = () => Task.FromResult<string?>(null);
+
+    /// <summary>Asks for a mod archive or .dll to add as a local mod. Null when cancelled.</summary>
+    public Func<Task<string?>> PickArchive { get; set; } = () => Task.FromResult<string?>(null);
+
+    /// <summary>Shows the preview of an analysed archive and adds it when confirmed. The added mod, or null.</summary>
+    public Func<LocalModDraft, Task<F3M.Shared.Models.VersionDocument?>> OpenImport { get; set; } =
+        _ => Task.FromResult<F3M.Shared.Models.VersionDocument?>(null);
     public Action<string> Notify { get; set; } = _ => { };
     public Action<string> CopyText { get; set; } = _ => { };
 
     /// <summary>Opens the config editor for a mod group, set by the window that owns the editor.</summary>
     public Func<int, Task> OpenConfig { get; set; } = _ => Task.CompletedTask;
 
-    public AppServices()
+    /// <param name="paths">The data folder; tests pass one in a temporary folder.</param>
+    public AppServices(AppPaths? paths = null)
     {
+        Paths = paths ?? new AppPaths();
         AppLog.Init(Paths);
         Settings = LoadSettings();
 
@@ -148,6 +162,7 @@ public sealed class AppServices : IDisposable
 
         Catalog = new Catalog(this);
         Downloads = new Downloads(this);
+        LocalMods = new LocalMods(this);
         Profiles = new Profiles(this);
         Deploy = new Deploy(this);
         Game = new Game(this);
