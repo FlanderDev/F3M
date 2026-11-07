@@ -19,6 +19,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ModGeneratedPath> ModGeneratedPaths => Set<ModGeneratedPath>();
     public DbSet<ModOptionalGroup> ModOptionalGroups => Set<ModOptionalGroup>();
     public DbSet<F95PendingVerification> F95PendingVerifications => Set<F95PendingVerification>();
+    public DbSet<F95CheckResult> F95CheckResults => Set<F95CheckResult>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<TagInclusion> TagInclusions => Set<TagInclusion>();
     public DbSet<ModGroupTag> ModGroupTags => Set<ModGroupTag>();
@@ -224,6 +225,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(v => v.Status).HasConversion<string>();
             e.HasIndex(v => v.F95UserId);
             e.HasIndex(v => v.Status);
+        });
+
+        modelBuilder.Entity<F95CheckResult>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Outcome).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(c => c.CheckedAt);
         });
 
         // Seed the two baseline roles with fixed IDs so this is deterministic across

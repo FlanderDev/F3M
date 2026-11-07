@@ -14,7 +14,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="$(AspNetCoreVersion)" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.*-*" />
     <PackageReference Include="FlanderDev.RouteGen.Abstractions" Version="0.8.1" />
-    <PackageReference Include="SharpCompress" Version="0.50.4" />
   </ItemGroup>
 
   <ItemGroup>

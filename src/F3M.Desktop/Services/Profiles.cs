@@ -124,11 +124,17 @@ public sealed class Profiles(AppServices app)
         return dependents.OrderBy(id => id).ToList();
     }
 
-    /// <summary>The link that shares this profile on the website. Pins are left out (plan 10.2).</summary>
-    public string WebLink(ProfileDef profile)
+    /// <summary>
+    /// The link that shares this profile on the website. Pins are left out (plan 10.2), and so are local mods: they are
+    /// only on this computer. <paramref name="localLeftOut"/> says how many were left out.
+    /// </summary>
+    public string WebLink(ProfileDef profile, out int localLeftOut)
     {
-        var ids = string.Join(',', profile.GroupIds.Distinct());
-        if (!CollectionLink.TryParse(ids, profile.Name, out var link, out var error) || link is null)
+        var shared = profile.GroupIds.Distinct().Where(id => !LocalMods.IsLocal(id)).ToList();
+        localLeftOut = profile.GroupIds.Distinct().Count() - shared.Count;
+        if (shared.Count == 0)
+            throw new UserException("This profile only has local mods, which are on this computer only. There is nothing to share.");
+        if (!CollectionLink.TryParse(string.Join(',', shared), profile.Name, out var link, out var error) || link is null)
             throw new UserException(error ?? "This profile cannot be shared.");
         return app.Settings.ServerUrl.TrimEnd('/') + link.ToWebPath();
     }

@@ -20,4 +20,7 @@ public class F95LinkController(IF95LinkApi f95LinkApi) : F95LinkApiControllerBas
 
     public override async Task<ActionResult<LinkF95PollResponse>> Check(string f95UserId, LinkF95PollRequest request, CancellationToken ct)
         => Ok(await f95LinkApi.Check(f95UserId, request, ct));
+
+    public override async Task<ActionResult<F95LinkHealth>> Health(CancellationToken ct)
+        => Ok(await f95LinkApi.Health(ct));
 }

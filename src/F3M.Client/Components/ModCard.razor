@@ -5,7 +5,7 @@
     <div class="mod-card-image">
         @if (!string.IsNullOrEmpty(Mod.PreviewImageName) && !imageFailed)
         {
-            <img src="@F3M.Shared.Helpers.Assets.ImageUrl(Mod.PreviewImageName)" alt="@Mod.Name preview" loading="lazy"
+            <img src="@F3M.Shared.Helpers.Assets.ImageUrl(Mod.PreviewImageName)" alt="" loading="lazy"
                  @onerror="() => imageFailed = true" />
         }
         else

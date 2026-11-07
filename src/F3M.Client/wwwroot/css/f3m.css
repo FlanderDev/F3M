@@ -1026,6 +1026,55 @@ a {
     font-size: .875rem;
 }
 
+/* ── How the F95zone checks have gone lately (link page) ── */
+.f3m-link-health {
+    --health: var(--f3m-status-neutral);
+    background: var(--f3m-surface-2);
+    border: 1px solid var(--f3m-border);
+    border-left: 3px solid var(--health);
+    border-radius: var(--f3m-radius);
+    padding: .5rem .8rem;
+    margin-bottom: 1.25rem;
+    font-size: .8rem;
+}
+
+.f3m-link-health--working {
+    --health: var(--f3m-status-good);
+}
+
+.f3m-link-health--unreliable {
+    --health: var(--f3m-status-warning);
+}
+
+.f3m-link-health--down, .f3m-link-health--notsetup {
+    --health: var(--f3m-status-critical);
+}
+
+.f3m-link-health-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.f3m-link-health-dot {
+    flex: none;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    background: var(--health);
+}
+
+.f3m-link-health-detail, .f3m-link-health-numbers {
+    color: var(--f3m-muted);
+    margin-top: .2rem;
+    padding-left: 1.05rem;
+}
+
+.f3m-link-health-numbers {
+    font-size: .72rem;
+}
+
 .f3m-howto {
     color: var(--f3m-muted);
     padding-left: 1.2rem;
@@ -3591,4 +3640,11 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
 .markdown-body img {
     max-width: 100%;
     border-radius: 6px;
+}
+
+/* The browse list while a changed filter is being fetched: the old cards stay, dimmed, until the new ones arrive. */
+.f3m-list-refreshing {
+    opacity: .45;
+    pointer-events: none;
+    transition: opacity .08s ease-out;
 }

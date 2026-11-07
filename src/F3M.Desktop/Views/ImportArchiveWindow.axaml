@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:F3M.Desktop.ViewModels"
+        xmlns:help="using:F3M.Shared.Helpers"
+        xmlns:v="using:F3M.Desktop.Views"
+        x:Class="F3M.Desktop.Views.ImportArchiveWindow"
+        x:DataType="vm:ImportArchiveViewModel"
+        Title="{Binding Title}"
+        Width="720" Height="680"
+        MinWidth="560" MinHeight="460"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="16">
+
+    <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
+      <TextBlock Classes="muted" TextWrapping="Wrap"
+                 Text="F3M read the file and suggests where it goes, the way the website does for uploads. Check the list below, then add it. It is installed with the next Deploy, like a mod from the site." />
+      <TextBlock Classes="muted" Text="{Binding SourcePath}" v:Links.Target="{Binding SourcePath}" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Name" VerticalAlignment="Center" />
+      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" />
+
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Type" VerticalAlignment="Center" />
+      <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Templates}" SelectedItem="{Binding Template}"
+                HorizontalAlignment="Stretch">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="help:ModTemplate">
+            <TextBlock Text="{Binding Name}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Grid.Row="2" Grid.Column="1" Classes="muted" Text="{Binding Template.Description}" TextWrapping="Wrap" />
+
+      <TextBlock Grid.Row="3" Grid.Column="0" Text="Install path" VerticalAlignment="Center" />
+      <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding InstallPath}" Watermark="Game folder"
+               ToolTip.Tip="Relative to the game folder. An archive is extracted into this folder; empty means the game folder itself." />
+
+      <TextBlock Grid.Row="4" Grid.Column="0" Text="Archive folder" VerticalAlignment="Center" IsVisible="{Binding IsArchive}" />
+      <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding ArchiveRoot}" Watermark="Whole archive" IsVisible="{Binding IsArchive}"
+               ToolTip.Tip="Install only this folder of the archive, without the folder itself. Useful when the archive wraps everything in an extra folder." />
+    </Grid>
+
+    <StackPanel Grid.Row="2" Spacing="6" Margin="0,12,0,8">
+      <TextBlock Text="{Binding Requirement}" TextWrapping="Wrap"
+                 IsVisible="{Binding Requirement, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{Binding Warnings}" Foreground="{DynamicResource F3M.Brush.Warning}" TextWrapping="Wrap"
+                 IsVisible="{Binding Warnings, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{Binding TargetsSummary}" FontWeight="SemiBold" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Border Grid.Row="3" Classes="card" Padding="10">
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding Targets}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <TextBlock Text="{Binding}" FontFamily="Consolas, Menlo, monospace" FontSize="12" TextWrapping="Wrap" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Margin="0,12,0,0">
+      <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+      <Button Grid.Column="1" Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" />
+      <Button Grid.Column="2" Classes="primary" Content="Add to profile" Command="{Binding AddCommand}" IsDefault="True"
+              ToolTip.Tip="Copy the listed files into F3M's cache and add the mod to the active profile. Press Deploy to install it." />
+    </Grid>
+  </Grid>
+</Window>

@@ -74,6 +74,20 @@ public partial class App : Application
                 new FilePickerOpenOptions { Title = "Choose the game executable", AllowMultiple = false });
             return files.Count > 0 ? files[0].Path.LocalPath : null;
         };
+        services.PickArchive = async () =>
+        {
+            var files = await main.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Choose a mod to add",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Mod archives and plugins") { Patterns = [.. LocalMods.Extensions.Select(e => "*" + e)] },
+                ],
+            });
+            return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        };
+        services.OpenImport = draft => ImportArchiveWindow.ShowAsync(main, new ImportArchiveViewModel(services, draft));
         services.OpenConfig = async groupId =>
         {
             try
