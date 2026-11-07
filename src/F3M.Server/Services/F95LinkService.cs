@@ -33,6 +33,10 @@ public class F95LinkService(
 {
     private static readonly TimeSpan ExpiryWindow = TimeSpan.FromHours(24);
 
+    // How long check results are kept, and from how many failures in a row the checker counts as blocked.
+    private static readonly TimeSpan CheckResultsKeptFor = TimeSpan.FromDays(30);
+    private const int FailuresUntilDown = 3;
+
     public async Task<LinkF95StartResponse> Start(LinkF95StartRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.ProfileUrl))
@@ -139,6 +143,7 @@ public class F95LinkService(
         }
         catch (ProfileHiddenException)
         {
+            await RecordCheckAsync(F95CheckOutcome.Reached, ct);
             // Not the user's mistake in the form, and easy to fix: the verification stays open for the next try.
             logger.LogInformation("Verification {Id}: {Username} hides their F95zone profile from other members.",
                 verification.Id, verification.F95Username);
@@ -152,6 +157,7 @@ public class F95LinkService(
         }
         catch (ProfileMismatchException ex)
         {
+            await RecordCheckAsync(F95CheckOutcome.Reached, ct);
             logger.LogWarning("Verification {Id}: {Url} leads to {Name}.{UserId}.", verification.Id,
                 F95Profile.Url(verification.F95Username, f95UserId), ex.ActualName, ex.ActualId);
             verification.Status = F95VerificationStatus.Cancelled;
@@ -162,8 +168,9 @@ public class F95LinkService(
                 Message = "That profile address doesn't match the F95zone account it opens. Copy the address from your own profile page and start again."
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
+            await RecordCheckAsync(F95CheckOutcome.Failed, ct);
             logger.LogError(ex,
                 "Failed to fetch profile wall for verification {Id}.", verification.Id);
             return new LinkF95PollResponse
@@ -172,6 +179,8 @@ public class F95LinkService(
                 Message = "Could not reach F95zone. Please try again in a moment."
             };
         }
+
+        var check = await RecordCheckAsync(page.SignedIn ? F95CheckOutcome.Reached : F95CheckOutcome.SignedOut, ct);
 
         // Only what the profile's owner wrote counts: anyone can post on someone's wall, and the code is public once
         // posted. The author is matched by user id, which, unlike the name, is the same in the URL and on the page.
@@ -254,6 +263,7 @@ public class F95LinkService(
         }
 
         verification.Status = F95VerificationStatus.Verified;
+        check.Outcome = F95CheckOutcome.Linked;
 
         // Any other verifications still open for this F95 user are now pointless.
         var others = await db.F95PendingVerifications
@@ -282,6 +292,59 @@ public class F95LinkService(
             Username = user.UserName,
             IsNewUser = isNewUser
         };
+    }
+
+    public async Task<F95LinkHealth> Health(CancellationToken ct = default)
+    {
+        if (!botSettings.IsConfigured)
+            return new F95LinkHealth { State = F95LinkHealthState.NotSetUp };
+
+        var now = DateTime.UtcNow;
+        var today = await db.F95CheckResults.AsNoTracking()
+            .Where(c => c.CheckedAt > now.AddDays(-1))
+            .OrderByDescending(c => c.CheckedAt).ThenByDescending(c => c.Id)
+            .Select(c => new { c.CheckedAt, c.Outcome })
+            .ToListAsync(ct);
+        var linked = db.F95CheckResults.Where(c => c.Outcome == F95CheckOutcome.Linked);
+
+        var failing = today.TakeWhile(c => IsFailure(c.Outcome)).ToList();
+        var latest = today.Take(10).ToList();
+        var state = today.Count == 0 ? F95LinkHealthState.Unknown
+            : failing.Count >= FailuresUntilDown ? F95LinkHealthState.Down
+            // The latest failed, or at least a quarter of the latest ten did.
+            : failing.Count > 0 || latest.Count(c => IsFailure(c.Outcome)) * 4 >= latest.Count ? F95LinkHealthState.Unreliable
+            : F95LinkHealthState.Working;
+
+        return new F95LinkHealth
+        {
+            State = state,
+            ChecksToday = today.Count,
+            FailedToday = today.Count(c => IsFailure(c.Outcome)),
+            LastCheckedAt = today.FirstOrDefault()?.CheckedAt
+                            ?? await db.F95CheckResults.MaxAsync(c => (DateTime?)c.CheckedAt, ct),
+            LastReachedAt = await db.F95CheckResults
+                .Where(c => c.Outcome == F95CheckOutcome.Reached || c.Outcome == F95CheckOutcome.Linked)
+                .MaxAsync(c => (DateTime?)c.CheckedAt, ct),
+            FailingInARow = failing.Count,
+            FailingSince = failing.LastOrDefault()?.CheckedAt,
+            LastLinkedAt = await linked.MaxAsync(c => (DateTime?)c.CheckedAt, ct),
+            LinkedThisWeek = await linked.CountAsync(c => c.CheckedAt > now.AddDays(-7), ct),
+        };
+    }
+
+    private static bool IsFailure(F95CheckOutcome outcome) =>
+        outcome is F95CheckOutcome.Failed or F95CheckOutcome.SignedOut;
+
+    /// <summary>Notes how a look at F95zone went (and drops results older than a month).</summary>
+    private async Task<F95CheckResult> RecordCheckAsync(F95CheckOutcome outcome, CancellationToken ct)
+    {
+        var check = new F95CheckResult { Outcome = outcome };
+        db.F95CheckResults.Add(check);
+        await db.SaveChangesAsync(ct);
+
+        var cutoff = DateTime.UtcNow - CheckResultsKeptFor;
+        await db.F95CheckResults.Where(c => c.CheckedAt < cutoff).ExecuteDeleteAsync(ct);
+        return check;
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using F3M.Client.Components;
 using F3M.Shared;
 using F3M.Shared.Api;
 using F3M.Shared.Helpers;
@@ -30,6 +31,7 @@ public partial class LinkAccount
     private string? refusedName;
 
     private string parsedName = string.Empty;
+    private F95LinkHealthNote? healthNote;
 
     private bool UrlParsed => F95Profile.TryParse(profileUrl, out parsedName, out _);
     private bool ShowUrlInvalid => !string.IsNullOrWhiteSpace(profileUrl) && !UrlParsed;
@@ -141,6 +143,10 @@ public partial class LinkAccount
         {
             loading = false;
         }
+
+        // The check just counted too, and may have been the one that failed.
+        if (step == Step.Verify && healthNote is not null)
+            await healthNote.RefreshAsync();
     }
 
     private async Task CopyCode()

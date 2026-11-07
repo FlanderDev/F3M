@@ -108,6 +108,47 @@ public class LinkF95PollRequest
     public string ClientToken { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// How well checking F95zone profiles has gone lately, for the status on the link page. F95zone blocks bot traffic now
+/// and then, and a blocked checker can't see anyone's code.
+/// </summary>
+public class F95LinkHealth
+{
+    public F95LinkHealthState State { get; set; }
+
+    /// <summary>Checks in the last day, and how many of them couldn't read F95zone.</summary>
+    public int ChecksToday { get; set; }
+    public int FailedToday { get; set; }
+
+    public DateTime? LastCheckedAt { get; set; }
+
+    /// <summary>The last check that could read F95zone.</summary>
+    public DateTime? LastReachedAt { get; set; }
+
+    /// <summary>How many of the latest checks failed one after another, and when the first of them was.</summary>
+    public int FailingInARow { get; set; }
+    public DateTime? FailingSince { get; set; }
+
+    public DateTime? LastLinkedAt { get; set; }
+    public int LinkedThisWeek { get; set; }
+}
+
+public enum F95LinkHealthState
+{
+    /// <summary>Nobody checked a profile in the last day, so there's nothing to tell.</summary>
+    Unknown,
+    Working,
+
+    /// <summary>Some recent checks failed, the latest maybe too.</summary>
+    Unreliable,
+
+    /// <summary>The latest checks all failed: F95zone is most likely blocking the checker.</summary>
+    Down,
+
+    /// <summary>No bot account is set up, so no profile can be checked.</summary>
+    NotSetUp,
+}
+
 /// <summary>Returned each time the client polls for a GUID reply.</summary>
 public class LinkF95PollResponse
 {
