@@ -3362,3 +3362,11 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
 .f3m-update-commits code {
     color: var(--f3m-amber);
 }
+
+
+/* The browse list while a changed filter is being fetched: the old cards stay, dimmed, until the new ones arrive. */
+.f3m-list-refreshing {
+    opacity: .45;
+    pointer-events: none;
+    transition: opacity .08s ease-out;
+}
