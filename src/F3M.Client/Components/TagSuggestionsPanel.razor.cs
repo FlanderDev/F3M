@@ -39,8 +39,6 @@ public partial class TagSuggestionsPanel
 
     private ModTagSuggestions? data;
     private List<TagProposalDto> proposals = [];
-    private int? busyProposal;
-    private bool showAllProposals;
     private string? loadError;
     private string? error;
     private int? busyId;
@@ -208,22 +206,6 @@ public partial class TagSuggestionsPanel
         _ => null
     };
 
-    /// <summary>The way down to the tag through its first parents: "Clothing › Lingerie". Empty for a top-level tag.</summary>
-    private string PathOf(TagDto tag)
-    {
-        var names = new List<string>();
-        var current = tag;
-        while (current.ParentIds.Count > 0 && names.Count < TagRules.MaxDepth
-               && current.ParentIds.Select(Directory.Find).OfType<TagDto>().MinBy(p => p.Name, StringComparer.OrdinalIgnoreCase) is { } parent)
-        {
-            names.Insert(0, parent.Name);
-            current = parent;
-        }
-        return names.Count == 0 ? string.Empty : $"in {string.Join(" › ", names)}";
-    }
-
-    private TagDto? ExistingNamed(string name) => TagRules.Clean(name).Length > 0 ? Directory.Find(name) : null;
-
     private string NameOf(TagSuggestionDto s) =>
         s.TagId is { } id ? Directory.Find(id)?.Name ?? s.RequestedName ?? $"#{id}" : s.RequestedName ?? "?";
 
@@ -312,25 +294,15 @@ public partial class TagSuggestionsPanel
 
     // ── Voting and deciding ─────────────────────────────────────────────────
 
-    private async Task VoteProposalAsync(TagProposalDto p, int value)
+    private async Task ReloadProposalsAsync()
     {
-        busyProposal = p.TagId;
-        error = null;
         try
         {
-            var result = await Api.VoteProposal(p.TagId, new TagVoteRequest { Value = value });
             proposals = await Api.GetProposals();
-            // Enough points: a regular tag now.
-            if (!result.IsProposed)
-                await Directory.ReloadAsync();
         }
         catch (Exception ex)
         {
             error = ApiErrors.Describe(ex);
-        }
-        finally
-        {
-            busyProposal = null;
         }
     }
 

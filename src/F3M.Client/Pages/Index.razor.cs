@@ -36,7 +36,10 @@ public partial class Index
     private readonly List<Mod> mods = [];
     private int totalCount;
     private int nextPage = 1;
+    // True while a first batch is being fetched. The list shown before stays on the screen meanwhile (dimmed), so a
+    // changed filter doesn't flash skeletons; those only show until the very first list has arrived (listShown).
     private bool loading = true;
+    private bool listShown;
     private bool loadingMore;
 
     // Twice a screenful of cards, measured on the placeholders before the first load. The server sends at most 100.
@@ -121,11 +124,18 @@ public partial class Index
 
     private async Task LoadMoreClicked() => await LoadMore();
 
-    /// <summary>Shows the first batch for the current search, filters and sort order, replacing what was shown.</summary>
+    /// <summary>
+    /// Shows the first batch for the current search, filters and sort order, replacing what was shown. The old list
+    /// stays on the screen (dimmed) until the new one is there.
+    /// </summary>
     private async Task LoadMods()
     {
         var current = ++generation;
         var filtered = searchTerm.Trim().Length > 0 || selectedTags.Count > 0;
+        loadedSearch = searchTerm.Trim();
+        // Whatever search was still waiting to settle is answered by this load.
+        _debounce?.Dispose();
+        searchPending = false;
         _ = FindRequiredModAsync();
         loading = true;
         loadingMore = false;
@@ -151,6 +161,7 @@ public partial class Index
         if (!filtered)
             allCount = totalCount;
         nextPage = 2;
+        listShown = true;
         loading = false;
         StateHasChanged();
 
@@ -232,17 +243,36 @@ public partial class Index
         }
     }
 
-    private void OnSearchKeyUp(KeyboardEventArgs _)
+    // The search text the list on screen was loaded for, so Enter doesn't repeat a search that is already shown.
+    private string loadedSearch = string.Empty;
+    private bool searchPending;
+
+    private async Task OnSearchKeyUp(KeyboardEventArgs e)
     {
+        // Enter searches at once, whatever the length, instead of waiting for the typing to settle. Nothing happens
+        // when the list shown is for this text already.
+        if (e.Key == "Enter")
+        {
+            _debounce?.Dispose();
+            if (searchPending || searchTerm.Trim() != loadedSearch)
+            {
+                searchPending = false;
+                await LoadMods();
+            }
+            return;
+        }
+
         // 1-2 characters are too short to search for, but an emptied box has to bring the full list back.
         if (searchTerm.Length is > 0 and < 3)
             return;
 
         _debounce?.Dispose();
+        searchPending = true;
         _debounce = new System.Timers.Timer(500);
         _debounce.Elapsed += async (_, _) =>
         {
             _debounce?.Dispose();
+            searchPending = false;
             await InvokeAsync(LoadMods);
         };
         _debounce.AutoReset = false;

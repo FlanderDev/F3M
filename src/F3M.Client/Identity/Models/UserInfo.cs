@@ -5,6 +5,9 @@
 /// </summary>
 public class UserInfo
 {
+    /// <summary>The account's id; pages compare it with a mod's owner.</summary>
+    public int Id { get; set; }
+
     /// <summary>
     /// The username. Always present — this is what F95-linked (email-less) accounts
     /// are identified by.

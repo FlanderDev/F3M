@@ -140,6 +140,7 @@ if [ -n "$RESTORE" ]; then
         [ -f "$ENV_FILE" ] && cp -p "$ENV_FILE" "$ENV_FILE.bak"
         (umask 077 && tar -xzOf "$RESTORE" .env >"$ENV_FILE")
         chmod 600 "$ENV_FILE"
+        give_to_folder_owner "$ENV_FILE" "$ENV_FILE.bak"
         info "Restored .env."
     fi
 

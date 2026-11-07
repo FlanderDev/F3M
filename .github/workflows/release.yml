@@ -6,7 +6,8 @@ on:
       - release
 
 permissions:
-  contents: write   # needed to create tags and GitHub Releases
+  contents: write        # needed to create tags and GitHub Releases
+  pull-requests: read    # the release notes list the merged PRs
 
 jobs:
   # ── Job 1: compute the shared version tag ─────────────────────────────────
@@ -175,8 +176,11 @@ jobs:
     runs-on: ubuntu-latest   # no container needed — Git is pre-installed
 
     steps:
+      # Full history and tags, so the notes can list what changed since the last release.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
@@ -220,6 +224,17 @@ jobs:
           SECONDS=$(( ELAPSED % 60 ))
           echo "summary=${MINUTES}m ${SECONDS}s" >> "$GITHUB_OUTPUT"
 
+      # Before the tag, so the last release tag is still the previous one.
+      - name: Write release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/scripts/release-notes.sh \
+            "${{ needs.version.outputs.name }}" \
+            "${{ needs.version.outputs.desktop }}" \
+            "${{ steps.duration.outputs.summary }}" > release-notes.md
+          cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Create tag
         run: |
           git config user.name  "github-actions[bot]"
@@ -232,12 +247,7 @@ jobs:
         with:
           tag_name: ${{ needs.version.outputs.tag }}
           name: ${{ needs.version.outputs.name }}
-          body: |
-            Automated release from the `release` branch.
-
-            **Commit:** ${{ github.sha }}
-            **Built at:** ${{ needs.version.outputs.name }} UTC
-            **Pipeline duration:** ${{ steps.duration.outputs.summary }}
+          body_path: release-notes.md
           files: |
             F3M-linux-${{ needs.version.outputs.name }}.zip
             F3M-windows-${{ needs.version.outputs.name }}.zip

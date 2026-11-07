@@ -6,7 +6,7 @@
 @if (Compact)
 {
     <button type="button" class="btn btn-sm btn-outline-warning f3m-desktop-btn" title="@Title" aria-label="@Title"
-            disabled="@opening" @onclick="OpenAsync" @onclick:stopPropagation="true" @onclick:preventDefault="true">
+            disabled="@opening" @onclick="OpenAsync">
         @if (opening)
         {
             <span class="spinner-border spinner-border-sm"></span>
@@ -35,7 +35,7 @@ else
 
 @if (desktopMissing)
 {
-    <div class="f3m-desktop-missing" @onclick:stopPropagation="true">
+    <div class="f3m-desktop-missing">
         The desktop app didn't respond.
         <a href="@Configuration.DesktopDownloadUrl" target="_blank" rel="noopener">Get F3M Desktop</a>
     </div>

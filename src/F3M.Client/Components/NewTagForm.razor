@@ -1,0 +1,45 @@
+@* The fields for a new tag: its name (with a hint when that tag exists already), where it goes in the tree, and what it
+   means. The parent is picked in the tree next to it; sending is up to the page around it. *@
+@inject TagDirectory Directory
+
+<input class="form-control form-control-sm f3m-input mb-2" maxlength="@TagRules.MaxNameLength" placeholder="Name of the new tag"
+       aria-label="Name of the new tag" value="@Name" @oninput="e => NameChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty)" />
+@if (Directory.Taken(Name) is { } existing)
+{
+    <p class="small mb-2">
+        <i class="bi bi-info-circle me-1"></i>There's a tag <strong>@existing.Name</strong> already.
+        @ExistingAction?.Invoke(existing)
+    </p>
+}
+<div class="d-flex flex-wrap align-items-center gap-2 small mb-2">
+    <span class="f3m-suggestion-muted">Goes under</span>
+    @if (Directory.Find(ParentId ?? 0) is { } parent)
+    {
+        <span class="f3m-tag">
+            @parent.Name
+            <button type="button" class="f3m-tag-remove" aria-label="No parent" @onclick="() => ParentIdChanged.InvokeAsync(null)"><i class="bi bi-x"></i></button>
+        </span>
+    }
+    else
+    {
+        <span class="f3m-suggestion-muted fst-italic">nothing (a top-level tag)</span>
+    }
+    <span class="f3m-suggestion-muted">· pick <i class="bi bi-node-plus"></i> in the tree to change it</span>
+</div>
+<input class="form-control form-control-sm f3m-input mb-2" maxlength="@TagRules.MaxDescriptionLength"
+       placeholder="What does it mean? (optional)" aria-label="What the new tag means"
+       value="@Description" @oninput="e => DescriptionChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty)" />
+
+@code {
+    [Parameter] public string Name { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> NameChanged { get; set; }
+
+    [Parameter] public string Description { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> DescriptionChanged { get; set; }
+
+    [Parameter] public int? ParentId { get; set; }
+    [Parameter] public EventCallback<int?> ParentIdChanged { get; set; }
+
+    /// <summary>What to offer when the name is taken, e.g. a button to suggest that tag instead.</summary>
+    [Parameter] public RenderFragment<TagDto>? ExistingAction { get; set; }
+}

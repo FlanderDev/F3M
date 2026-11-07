@@ -161,6 +161,21 @@ window.f3m = {
         }, 0);
     },
 
+    /**
+     * Scrolls a growing box (the server update's log) to its end, unless someone scrolled it up to read: then it stays
+     * where it is until they scroll back down.
+     */
+    followEnd: function (box) {
+        if (!box) return;
+        if (!box._f3mFollow) {
+            box._f3mFollow = true;
+            box.addEventListener('scroll', () => {
+                box._f3mFollow = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+            }, { passive: true });
+        }
+        if (box._f3mFollow) box.scrollTop = box.scrollHeight;
+    },
+
     /** Scrolls every element matching the selector inside the container into view, if it isn't already. */
     revealSelected: function (container, selector) {
         setTimeout(function () {
@@ -169,6 +184,20 @@ window.f3m = {
                 el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             });
         }, 0);
+    },
+
+    /**
+     * The room on screen above and below an element, without what the sticky nav bar and footer cover. Dropdowns use
+     * it to open upwards when there's no room below.
+     */
+    roomAround: function (element) {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        const nav = document.querySelector('.f3m-navbar');
+        const footer = document.querySelector('.f3m-footer');
+        const top = nav ? Math.max(0, nav.getBoundingClientRect().bottom) : 0;
+        const bottom = footer ? Math.min(window.innerHeight, footer.getBoundingClientRect().top) : window.innerHeight;
+        return { above: rect.top - top, below: bottom - rect.bottom };
     },
 
     /** Reads a value from localStorage. Returns null when storage is blocked or empty. */

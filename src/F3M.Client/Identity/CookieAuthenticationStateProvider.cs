@@ -1,6 +1,7 @@
 using F3M.Client.Identity.Models;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -146,6 +147,7 @@ public class CookieAuthenticationStateProvider : AuthenticationStateProvider, IA
             {
                 var claims = new List<Claim>
                 {
+                    new(ClaimTypes.NameIdentifier, userInfo.Id.ToString(CultureInfo.InvariantCulture)),
                     new(ClaimTypes.Name, userInfo.UserName),
                 };
 

@@ -54,6 +54,22 @@ require_docker() {
     fi
 
     docker info >/dev/null 2>&1 || fail "Docker is not running, or this user may not use it (try sudo, or add the user to the docker group)."
+
+    # Compose reads .env for every command, and some of ours hide its errors; so stop here instead.
+    if [ -f "$ENV_FILE" ] && [ ! -r "$ENV_FILE" ]; then
+        fail "$ENV_FILE belongs to $(stat -c %U "$ENV_FILE"), so $(id -un) can't read it (and Docker Compose can't either). It was probably written with sudo. Fix it with: sudo chown $(id -un): $ENV_FILE"
+    fi
+}
+
+# give_to_folder_owner FILE...: run with sudo, files we write (.env) go to the F3M folder's owner, so the scripts and
+# the admin page's updates still work without sudo.
+give_to_folder_owner() {
+    [ "$(id -u)" -eq 0 ] || return 0
+    local file
+    for file in "$@"; do
+        [ -e "$file" ] && chown --reference=. -- "$file"
+    done
+    return 0
 }
 
 # Builds the image from the checked-out code and (re)starts the container. The commit is baked into the image, so the

@@ -57,6 +57,23 @@ public sealed class TagDirectory(ITagsApi api)
         return Tags.FirstOrDefault(t => TagRules.Normalize(t.Name) == normalized);
     }
 
+    /// <summary>The tag a typed name stands for, if there is one: a new tag can't have that name.</summary>
+    public TagDto? Taken(string name) => TagRules.Clean(name).Length > 0 ? Find(name) : null;
+
+    /// <summary>The way down to the tag through its first parents: "in Clothing › Lingerie". Empty for a top-level tag.</summary>
+    public string PathOf(TagDto tag)
+    {
+        var names = new List<string>();
+        var current = tag;
+        while (current.ParentIds.Count > 0 && names.Count < TagRules.MaxDepth
+               && current.ParentIds.Select(Find).OfType<TagDto>().MinBy(p => p.Name, StringComparer.OrdinalIgnoreCase) is { } parent)
+        {
+            names.Insert(0, parent.Name);
+            current = parent;
+        }
+        return names.Count == 0 ? string.Empty : $"in {string.Join(" › ", names)}";
+    }
+
     /// <summary>The tags among <paramref name="ids"/> that exist, by name.</summary>
     public List<TagDto> Resolve(IEnumerable<int> ids) =>
         [.. ids.Select(Find).OfType<TagDto>().OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)];

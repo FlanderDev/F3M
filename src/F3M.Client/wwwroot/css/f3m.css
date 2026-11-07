@@ -498,11 +498,11 @@ a {
 
 /* ── Mod card ───────────────────────────────────────────── */
 .mod-card {
+    position: relative;
     background: var(--f3m-surface);
     border: 1px solid var(--f3m-border);
     border-radius: var(--f3m-radius);
     overflow: hidden;
-    cursor: pointer;
     display: flex;
     flex-direction: column;
     transition: transform var(--tr), border-color var(--tr), box-shadow var(--tr);
@@ -580,21 +580,97 @@ a {
     -webkit-box-orient: vertical;
 }
 
+/* The title's link stretches over the whole card: a click anywhere opens the mod, and the browser's link menu works. */
+.mod-card-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+    .mod-card-link::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+    }
+
+    .mod-card-link:focus-visible {
+        outline: none;
+    }
+
+        .mod-card-link:focus-visible::after {
+            outline: 2px solid var(--f3m-amber);
+            outline-offset: -2px;
+            border-radius: inherit;
+        }
+
+/* Badges in the image's corners: tabs flush with the edges, rounded only towards the image. Solid, so they read on
+   any picture. */
+.mod-card-image .mod-card-category, .mod-card-status {
+    position: absolute;
+    top: 0;
+    background: rgba(0,0,0,.78);
+    backdrop-filter: none;
+    border: 0;
+    font-family: var(--f3m-font-h);
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    padding: .15rem .45rem;
+}
+
+.mod-card-image .mod-card-category {
+    left: 0;
+    max-width: 70%;
+    border-radius: 0 0 6px 0;
+}
+
+.mod-card-status {
+    right: 0;
+    border-radius: 0 0 0 6px;
+    color: var(--f3m-amber);
+}
+
+.mod-card-status--new {
+    background: var(--f3m-amber);
+    color: #000;
+}
+
+.mod-card-status--hidden {
+    color: var(--f3m-muted);
+}
+
+/* What keeps its own click: above the card's link. */
+.mod-card-author a, .mod-card-tags a, .mod-card .f3m-desktop-btn, .mod-card .f3m-desktop-missing a, .mod-card-action {
+    position: relative;
+    z-index: 2;
+}
+
 .mod-card-author {
     font-size: .75rem;
     color: var(--f3m-muted);
     margin-bottom: 4px;
 }
 
-    .mod-card-author span {
-        color: var(--f3m-amber);
+    .mod-card-author time {
+        white-space: nowrap;
     }
+
+/* Next to the author of an imported mod nobody has claimed yet. */
+.mod-card-f95 {
+    font-size: .6rem;
+    font-weight: 700;
+    border: 1px solid var(--f3m-border);
+    border-radius: 3px;
+    padding: 0 .25rem;
+    margin-left: 3px;
+}
 
 .mod-card-desc {
     font-size: .78rem;
     color: var(--f3m-muted);
     line-height: 1.5;
-    flex: 1;
     margin-bottom: 10px;
     overflow: hidden;
     display: -webkit-box;
@@ -602,7 +678,9 @@ a {
     -webkit-box-orient: vertical;
 }
 
+/* Pushed to the bottom, so the footers line up across a row (stretching the description would undo its 2-line cut). */
 .mod-card-meta {
+    margin-top: auto;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -624,7 +702,7 @@ a {
 }
 
 /* ── Download in the desktop app ────────────────────────── */
-.f3m-desktop-btn {
+.f3m-desktop-btn, .mod-card-action {
     padding: 1px 7px;
     font-size: .75rem;
     line-height: 1.4;
@@ -635,14 +713,14 @@ a {
 
     /* On touch screens: large enough to hit with a finger. */
     @media (pointer: coarse) {
-        .f3m-desktop-btn {
+        .f3m-desktop-btn, .mod-card-action {
             min-width: 40px;
             min-height: 32px;
         }
     }
 
     /* Bootstrap Icons sit their glyphs a little low for running text; alone in the button that's off-centre. */
-    .f3m-desktop-btn i::before {
+    .f3m-desktop-btn i::before, .mod-card-action i::before {
         vertical-align: 0;
     }
 
@@ -945,6 +1023,55 @@ a {
     border-radius: var(--f3m-radius);
     padding: .6rem .9rem;
     font-size: .875rem;
+}
+
+/* ── How the F95zone checks have gone lately (link page) ── */
+.f3m-link-health {
+    --health: var(--f3m-status-neutral);
+    background: var(--f3m-surface-2);
+    border: 1px solid var(--f3m-border);
+    border-left: 3px solid var(--health);
+    border-radius: var(--f3m-radius);
+    padding: .5rem .8rem;
+    margin-bottom: 1.25rem;
+    font-size: .8rem;
+}
+
+.f3m-link-health--working {
+    --health: var(--f3m-status-good);
+}
+
+.f3m-link-health--unreliable {
+    --health: var(--f3m-status-warning);
+}
+
+.f3m-link-health--down, .f3m-link-health--notsetup {
+    --health: var(--f3m-status-critical);
+}
+
+.f3m-link-health-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.f3m-link-health-dot {
+    flex: none;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    background: var(--health);
+}
+
+.f3m-link-health-detail, .f3m-link-health-numbers {
+    color: var(--f3m-muted);
+    margin-top: .2rem;
+    padding-left: 1.05rem;
+}
+
+.f3m-link-health-numbers {
+    font-size: .72rem;
 }
 
 .f3m-howto {
@@ -1887,6 +2014,55 @@ a.f3m-tag:hover, a.f3m-tag:focus-visible {
 
     .f3m-tagdlg-side {
         overflow: visible;
+    }
+}
+
+/* ── Tags page ──────────────────────────────────────────── */
+.f3m-tagpage {
+    max-width: 1200px;
+}
+
+.f3m-tagpage-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.f3m-tagpage-tree {
+    border-color: var(--f3m-border) !important;
+}
+
+/* The side stays in view while the tree scrolls past. */
+.f3m-tagpage-side {
+    position: sticky;
+    top: 5rem;
+}
+
+/* Scrolled to on a click; keep it out from under the sticky nav bar. */
+.f3m-tagpage .f3m-tagdlg-compose, .f3m-tagpage .f3m-tree-row {
+    scroll-margin-top: 5rem;
+}
+
+.f3m-tagpage-mods {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    text-decoration: none;
+}
+
+    .f3m-tagpage-mods:hover {
+        color: var(--f3m-amber);
+    }
+
+@media (max-width: 991.98px) {
+    .f3m-tagpage-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .f3m-tagpage-side {
+        position: static;
+        order: -1;
     }
 }
 
@@ -3216,10 +3392,258 @@ html:has(.sfd-backdrop, .f3m-scroll-lock) {
     overflow-y: auto;
 }
 
+/* The update's steps, while it runs (and after it failed). */
+.f3m-update-progress {
+    border: 1px solid var(--f3m-border);
+    border-left: 3px solid var(--f3m-amber);
+    border-radius: 8px;
+    padding: .75rem 1rem;
+}
+
+.f3m-update-progress.is-failed {
+    border-left-color: var(--bs-danger);
+}
+
+.f3m-update-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.25rem;
+    list-style: none;
+    padding: 0;
+}
+
+.f3m-update-step {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .8rem;
+    color: var(--f3m-muted);
+}
+
+.f3m-update-step-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    border: 1px solid var(--f3m-border);
+    flex-shrink: 0;
+}
+
+.f3m-update-step-icon .spinner-border {
+    width: .85rem;
+    height: .85rem;
+    border-width: .15em;
+}
+
+.f3m-update-step.is-current {
+    color: var(--f3m-text);
+    font-weight: 600;
+}
+
+.f3m-update-step.is-current .f3m-update-step-icon {
+    border-color: var(--f3m-amber);
+    color: var(--f3m-amber);
+}
+
+.f3m-update-step.is-done .f3m-update-step-icon {
+    background: var(--bs-success);
+    border-color: var(--bs-success);
+    color: #fff;
+}
+
+.f3m-update-step.is-done {
+    color: var(--f3m-text);
+}
+
+.f3m-update-step.is-failed {
+    color: var(--bs-danger);
+    font-weight: 600;
+}
+
+.f3m-update-step.is-failed .f3m-update-step-icon {
+    background: var(--bs-danger);
+    border-color: var(--bs-danger);
+    color: #fff;
+}
+
+.f3m-update-step.is-skipped {
+    opacity: .6;
+}
+
+.f3m-update-step-note {
+    font-size: .7rem;
+    font-style: italic;
+}
+
+.f3m-update-current {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    color: var(--f3m-muted);
+}
+
 .f3m-update-commits li {
     padding: .15rem 0;
 }
 
 .f3m-update-commits code {
     color: var(--f3m-amber);
+}
+
+/* ── Rendered markdown (mod descriptions and their previews) ── */
+/* Global on purpose: the HTML comes in as a MarkupString, which scoped CSS can't reach. */
+.markdown-body {
+    color: var(--f3m-text);
+    word-break: break-word;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    font-family: var(--f3m-font-h);
+    color: var(--f3m-text);
+    margin-top: 1.2em;
+    margin-bottom: .5em;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.markdown-body h1 { font-size: 1.45rem; }
+.markdown-body h2 { font-size: 1.2rem; }
+.markdown-body h3 { font-size: 1rem; }
+
+.markdown-body p {
+    margin-top: 0;
+    margin-bottom: .6em;
+}
+
+/* A list right under a line of text belongs to it. */
+.markdown-body p + :is(ul, ol) {
+    margin-top: -.35em;
+}
+
+.markdown-body a {
+    color: var(--f3m-amber);
+}
+
+.markdown-body a:hover {
+    color: #ffe082;
+}
+
+.markdown-body strong {
+    color: var(--f3m-text);
+}
+
+.markdown-body em {
+    color: var(--f3m-text);
+}
+
+.markdown-body code {
+    background: var(--f3m-surface-2);
+    border: 1px solid var(--f3m-border);
+    border-radius: 4px;
+    padding: .1em .4em;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: .82em;
+    color: var(--f3m-amber);
+}
+
+.markdown-body pre {
+    background: var(--f3m-surface-2);
+    border: 1px solid var(--f3m-border);
+    border-radius: 8px;
+    padding: .85em 1em;
+    overflow-x: auto;
+    margin-bottom: .85em;
+}
+
+.markdown-body pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--f3m-text);
+}
+
+.markdown-body blockquote {
+    border-left: 3px solid var(--f3m-amber);
+    margin: 0 0 .85em;
+    padding: .4em .85em;
+    color: var(--f3m-muted);
+    background: var(--f3m-amber-dim);
+    border-radius: 0 6px 6px 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+    padding-left: 1.5em;
+    margin-bottom: .6em;
+}
+
+.markdown-body li {
+    margin-bottom: .15em;
+}
+
+/* Blank lines between bullets make Markdig wrap each item in a <p>; keep those items tight too. */
+.markdown-body li > p {
+    margin-bottom: .15em;
+}
+
+.markdown-body li > :is(ul, ol) {
+    margin-bottom: 0;
+}
+
+.markdown-body > :first-child {
+    margin-top: 0;
+}
+
+.markdown-body > :last-child {
+    margin-bottom: 0;
+}
+
+.markdown-body hr {
+    border: none;
+    border-top: 1px solid var(--f3m-border);
+    margin: 1.2em 0;
+}
+
+.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: .85em;
+    font-size: .85rem;
+}
+
+.markdown-body th,
+.markdown-body td {
+    border: 1px solid var(--f3m-border);
+    padding: .45em .75em;
+}
+
+.markdown-body th {
+    background: var(--f3m-surface-2);
+    font-family: var(--f3m-font-h);
+    font-weight: 700;
+    font-size: .78rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--f3m-muted);
+}
+
+.markdown-body tr:hover td {
+    background: rgba(255, 255, 255, .02);
+}
+
+.markdown-body img {
+    max-width: 100%;
+    border-radius: 6px;
+}
+
+/* The browse list while a changed filter is being fetched: the old cards stay, dimmed, until the new ones arrive. */
+.f3m-list-refreshing {
+    opacity: .45;
+    pointer-events: none;
+    transition: opacity .08s ease-out;
 }

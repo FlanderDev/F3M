@@ -15,8 +15,7 @@
         @foreach (var (tag, community) in chips.Take(Limit))
         {
             <a class="f3m-tag @(community ? "f3m-tag-community" : string.Empty)" href="@BrowseUrl(tag.Name)"
-               title="@(community ? $"Suggested and voted for by visitors. {tag.Description}" : tag.Description ?? $"All mods tagged {tag.Name}")"
-               @onclick:stopPropagation="true">@tag.Name</a>
+               title="@(community ? $"Suggested and voted for by visitors. {tag.Description}" : tag.Description ?? $"All mods tagged {tag.Name}")">@tag.Name</a>
         }
         @if (chips.Count > Limit)
         {

@@ -19,13 +19,17 @@
             <div class="me-auto">
                 <h1 class="f3m-browse-title">Browse mods</h1>
                 <p class="f3m-browse-count mb-0" aria-live="polite">
-                    @if (loading && mods.Count == 0)
+                    @if (loading && !listShown)
                     {
                         <span>Loading mods…</span>
                     }
                     else
                     {
                         <strong>@totalCount</strong>@CountText
+                        @if (loading)
+                        {
+                            <span class="spinner-border spinner-border-sm text-warning ms-2" role="status" aria-label="Loading"></span>
+                        }
                     }
                 </p>
             </div>
@@ -136,7 +140,7 @@
 
 <!-- Mod grid -->
 <div class="container-fluid px-4 py-4">
-    @if (loading)
+    @if (loading && !listShown)
     {
         @* The placeholders also tell how many cards fit on the screen (see OnAfterRenderAsync). *@
         <div class="mod-grid" @ref="placeholderGrid">
@@ -156,7 +160,7 @@
     }
     else if (mods.Count == 0)
     {
-        <div class="f3m-empty text-center py-5">
+        <div class="f3m-empty @(loading ? "f3m-list-refreshing" : string.Empty) text-center py-5">
             <i class="bi bi-inbox display-3 opacity-50 d-block mb-3"></i>
             <h5 class="fw-bold mb-1">No mods found</h5>
             <p class="small">Try adjusting your filters.</p>
@@ -165,7 +169,7 @@
     }
     else
     {
-        <div class="mod-grid">
+        <div class="mod-grid @(loading ? "f3m-list-refreshing" : string.Empty)" aria-busy="@(loading ? "true" : "false")">
             @foreach (var mod in mods)
             {
                 <ModCard @key="mod.Id" Mod="mod" />

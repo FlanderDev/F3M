@@ -1,0 +1,79 @@
+@* How well checking F95zone profiles has gone lately. F95zone blocks the checker now and then, and then nobody can
+   link an account; this tells people it isn't their post. *@
+@inject IF95LinkApi F95Link
+
+@if (health is { } h)
+{
+    var (title, detail) = Describe(h);
+    <div class="f3m-link-health f3m-link-health--@h.State.ToString().ToLowerInvariant()" role="status">
+        <div class="f3m-link-health-title"><span class="f3m-link-health-dot" aria-hidden="true"></span>@title</div>
+        @if (detail is not null)
+        {
+            <div class="f3m-link-health-detail">@detail</div>
+        }
+        @if (Numbers(h) is { } numbers)
+        {
+            <div class="f3m-link-health-numbers">@numbers</div>
+        }
+    </div>
+}
+
+@code {
+    private F95LinkHealth? health;
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    /// <summary>Loads the status again, e.g. after this visitor's own check.</summary>
+    public async Task RefreshAsync()
+    {
+        try
+        {
+            health = await F95Link.Health();
+        }
+        catch (Exception)
+        {
+            // Only a hint: without it the page works the same.
+            health = null;
+        }
+        StateHasChanged();
+    }
+
+    private static (string Title, string? Detail) Describe(F95LinkHealth h) => h.State switch
+    {
+        F95LinkHealthState.Working => ("Checking F95zone profiles works", null),
+        F95LinkHealthState.Unreliable => ("Some recent checks couldn't read F95zone",
+            "If checking your post fails, wait a minute and try again."),
+        F95LinkHealthState.Down => ("F95zone is blocking our checker right now",
+            $"The last {h.FailingInARow} checks couldn't read F95zone{(h.FailingSince is { } since ? $" (failing since {Since(since)})" : string.Empty)}. " +
+            "Your code stays valid for 24 hours: you can post it now and check again later."),
+        F95LinkHealthState.NotSetUp => ("Linking isn't set up on this site yet",
+            "An admin has to add an F95zone account for the checker first."),
+        _ => ("No profile checks in the last day",
+            h.LastReachedAt is { } reached
+                ? $"So there's no news on whether F95zone lets the checker through. The last check that worked was {reached.TimeAgo()}."
+                : "So there's no news on whether F95zone lets the checker through."),
+    };
+
+    private static string? Numbers(F95LinkHealth h)
+    {
+        var parts = new List<string>();
+        if (h.ChecksToday > 0)
+            parts.Add($"{Count(h.ChecksToday, "check")} in the last day, {h.FailedToday} failed");
+        if (h.LastLinkedAt is { } linked)
+            parts.Add($"last account linked {linked.TimeAgo()} ({h.LinkedThisWeek} this week)");
+        if (parts.Count == 0)
+            return null;
+
+        var text = string.Join(" · ", parts);
+        return char.ToUpper(text[0]) + text[1..];
+    }
+
+    // A clock time today, with the date before that.
+    private static string Since(DateTime utc)
+    {
+        var local = DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime();
+        return local.Date == DateTime.Now.Date ? local.ToString("t") : local.ToString("g");
+    }
+
+    private static string Count(int n, string unit) => $"{n} {unit}{(n == 1 ? string.Empty : "s")}";
+}

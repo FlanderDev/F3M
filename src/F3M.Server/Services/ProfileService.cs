@@ -20,6 +20,7 @@ public class ProfileService(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     IHttpContextAccessor httpContextAccessor,
+    TagService tagService,
     ILogger<ProfileService> logger) : IProfileApi
 {
     private ClaimsPrincipal CurrentPrincipal =>
@@ -54,16 +55,21 @@ public class ProfileService(
 
         var groupIds = db.ModGroups.Where(g => g.OwnerId == userId).Select(g => g.Id);
 
-        var latestIds = db.Mods
-            .Where(m => groupIds.Contains(m.ModGroupId))
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
-        return await db.Mods
-            .Where(m => latestIds.Contains(m.Id))
+        // The latest version of each, as on the browse page; approved or not, it's the owner's own list.
+        var mods = await db.Mods
+            .Where(m => groupIds.Contains(m.ModGroupId) && m.IsLatestVersion)
             .Include(m => m.Files)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync(ct);
+        await FillCardsAsync(mods, ct);
+        return mods;
+    }
+
+    /// <summary>The tags and the rest the mod cards show, as on the browse page.</summary>
+    private async Task FillCardsAsync(List<Mod> mods, CancellationToken ct)
+    {
+        await tagService.FillTagIdsAsync(mods, ct);
+        await ModsService.FillCardInfoAsync(db, mods, ct);
     }
 
     public async Task<PublicProfileDto> GetPublicProfileAsync(string username, CancellationToken ct = default)
@@ -74,18 +80,14 @@ public class ProfileService(
 
         var groupIds = db.ModGroups.Where(g => g.OwnerId == user.Id).Select(g => g.Id);
 
-        // Only approved mods are shown publicly — unlike GetMyModsAsync, which includes the
-        // owner's own unapproved uploads.
-        var latestIds = db.Mods
-            .Where(m => groupIds.Contains(m.ModGroupId) && m.IsApproved)
-            .GroupBy(m => m.ModGroupId)
-            .Select(g => g.OrderByDescending(m => m.UploadedAt).First().Id);
-
+        // What the browse page shows of them: the latest version, if approved. GetMyModsAsync also lists the owner's
+        // unapproved uploads.
         var mods = await db.Mods
-            .Where(m => latestIds.Contains(m.Id))
+            .Where(m => groupIds.Contains(m.ModGroupId) && m.IsApproved && m.IsLatestVersion)
             .Include(m => m.Files)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync(ct);
+        await FillCardsAsync(mods, ct);
 
         return new PublicProfileDto
         {
@@ -111,6 +113,7 @@ public class ProfileService(
 
         if (mods.Count == 0)
             throw new KeyNotFoundException($"No user or author named '{author}' was found.");
+        await FillCardsAsync(mods, ct);
 
         return new PublicProfileDto
         {

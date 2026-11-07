@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace F3M.Client.Components;
 
@@ -25,21 +26,49 @@ public partial class MultiSelectDropdown<TModel>
 
     [Parameter] public string SearchPlaceholder { get; set; } = "Search…";
 
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    // About as tall as the open panel gets: the search box and a full list.
+    private const int PanelHeight = 320;
+
     /* ─── Internal state ─── */
     private bool _isOpen;
     private bool _isLoading;
     private string _searchText = string.Empty;
     private List<InternalItem> _items = [];
     private System.Timers.Timer? _debounce;
+    private ElementReference _control;
+    private bool _openUp;
 
     /* ─── Open / close ─── */
     private async Task ToggleDropdown()
     {
         if (_isOpen)
+        {
             await CloseDropdown();
-        else
-            _isOpen = true;
+            return;
+        }
+
+        _openUp = await NoRoomBelowAsync();
+        _isOpen = true;
     }
+
+    /// <summary>Whether the panel would run past the screen (or under the sticky footer) and there's more room above.</summary>
+    private async Task<bool> NoRoomBelowAsync()
+    {
+        try
+        {
+            var room = await JS.InvokeAsync<Room?>("f3m.roomAround", _control);
+            return room is { Below: < PanelHeight } && room.Above > room.Below;
+        }
+        catch (JSException)
+        {
+            // An outdated f3m.js: open downwards as before.
+            return false;
+        }
+    }
+
+    private sealed record Room(double Above, double Below);
 
     private async Task CloseDropdown()
     {

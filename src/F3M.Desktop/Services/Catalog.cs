@@ -74,6 +74,10 @@ public sealed class Catalog(AppServices app)
 
     public IndexGroup? Group(int groupId) => Index?.Groups.FirstOrDefault(g => g.GroupId == groupId);
 
+    /// <summary>A mod's name, for the catalog's mods and the local ones. Null when neither knows it.</summary>
+    public string? NameOf(int groupId) =>
+        LocalMods.IsLocal(groupId) ? app.LocalMods.Get(groupId)?.Name : Group(groupId)?.Name;
+
     /// <summary>
     /// The version document for one version, cached after the first verified download. A version's files never change,
     /// but its owner can edit the rest (name, requirements, optional groups); <paramref name="refresh"/> fetches the
@@ -81,6 +85,13 @@ public sealed class Catalog(AppServices app)
     /// </summary>
     public async Task<VersionDocument> GetVersionAsync(int groupId, int versionId, CancellationToken ct, bool refresh = false)
     {
+        if (LocalMods.IsLocal(groupId))
+        {
+            return app.LocalMods.Get(groupId) is { } local && local.VersionId == versionId
+                ? local
+                : throw new UserException($"Local mod {groupId} is gone.");
+        }
+
         var path = app.Paths.CatalogFile($"mods/{groupId}/{versionId}.json");
         if (_keys.Count == 0) await RefreshKeysAsync(ct);
         if (refresh)
@@ -139,6 +150,17 @@ public sealed class Catalog(AppServices app)
         {
             var groupId = queue.Dequeue();
             if (result.ContainsKey(groupId)) continue;
+
+            // A local mod has its document on this computer; what it needs comes from the catalog as usual.
+            if (LocalMods.IsLocal(groupId))
+            {
+                var local = app.LocalMods.Get(groupId)
+                            ?? throw new UserException($"Local mod {groupId} is gone. Remove it from the profile.");
+                result[groupId] = local;
+                foreach (var dependency in local.Dependencies.Where(d => !result.ContainsKey(d.GroupId)))
+                    queue.Enqueue(dependency.GroupId);
+                continue;
+            }
 
             var group = Group(groupId);
             var versionId = pins.TryGetValue(groupId, out var pinned)

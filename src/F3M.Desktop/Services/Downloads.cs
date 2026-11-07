@@ -220,6 +220,9 @@ public sealed class Downloads(AppServices app)
         foreach (var mod in app.Deploy.LoadState().Mods) keep.Add((mod.GroupId, mod.VersionId));
         foreach (var profile in app.Profiles.List())
             foreach (var pin in profile.Pins) keep.Add((pin.Key, pin.Value));
+
+        // A local mod can't be downloaded again: its files only leave once no profile uses it (LocalMods.DeleteUnused).
+        foreach (var doc in app.LocalMods.List()) keep.Add((doc.GroupId, doc.VersionId));
         return keep;
     }
 
@@ -240,9 +243,30 @@ public sealed class Downloads(AppServices app)
         }
     }
 
-    private async Task InstallAsync(VersionDocument doc, OperationItem op, CancellationToken ct)
+    /// <summary>
+    /// Caches a version whose only file is already on this computer (an archive the user added), the same way a
+    /// download is cached: only the placed entries are extracted, and each is checked against its hash.
+    /// </summary>
+    public Task CacheLocalAsync(VersionDocument doc, string sourcePath, OperationItem? op, CancellationToken ct) =>
+        StageAsync(doc, (_, _) => Task.FromResult(sourcePath), deleteSource: false, op, ct);
+
+    private Task InstallAsync(VersionDocument doc, OperationItem op, CancellationToken ct) =>
+        StageAsync(doc, async (file, token) =>
+        {
+            Directory.CreateDirectory(app.Paths.Downloads);
+            var part = Path.Combine(app.Paths.Downloads, $"{doc.VersionId}-{file.FileId}.part");
+            await DownloadAsync(doc, file, part, op, token);
+            return part;
+        }, deleteSource: true, op, ct);
+
+    /// <summary>
+    /// Assembles a version in a staging folder and moves it into the cache, so a crash never leaves a half-cached
+    /// version. <paramref name="fetch"/> gives the path of each shipped file; with <paramref name="deleteSource"/> that
+    /// file is deleted once extracted.
+    /// </summary>
+    private async Task StageAsync(
+        VersionDocument doc, Func<VersionFile, CancellationToken, Task<string>> fetch, bool deleteSource, OperationItem? op, CancellationToken ct)
     {
-        Directory.CreateDirectory(app.Paths.Downloads);
         var staging = Path.Combine(app.Paths.Cache, ".staging", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(staging);
         try
@@ -250,13 +274,12 @@ public sealed class Downloads(AppServices app)
             var payloadRoot = Path.Combine(staging, "files");
             foreach (var file in doc.Files)
             {
-                var part = Path.Combine(app.Paths.Downloads, $"{doc.VersionId}-{file.FileId}.part");
-                await DownloadAsync(doc, file, part, op, ct);
+                var source = await fetch(file, ct);
 
                 var destination = Path.Combine(payloadRoot, file.FileId.ToString());
-                op.SetDetail($"Extracting {file.OriginalName}");
-                await Task.Run(() => Extract(file, part, destination), ct);
-                File.Delete(part);
+                op?.SetDetail($"Extracting {file.OriginalName}");
+                await Task.Run(() => Extract(file, source, destination), ct);
+                if (deleteSource) File.Delete(source);
 
                 await VerifyPlacementsAsync(file, destination, ct);
             }

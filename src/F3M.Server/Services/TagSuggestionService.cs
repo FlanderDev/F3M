@@ -12,7 +12,7 @@ using System.Security.Claims;
 namespace F3M.Server.Services;
 
 /// <summary>
-/// Server side of <see cref="ITagSuggestionsApi"/>: users suggest tags for mods (or ask for new ones) and vote on them.
+/// Server side of <see cref="ITagSuggestionsApi"/>: users suggest tags for mods, create new tags, and vote on both.
 /// An open suggestion whose score reached the limit counts in filters and searches (see ModsService.GetMods); the
 /// mod's owner or an admin approves it onto the mod or rejects it. Owners don't vote on their own mods: they decide.
 /// </summary>
@@ -89,7 +89,7 @@ public sealed class TagSuggestionService(
             }
             else
             {
-                tagId = await ProposeTagAsync(name, request, userId, snapshot, ct);
+                tagId = await ProposeTagAsync(name, request.ParentTagId, request.NewTagDescription, userId, snapshot, ct);
                 createdName = name;
             }
         }
@@ -144,12 +144,12 @@ public sealed class TagSuggestionService(
     }
 
     /// <summary>Creates the tag a user named, as a proposed tag with their vote; returns its id.</summary>
-    private async Task<int> ProposeTagAsync(string name, TagSuggestRequest request, int userId, TagSnapshot snapshot, CancellationToken ct)
+    private async Task<int> ProposeTagAsync(string name, int? parentTagId, string? description, int userId, TagSnapshot snapshot, CancellationToken ct)
     {
         await CheckDailyLimitAsync(userId, ct);
 
         int? parentId = null;
-        if (request.ParentTagId is { } wanted)
+        if (parentTagId is { } wanted)
         {
             var parent = snapshot.ById.GetValueOrDefault(wanted)
                          ?? throw new InvalidDataException($"There is no tag with id {wanted} (any more). Reload the page.");
@@ -162,7 +162,7 @@ public sealed class TagSuggestionService(
         var created = await tags.Create(new TagEditDto
         {
             Name = name,
-            Description = request.NewTagDescription,
+            Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
             IncludedInIds = parentId is { } p ? [p] : []
         }, userId, ct);
 
@@ -179,10 +179,39 @@ public sealed class TagSuggestionService(
             return;
         var limit = (await settings.TagSuggestionLimitsAsync(ct)).DailyLimit;
         if (await StartedTodayAsync(userId, ct) >= limit)
-            throw new InvalidDataException($"You can suggest at most {limit} tags a day. Vote on the open suggestions instead, or try again tomorrow.");
+            throw new InvalidDataException($"You can suggest or create at most {limit} tags a day. Vote on the open ones instead, or try again tomorrow.");
     }
 
     // ── Tags users created ──────────────────────────────────────────────────
+
+    public async Task<TagProposalInfo> GetProposalInfo(CancellationToken ct = default)
+    {
+        var limits = await settings.TagSuggestionLimitsAsync(ct);
+        var userId = UserId;
+        return new TagProposalInfo
+        {
+            TagThreshold = limits.TagThreshold,
+            CanCreate = userId is not null,
+            RemainingToday = userId is null ? 0 : IsAdmin ? null : Math.Max(0, limits.DailyLimit - await StartedTodayAsync(userId.Value, ct))
+        };
+    }
+
+    public async Task<TagProposalDto> Propose(TagProposeRequest request, CancellationToken ct = default)
+    {
+        var userId = RequireUser();
+        var name = TagRules.Clean(request.Name);
+        if (TagRules.NameProblem(name) is { } problem)
+            throw new InvalidDataException(problem);
+
+        var snapshot = await index.GetAsync(db, ct);
+        if (snapshot.Find(name) is { } same)
+            throw new InvalidDataException($"There's a tag {same.Name} already.");
+
+        var tagId = await ProposeTagAsync(name, request.ParentTagId, request.Description, userId, snapshot, ct);
+        stats.Count(StatsRecorder.Metrics.TagRequested, name);
+        logger.LogInformation("The tag {Tag} was created on the tags page, to be voted on.", name);
+        return await ProposalDtoAsync(tagId, ct);
+    }
 
     public async Task<List<TagProposalDto>> GetProposals(CancellationToken ct = default)
     {
@@ -593,11 +622,15 @@ public sealed class TagSuggestionService(
         return null;
     }
 
-    /// <summary>New suggestions and requests the account started in the last 24 hours.</summary>
-    private Task<int> StartedTodayAsync(int userId, CancellationToken ct)
+    /// <summary>Suggestions and new tags the account started in the last 24 hours.</summary>
+    private async Task<int> StartedTodayAsync(int userId, CancellationToken ct)
     {
         var since = DateTime.UtcNow.AddDays(-1);
-        return db.TagSuggestions.CountAsync(s => s.SuggestedById == userId && s.CreatedAt >= since, ct);
+        var suggested = await db.TagSuggestions.CountAsync(s => s.SuggestedById == userId && s.CreatedAt >= since, ct);
+        // A tag made for a mod counts through its suggestion already; one from the tags page has none.
+        var created = await db.Tags.CountAsync(t => t.ProposedById == userId && t.CreatedAt >= since
+            && !db.TagSuggestions.Any(s => s.TagId == t.Id && s.SuggestedById == userId && s.RequestedName != null), ct);
+        return suggested + created;
     }
 
     private async Task<string> LabelAsync(TagSuggestion suggestion, CancellationToken ct) =>

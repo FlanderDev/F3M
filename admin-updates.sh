@@ -104,6 +104,15 @@ install_service() {
     if ! docker_works_for "$owner"; then
         warn "$owner can't use Docker here; update.sh would fail. Add $owner to the docker group first."
     fi
+    local env_owner
+    env_owner=$(stat -c %U "$ENV_FILE")
+    if [ "$env_owner" != "$owner" ]; then
+        warn "$ENV_FILE belongs to $env_owner, so update.sh (running as $owner) can't read it."
+        if [ ! -t 0 ] || yes_no "Give it to $owner (only $owner can read it then)?" y; then
+            as_root chown "$owner": "$ENV_FILE"
+            [ ! -e "$ENV_FILE.bak" ] || as_root chown "$owner": "$ENV_FILE.bak"
+        fi
+    fi
     if [ -t 0 ] && ! yes_no "Install it?" y; then
         info "Nothing changed."
         return 0

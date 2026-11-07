@@ -23,4 +23,8 @@ public interface IF95LinkApi
 
     [Post("check/{f95UserId}")]
     Task<LinkF95PollResponse> Check(string f95UserId, [Body] LinkF95PollRequest request, CancellationToken ct = default);
+
+    /// <summary>How well the checks have gone lately: F95zone blocks the checker now and then.</summary>
+    [Get("health")]
+    Task<F95LinkHealth> Health(CancellationToken ct = default);
 }
