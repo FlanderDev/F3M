@@ -23,7 +23,7 @@
         <p class="mod-card-author">
             @if (ShowAuthor)
             {
-                <text>by </text><a href="@Paths.PublicProfile(Mod.Author)" @onclick:stopPropagation="true">@Mod.Author</a>
+                <text>by </text><a href="@Paths.PublicProfile(Mod.Author)">@Mod.Author</a>
                 @if (Mod.IsUnclaimed)
                 {
                     <span class="mod-card-f95" title="Imported from F95zone. Its uploader hasn't claimed it here yet.">F95</span>
@@ -66,19 +66,11 @@
 
     private bool imageFailed;
     private string excerpt = string.Empty;
-    private string? excerptOf;
+    private Mod? shown;
 
     private DateTime Released => DateTime.SpecifyKind(Mod.UploadedAt, DateTimeKind.Utc);
     private bool IsUpdate => Mod.FirstUploadedAt is { } first && Mod.UploadedAt - first > TimeSpan.FromMinutes(1);
-    private string DateText
-    {
-        get
-        {
-            var text = $"{(IsUpdate ? "updated" : "released")} {Mod.UploadedAt.TimeAgo()}";
-            // Starts the line when there's no author before it.
-            return ShowAuthor ? text : char.ToUpper(text[0]) + text[1..];
-        }
-    }
+    private string DateText => $"{(IsUpdate ? "Updated" : "Released")} {Mod.UploadedAt.TimeAgo()}";
 
     // The badge in the image's top right corner, if any.
     private (string Text, string Kind, string Title)? Status =>
@@ -91,11 +83,12 @@
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(excerptOf, Mod.Description))
-        {
-            excerptOf = Mod.Description;
-            excerpt = HelperExtensions.MarkdownToPlainText(Mod.Description);
-            imageFailed = false;
-        }
+        // Only for another mod: a parent re-rendering hands the same one again.
+        if (ReferenceEquals(shown, Mod))
+            return;
+
+        shown = Mod;
+        excerpt = HelperExtensions.MarkdownToPlainText(Mod.Description);
+        imageFailed = false;
     }
 }

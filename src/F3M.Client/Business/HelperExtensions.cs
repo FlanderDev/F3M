@@ -26,10 +26,11 @@ public static class HelperExtensions
             ? string.Empty
             : Regex.Replace(Markdown.ToPlainText(markdown), @"\s+", " ").Trim();
 
-    /// <summary>"3 days ago" and the like, for a UTC time.</summary>
-    public static string TimeAgo(this DateTime utc)
+    /// <summary>"3 days ago" and the like. A time without a kind counts as UTC, like the ones the server sends.</summary>
+    public static string TimeAgo(this DateTime time)
     {
-        var age = DateTime.UtcNow - DateTime.SpecifyKind(utc, DateTimeKind.Utc);
+        var utc = time.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(time, DateTimeKind.Utc) : time.ToUniversalTime();
+        var age = DateTime.UtcNow - utc;
         return age.TotalMinutes < 1 ? "just now"
             : age.TotalHours < 1 ? Count((int)age.TotalMinutes, "minute")
             : age.TotalDays < 1 ? Count((int)age.TotalHours, "hour")

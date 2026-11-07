@@ -503,7 +503,6 @@ a {
     border: 1px solid var(--f3m-border);
     border-radius: var(--f3m-radius);
     overflow: hidden;
-    cursor: pointer;
     display: flex;
     flex-direction: column;
     transition: transform var(--tr), border-color var(--tr), box-shadow var(--tr);
