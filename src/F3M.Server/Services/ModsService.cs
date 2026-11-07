@@ -83,7 +83,33 @@ public partial class ModsService(
         var totalCount = await query.CountAsync(ct);
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
         await tagService.FillTagIdsAsync(items, ct);
+        await FillCardInfoAsync(db, items, ct);
         return new ModListResult { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize };
+    }
+
+    /// <summary>What the mod cards show beyond the version itself: when the mod first came out, and whether it's unclaimed.</summary>
+    public static async Task FillCardInfoAsync(AppDbContext db, IReadOnlyCollection<Mod> mods, CancellationToken ct = default)
+    {
+        var groupIds = mods.Select(m => m.ModGroupId).Distinct().ToList();
+        if (groupIds.Count == 0)
+            return;
+
+        var firstUploads = await db.Mods
+            .Where(m => groupIds.Contains(m.ModGroupId))
+            .GroupBy(m => m.ModGroupId)
+            .Select(g => new { g.Key, First = g.Min(m => m.UploadedAt) })
+            .ToDictionaryAsync(g => g.Key, g => g.First, ct);
+        var unclaimed = (await db.ModGroups
+                .Where(g => groupIds.Contains(g.Id) && g.OwnerId == ModGroup.UnclaimedOwnerId)
+                .Select(g => g.Id)
+                .ToListAsync(ct))
+            .ToHashSet();
+
+        foreach (var mod in mods)
+        {
+            mod.FirstUploadedAt = firstUploads.TryGetValue(mod.ModGroupId, out var first) ? first : null;
+            mod.IsUnclaimed = unclaimed.Contains(mod.ModGroupId);
+        }
     }
 
     public async Task<Mod> GetMod(int id, CancellationToken ct = default)

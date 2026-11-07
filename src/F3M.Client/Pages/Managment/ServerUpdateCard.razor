@@ -24,7 +24,7 @@
             </p>
             @if (status is { HelperInstalled: true, CheckedAt: { } checkedAt })
             {
-                <p class="small f3m-chart-muted mb-0">Last looked for updates @Ago(checkedAt).</p>
+                <p class="small f3m-chart-muted mb-0">Last looked for updates @(checkedAt.TimeAgo()).</p>
             }
         </div>
 

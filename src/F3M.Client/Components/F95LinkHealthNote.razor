@@ -50,7 +50,7 @@
             "An admin has to add an F95zone account for the checker first."),
         _ => ("No profile checks in the last day",
             h.LastReachedAt is { } reached
-                ? $"So there's no news on whether F95zone lets the checker through. The last check that worked was {Ago(reached)}."
+                ? $"So there's no news on whether F95zone lets the checker through. The last check that worked was {reached.TimeAgo()}."
                 : "So there's no news on whether F95zone lets the checker through."),
     };
 
@@ -60,17 +60,12 @@
         if (h.ChecksToday > 0)
             parts.Add($"{Count(h.ChecksToday, "check")} in the last day, {h.FailedToday} failed");
         if (h.LastLinkedAt is { } linked)
-            parts.Add($"last account linked {Ago(linked)} ({h.LinkedThisWeek} this week)");
-        return parts.Count == 0 ? null : string.Join(" · ", parts);
-    }
+            parts.Add($"last account linked {linked.TimeAgo()} ({h.LinkedThisWeek} this week)");
+        if (parts.Count == 0)
+            return null;
 
-    private static string Ago(DateTime utc)
-    {
-        var age = DateTime.UtcNow - DateTime.SpecifyKind(utc, DateTimeKind.Utc);
-        return age.TotalMinutes < 1 ? "just now"
-            : age.TotalHours < 1 ? $"{Count((int)age.TotalMinutes, "minute")} ago"
-            : age.TotalDays < 1 ? $"{Count((int)age.TotalHours, "hour")} ago"
-            : $"{Count((int)age.TotalDays, "day")} ago";
+        var text = string.Join(" · ", parts);
+        return char.ToUpper(text[0]) + text[1..];
     }
 
     // A clock time today, with the date before that.

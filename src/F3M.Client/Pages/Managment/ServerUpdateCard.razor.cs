@@ -326,15 +326,6 @@ public partial class ServerUpdateCard
         return length >= 7 && string.Equals(a[..length], b[..length], StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string Ago(DateTime utc)
-    {
-        var age = DateTime.UtcNow - utc;
-        return age.TotalMinutes < 1 ? "just now"
-            : age.TotalHours < 1 ? $"{(int)age.TotalMinutes} min ago"
-            : age.TotalDays < 1 ? $"{(int)age.TotalHours} h ago"
-            : $"{(int)age.TotalDays} days ago";
-    }
-
     /// <summary>The server's message for a refused request (in the response body), else the exception's.</summary>
     private static string Describe(Exception ex)
     {
