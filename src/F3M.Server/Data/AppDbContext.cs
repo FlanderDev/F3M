@@ -94,6 +94,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Ignore(m => m.ShippedPaths);
             e.Ignore(m => m.TagIds);
             e.Ignore(m => m.CommunityTagIds);
+            e.Ignore(m => m.FirstUploadedAt);
+            e.Ignore(m => m.IsUnclaimed);
         });
 
         modelBuilder.Entity<Tag>(e =>
