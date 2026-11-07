@@ -11,6 +11,7 @@ Start the site once first, so it has created its database. Every seeded mod is m
 --reset removes exactly those. Never run this against a real site's data. Needs only the Python standard library.
 
 How it is organised:
+    ProgressBar      shows how far a loop is, in the terminal
     PreviewImages    writes small generated PNGs, used as the mods' preview images
     FakeMods         makes up names, descriptions, dates and download counts
     SeedDatabase     the SQLite part: remove seeded mods, add tags, add mods
@@ -21,7 +22,9 @@ import random
 import sqlite3
 import struct
 import subprocess
+import sys
 import tempfile
+import time
 import zlib
 from collections.abc import Sequence
 from contextlib import contextmanager
@@ -42,6 +45,55 @@ ORDINARY_TAGS = {
     "Characters": "New or changed characters.",
     "Tools": "Helpers for modders and players.",
 }
+
+
+class ProgressBar:
+    """
+    A one-line progress bar of fixed width, like  Adding mods [#####-----]  50% (200/400) 00:01:234  (mm:ss:ms).
+    Plain lines instead when not run in a terminal.
+    """
+
+    WIDTH = 30
+    REDRAW_EVERY = 0.05  # seconds; no need to redraw faster than the eye follows
+
+    def __init__(self, label: str, total: int):
+        self.label = label
+        self.total = max(total, 1)
+        self.digits = len(str(self.total))
+        self.interactive = sys.stdout.isatty()
+        self.started = time.perf_counter()
+        self.last_drawn = 0.0
+        self.last_percent = -1
+
+    @property
+    def elapsed(self) -> str:
+        """Time since the start as mm:ss:ms."""
+        return format_duration(time.perf_counter() - self.started)
+
+    def update(self, done: int):
+        """Shows `done` of the total."""
+        percent = done * 100 // self.total
+        now = time.perf_counter()
+
+        if self.interactive:
+            if done < self.total and now - self.last_drawn < self.REDRAW_EVERY:
+                return
+            self.last_drawn = now
+            filled = self.WIDTH * done // self.total
+            bar = "#" * filled + "-" * (self.WIDTH - filled)
+            end = "\n" if done >= self.total else ""
+            print(f"\r{self.label} [{bar}] {percent:3d}% ({done:>{self.digits}}/{self.total}) {self.elapsed}",
+                  end=end, flush=True)
+        elif percent != self.last_percent and percent % 25 == 0:  # a log file gets a few lines, not hundreds
+            self.last_percent = percent
+            print(f"{self.label} {percent:3d}% ({done:>{self.digits}}/{self.total}) {self.elapsed}", flush=True)
+
+
+def format_duration(seconds: float) -> str:
+    """mm:ss:ms, always the same width (minutes can pass 99 and then get wider)."""
+    total_ms = int(seconds * 1000)
+    minutes, rest = divmod(total_ms, 60_000)
+    return f"{minutes:02}:{rest // 1000:02}:{rest % 1000:03}"
 
 
 class PreviewImages:
@@ -201,7 +253,8 @@ class SeedDatabase:
         type_ids = self.type_tag_ids()
         tag_ids = self.ensure_ordinary_tags(now)
 
-        for _ in range(count):
+        progress = ProgressBar("Adding mods", count)
+        for number in range(1, count + 1):
             # Unclaimed groups (owner -1) need no user account.
             author = fake.author()
             group = self.db.execute("insert into ModGroups (OwnerId, Author) values (-1, ?)", (author,)).lastrowid
@@ -214,6 +267,7 @@ class SeedDatabase:
 
             tags = [fake.pick(type_ids), *fake.pick(tag_ids, fake.tag_count())]
             self.db.executemany("insert into ModGroupTags (ModGroupId, TagId) values (?, ?)", [(group, t) for t in tags])
+            progress.update(number)
 
         self.db.commit()
 
@@ -242,15 +296,19 @@ class DockerStorage:
         """Yields a temporary folder with the database; the changes made in it go back into the container."""
         print(f"Container {self.container} ({self.image}), running: {self.running}")
         if self.running:
+            print("Stopping the container...")
             self._docker("stop", self.container)
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 storage = Path(tmp)
+                print("Copying the database out...")
                 self._docker("cp", f"{self.container}:/app/Storage/Database", str(storage / "Database"))
                 yield storage
+                print("Copying the changes back...")
                 self._copy_back(storage)
         finally:
             if self.running:
+                print("Starting the container...")
                 self._docker("start", self.container)
 
     def _copy_back(self, storage: Path):
@@ -287,9 +345,11 @@ def seed(storage: Path, count: int, reset: bool):
         raise SystemExit("Seeded mods exist already. Use --reset to replace them.")
 
     if count > 0:
+        started = time.perf_counter()
         PreviewImages(storage).create_all()
         database.add_mods(count, FakeMods(), datetime.now(UTC).replace(tzinfo=None))
-        print(f"Added {count} mods ({database.visible_mod_count()} shown on the site).")
+        took = format_duration(time.perf_counter() - started)
+        print(f"Added {count} mods in {took} ({database.visible_mod_count()} shown on the site).")
 
 
 def main():
