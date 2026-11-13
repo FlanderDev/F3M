@@ -1,3 +1,4 @@
+using F3M.Server.Statistics;
 using F3M.Shared.Models;
 
 namespace F3M.Server.Logging;
@@ -31,6 +32,7 @@ public sealed class DatabaseLoggerProvider(LogStore store, IHttpContextAccessor 
 
             var context = httpContextAccessor.HttpContext;
             var user = context?.User.Identity is { IsAuthenticated: true } identity ? identity.Name : null;
+            RequestClient? client = context is null ? null : RequestClients.Of(context.Request);
 
             store.Write(new LogEntry
             {
@@ -41,7 +43,9 @@ public sealed class DatabaseLoggerProvider(LogStore store, IHttpContextAccessor 
                 Message = formatter(state, exception),
                 Details = exception?.ToString(),
                 UserName = user,
-                RequestPath = context is null ? null : $"{context.Request.Method} {context.Request.Path}"
+                RequestPath = context is null ? null : $"{context.Request.Method} {context.Request.Path}",
+                Client = client,
+                UserAgent = client == RequestClient.Other ? context!.Request.Headers.UserAgent.ToString() : null
             });
         }
     }

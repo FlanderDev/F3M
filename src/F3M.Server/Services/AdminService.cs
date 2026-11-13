@@ -154,6 +154,10 @@ public class AdminService(
             query = query.Where(e => e.Source == LogSource.Server);
         else if (source == LogSourceFilter.Browser)
             query = query.Where(e => e.Source == LogSource.Browser);
+        else if (source == LogSourceFilter.WithoutScripts)
+            query = query.Where(e => e.Client == null || e.Client != RequestClient.Other);
+        else if (source == LogSourceFilter.Scripts)
+            query = query.Where(e => e.Client == RequestClient.Other);
 
         if (search?.Trim() is { Length: > 0 } text)
         {

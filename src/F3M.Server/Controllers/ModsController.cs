@@ -95,10 +95,22 @@ public sealed class ModsController(
             var fileName = await db.ModFiles.Where(f => f.Id == fileId).Select(f => f.OriginalName).FirstOrDefaultAsync(ct)
                             ?? "download";
 
-            // Per day and mod for the statistics page, apart for the desktop app and the browser.
+            // Per day and mod for the statistics page, apart for the website, the desktop app, and scripts and bots.
             var groupId = await db.Mods.Where(m => m.Id == id).Select(m => m.ModGroupId).FirstOrDefaultAsync(ct);
-            stats.Count(DesktopClient.Version(Request) is null ? StatsRecorder.Metrics.DownloadBrowser : StatsRecorder.Metrics.DownloadDesktop,
-                groupId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var group = groupId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            switch (RequestClients.Of(Request))
+            {
+                case RequestClient.Website:
+                    stats.Count(StatsRecorder.Metrics.DownloadBrowser, group);
+                    break;
+                case RequestClient.Desktop:
+                    stats.Count(StatsRecorder.Metrics.DownloadDesktop, group);
+                    break;
+                default:
+                    stats.Count(StatsRecorder.Metrics.DownloadScript, group);
+                    stats.Count(StatsRecorder.Metrics.ScriptDownloader, RequestClients.ScriptName(Request));
+                    break;
+            }
 
             // Hand the open FileStream to the framework instead of copying it into memory first
             // (that used to cost two full copies of the file per download, up to 1 GB for a 512 MB mod).

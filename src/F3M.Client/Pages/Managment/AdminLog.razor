@@ -39,6 +39,8 @@
                 <option value="@LogSourceFilter.All">Server and browsers</option>
                 <option value="@LogSourceFilter.Server">Server only</option>
                 <option value="@LogSourceFilter.Browser">Browsers only</option>
+                <option value="@LogSourceFilter.WithoutScripts">Without scripts and bots</option>
+                <option value="@LogSourceFilter.Scripts">Scripts and bots only</option>
             </select>
             <div class="input-group input-group-sm f3m-log-search">
                 <input type="search" class="form-control f3m-input" placeholder="Search message, user or source"
@@ -69,6 +71,10 @@
                     {
                         <i class="bi bi-window f3m-import-muted" title="Reported by a visitor's browser"></i>
                     }
+                    @if (entry.Client == RequestClient.Other)
+                    {
+                        <i class="bi bi-robot f3m-import-muted" title="Caused by a script or bot"></i>
+                    }
                     <span class="f3m-error-message">@entry.Message</span>
                 </summary>
                 <div class="small mt-2">
@@ -86,6 +92,10 @@
                     @if (!string.IsNullOrWhiteSpace(entry.RequestPath))
                     {
                         <div class="text-break"><span class="f3m-import-muted">@(entry.Source == LogSource.Browser ? "Page:" : "Request:")</span> @entry.RequestPath</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(entry.UserAgent))
+                    {
+                        <div class="text-break"><span class="f3m-import-muted">User agent:</span> @entry.UserAgent</div>
                     }
                     @if (!string.IsNullOrWhiteSpace(entry.Details))
                     {

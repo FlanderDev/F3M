@@ -111,10 +111,10 @@ public partial class AdminStats
     private static List<ChartSeries> Series(ChartPoints points, params (string Name, string Color)[] series) =>
         series.Select((s, i) => new ChartSeries(s.Name, s.Color, points.Values.Select(v => v[i]).ToList())).ToList();
 
-    private ChartPoints DownloadPoints => ToPoints(stats!.Downloads, d => d.Day, false, d => d.Browser, d => d.Desktop);
+    private ChartPoints DownloadPoints => ToPoints(stats!.Downloads, d => d.Day, false, d => d.Browser, d => d.Desktop, d => d.Scripts);
     private ChartPoints VisitPoints => ToPoints(stats!.Visits, d => d.Day, Weekly, d => d.Visitors, d => d.PageLoads);
     private ChartPoints SignInPoints => ToPoints(stats!.SignIns, d => d.Day, false, d => d.Password, d => d.F95);
-    private ChartPoints ProblemPoints => ToPoints(stats!.Problems, d => d.Day, false, d => d.Errors, d => d.Warnings);
+    private ChartPoints ProblemPoints => ToPoints(stats!.Problems, d => d.Day, false, d => d.Errors, d => d.Warnings, d => d.FromScripts);
 
     private ChartPoints GrowthPoints => new(
         stats!.Growth.Select(m => m.Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)).ToList(),
@@ -128,12 +128,14 @@ public partial class AdminStats
 
     private static readonly (string, string) SuggestedSeries = ("Suggested", ChartColors.Series1);
     private static readonly (string, string) RequestedSeries = ("New tags", ChartColors.Series2);
-    private static readonly (string, string) BrowserSeries = ("Browser", ChartColors.Series1);
+    private static readonly (string, string) BrowserSeries = ("Website", ChartColors.Series1);
     private static readonly (string, string) DesktopSeries = ("Desktop app", ChartColors.Series2);
+    private static readonly (string, string) ScriptSeries = ("Scripts and bots", ChartColors.Neutral);
     private static readonly (string, string) PasswordSeries = ("Password", ChartColors.Series1);
     private static readonly (string, string) F95Series = ("F95zone verification", ChartColors.Series2);
     private static readonly (string, string) ErrorSeries = ("Errors", ChartColors.Critical);
     private static readonly (string, string) WarningSeries = ("Warnings", ChartColors.Warning);
+    private static readonly (string, string) ScriptProblemSeries = ("From scripts and bots", ChartColors.Neutral);
     private static readonly (string, string) NewModSeries = ("New mods", ChartColors.Series1);
     private static readonly (string, string) NewVersionSeries = ("New versions", ChartColors.Series2);
 
@@ -157,6 +159,8 @@ public partial class AdminStats
         .ToList();
 
     private List<ChartItem> DesktopVersionItems => stats!.DesktopVersions.Select(v => new ChartItem($"v{v.Name}", v.Count)).ToList();
+
+    private List<ChartItem> ScriptDownloaderItems => stats!.ScriptDownloaders.Select(s => new ChartItem(s.Name, s.Count)).ToList();
 
     private List<ChartItem> VerificationItems =>
     [
