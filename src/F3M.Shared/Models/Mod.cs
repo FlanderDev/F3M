@@ -34,6 +34,9 @@ public class ModGroup
     /// <summary>When the F95 uploader took over an imported mod; null while unclaimed or for mods uploaded here.</summary>
     public DateTime? ClaimedAt { get; set; }
 
+    /// <summary>Downloads of the mod, all its versions together.</summary>
+    public int DownloadCount { get; set; }
+
     /// <summary>Imported, and its uploader has not taken it over yet.</summary>
     public bool IsUnclaimed => OwnerId == UnclaimedOwnerId;
 }
@@ -66,7 +69,6 @@ public class Mod : IId, IName
 
     public string? PreviewImageName { get; set; }
 
-    public int DownloadCount { get; set; }
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
     public bool IsApproved { get; set; } = true;
@@ -123,6 +125,12 @@ public class Mod : IId, IName
 
     /// <summary>Imported from F95zone, and its uploader hasn't taken it over yet. NOT persisted; filled with <see cref="FirstUploadedAt"/>.</summary>
     public bool IsUnclaimed { get; set; }
+
+    /// <summary>
+    /// The mod's downloads (<see cref="ModGroup.DownloadCount"/>, all versions together), for the cards. NOT persisted;
+    /// filled with <see cref="FirstUploadedAt"/>.
+    /// </summary>
+    public int GroupDownloadCount { get; set; }
 }
 
 // ── ModFile ───────────────────────────────────────────────────────────────────

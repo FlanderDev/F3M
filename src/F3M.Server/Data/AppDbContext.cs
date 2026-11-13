@@ -97,6 +97,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Ignore(m => m.CommunityTagIds);
             e.Ignore(m => m.FirstUploadedAt);
             e.Ignore(m => m.IsUnclaimed);
+            e.Ignore(m => m.GroupDownloadCount);
         });
 
         modelBuilder.Entity<Tag>(e =>

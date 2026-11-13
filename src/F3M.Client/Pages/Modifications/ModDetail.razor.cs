@@ -160,7 +160,7 @@ public partial class ModDetail
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             await JS.InvokeVoidAsync("f3m.downloadFile", file.OriginalName, Convert.ToBase64String(ms.ToArray()));
-            selectedVersion!.DownloadCount++;
+            if (group is not null) group.DownloadCount++;
             dlSuccess = true;
         }
         catch { dlError = true; }
@@ -303,7 +303,7 @@ public partial class ModDetail
                 }
                 catch { anyError = true; }
             }
-            selectedVersion.DownloadCount++;
+            if (group is not null) group.DownloadCount++;
             dlSuccess = !anyError;
             dlError = anyError;
         }
