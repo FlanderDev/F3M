@@ -257,13 +257,14 @@ class SeedDatabase:
         for number in range(1, count + 1):
             # Unclaimed groups (owner -1) need no user account.
             author = fake.author()
-            group = self.db.execute("insert into ModGroups (OwnerId, Author) values (-1, ?)", (author,)).lastrowid
+            group = self.db.execute("insert into ModGroups (OwnerId, Author, DownloadCount) values (-1, ?, ?)",
+                                    (author, fake.download_count())).lastrowid
             self.db.execute(
                 "insert into Mods (ModGroupId, Name, Description, Author, Version, IsLatestVersion, Category, "
-                "PreviewImageName, DownloadCount, UploadedAt, IsApproved, UserId) "
-                "values (?, ?, ?, ?, ?, 1, 'General', ?, ?, ?, 1, null)",
+                "PreviewImageName, UploadedAt, IsApproved, UserId) "
+                "values (?, ?, ?, ?, ?, 1, 'General', ?, ?, 1, null)",
                 (group, fake.name(), fake.description(), author, fake.version(), fake.preview_image(),
-                 fake.download_count(), self._time(fake.uploaded_at(now))))
+                 self._time(fake.uploaded_at(now))))
 
             tags = [fake.pick(type_ids), *fake.pick(tag_ids, fake.tag_count())]
             self.db.executemany("insert into ModGroupTags (ModGroupId, TagId) values (?, ?)", [(group, t) for t in tags])

@@ -73,8 +73,10 @@ public partial class ModsService(
         {
             SortBy.Newest => query.OrderByDescending(m => m.UploadedAt).ThenByDescending(m => m.Id),
             SortBy.Oldest => query.OrderBy(m => m.UploadedAt).ThenBy(m => m.Id),
-            SortBy.DownloadsDesc => query.OrderByDescending(m => m.DownloadCount).ThenByDescending(m => m.Id),
-            SortBy.DownloadsAsc => query.OrderBy(m => m.DownloadCount).ThenBy(m => m.Id),
+            SortBy.DownloadsDesc => query.OrderByDescending(m => db.ModGroups.Where(g => g.Id == m.ModGroupId).Select(g => g.DownloadCount).FirstOrDefault())
+                .ThenByDescending(m => m.Id),
+            SortBy.DownloadsAsc => query.OrderBy(m => db.ModGroups.Where(g => g.Id == m.ModGroupId).Select(g => g.DownloadCount).FirstOrDefault())
+                .ThenBy(m => m.Id),
             SortBy.NameAsc => query.OrderBy(m => m.Name).ThenBy(m => m.Id),
             SortBy.NameDesc => query.OrderByDescending(m => m.Name).ThenByDescending(m => m.Id),
             _ => query.OrderByDescending(m => m.UploadedAt).ThenByDescending(m => m.Id)
@@ -87,7 +89,10 @@ public partial class ModsService(
         return new ModListResult { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize };
     }
 
-    /// <summary>What the mod cards show beyond the version itself: when the mod first came out, and whether it's unclaimed.</summary>
+    /// <summary>
+    /// What the mod cards show beyond the version itself: when the mod first came out, the downloads of all its versions,
+    /// and whether it's unclaimed.
+    /// </summary>
     public static async Task FillCardInfoAsync(AppDbContext db, IReadOnlyCollection<Mod> mods, CancellationToken ct = default)
     {
         var groupIds = mods.Select(m => m.ModGroupId).Distinct().ToList();
@@ -99,16 +104,17 @@ public partial class ModsService(
             .GroupBy(m => m.ModGroupId)
             .Select(g => new { g.Key, First = g.Min(m => m.UploadedAt) })
             .ToDictionaryAsync(g => g.Key, g => g.First, ct);
-        var unclaimed = (await db.ModGroups
-                .Where(g => groupIds.Contains(g.Id) && g.OwnerId == ModGroup.UnclaimedOwnerId)
-                .Select(g => g.Id)
-                .ToListAsync(ct))
-            .ToHashSet();
+        var groups = await db.ModGroups
+            .Where(g => groupIds.Contains(g.Id))
+            .Select(g => new { g.Id, g.DownloadCount, g.OwnerId })
+            .ToDictionaryAsync(g => g.Id, ct);
 
         foreach (var mod in mods)
         {
+            var group = groups.GetValueOrDefault(mod.ModGroupId);
             mod.FirstUploadedAt = firstUploads.TryGetValue(mod.ModGroupId, out var first) ? first : null;
-            mod.IsUnclaimed = unclaimed.Contains(mod.ModGroupId);
+            mod.GroupDownloadCount = group?.DownloadCount ?? 0;
+            mod.IsUnclaimed = group?.OwnerId == ModGroup.UnclaimedOwnerId;
         }
     }
 
@@ -191,8 +197,9 @@ public partial class ModsService(
         if (!File.Exists(path))
             throw new KeyNotFoundException("File not found on server.");
 
-        mod.DownloadCount++;
-        await db.SaveChangesAsync(ct);
+        // Counted on the mod, not the version. In the database itself, so downloads at the same time all count.
+        await db.ModGroups.Where(g => g.Id == mod.ModGroupId)
+            .ExecuteUpdateAsync(s => s.SetProperty(g => g.DownloadCount, g => g.DownloadCount + 1), ct);
 
         // Caller (controller) wraps this in a FileContentResult with the right filename/content
         // type — ModFile.OriginalName never leaves the server via this stream, the client

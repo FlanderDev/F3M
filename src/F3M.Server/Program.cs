@@ -290,7 +290,7 @@ app.UseStaticFiles(new StaticFileOptions
 
         // The desktop app reads the index when it starts and when it looks for updates: a rough measure of how many
         // apps are in use, and which versions.
-        if (context.File.Name == "index.json" && DesktopClient.Version(context.Context.Request) is { } version)
+        if (context.File.Name == "index.json" && RequestClients.DesktopVersion(context.Context.Request) is { } version)
             context.Context.RequestServices.GetRequiredService<StatsRecorder>().Count(StatsRecorder.Metrics.DesktopSync, version);
     }
 });

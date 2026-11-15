@@ -48,12 +48,31 @@ public enum LogSource
     Browser = 1
 }
 
+/// <summary>What sent a request to the server.</summary>
+public enum RequestClient
+{
+    /// <summary>The website, in a visitor's browser.</summary>
+    Website = 0,
+
+    /// <summary>The F3M desktop app.</summary>
+    Desktop = 1,
+
+    /// <summary>Anything else: scripts, bots, crawlers, other programs.</summary>
+    Other = 2
+}
+
 /// <summary>Which sources the admin log shows.</summary>
 public enum LogSourceFilter
 {
     All = 0,
     Server = 1,
-    Browser = 2
+    Browser = 2,
+
+    /// <summary>Everything except what requests from scripts and bots caused.</summary>
+    WithoutScripts = 3,
+
+    /// <summary>Only what requests from scripts and bots caused.</summary>
+    Scripts = 4
 }
 
 /// <summary>One entry of the site log (admin page). Kept in its own database, apart from the site's data.</summary>
@@ -77,6 +96,12 @@ public sealed class LogEntry
 
     /// <summary>The request's method and path, for entries written while answering one.</summary>
     public string? RequestPath { get; set; }
+
+    /// <summary>What sent that request; null for entries written outside one (startup, background work).</summary>
+    public RequestClient? Client { get; set; }
+
+    /// <summary>The User-Agent of a request from a script or bot, to tell which one it was.</summary>
+    public string? UserAgent { get; set; }
 }
 
 /// <summary>One page of the log, newest first (admin page).</summary>

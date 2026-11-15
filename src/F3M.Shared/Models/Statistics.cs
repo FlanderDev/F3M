@@ -39,6 +39,9 @@ public sealed class SiteStats
     public List<NamedCount> TagFilters { get; set; } = [];
     public List<NamedCount> DesktopVersions { get; set; } = [];
 
+    /// <summary>The scripts and bots that downloaded mods, by the name in their User-Agent.</summary>
+    public List<NamedCount> ScriptDownloaders { get; set; } = [];
+
     /// <summary>The tags people suggested for mods, and the new tags they created (names in lower case).</summary>
     public List<NamedCount> TagsSuggested { get; set; } = [];
     public List<NamedCount> TagsRequested { get; set; } = [];
@@ -70,7 +73,11 @@ public sealed class StatsTotals
 /// <summary>Sums over a period.</summary>
 public sealed class StatsPeriod
 {
+    /// <summary>Downloads on the website and by the desktop app.</summary>
     public long Downloads { get; set; }
+
+    /// <summary>Downloads by scripts and bots, apart from <see cref="Downloads"/>.</summary>
+    public long ScriptDownloads { get; set; }
 
     /// <summary>Different browsers that opened the site (counted once per period).</summary>
     public int Visitors { get; set; }
@@ -87,6 +94,9 @@ public sealed class DailyDownloads
     public DateOnly Day { get; set; }
     public long Browser { get; set; }
     public long Desktop { get; set; }
+
+    /// <summary>Scripts, bots and other programs.</summary>
+    public long Scripts { get; set; }
 }
 
 public sealed class DailyVisits
@@ -111,6 +121,9 @@ public sealed class DailyProblems
     public DateOnly Day { get; set; }
     public int Warnings { get; set; }
     public int Errors { get; set; }
+
+    /// <summary>Warnings and errors that requests from scripts and bots caused, apart from the two above.</summary>
+    public int FromScripts { get; set; }
 }
 
 public sealed class MonthlyGrowth
