@@ -35,7 +35,7 @@
         <p class="mod-card-desc">@excerpt</p>
         <TagChips TagIds="Mod.TagIds" CommunityTagIds="Mod.CommunityTagIds" Limit="3" Class="mod-card-tags" />
         <div class="mod-card-meta">
-            <span title="Downloads"><i class="bi bi-download"></i> @Mod.DownloadCount.ToString("N0")</span>
+            <span title="Downloads, all versions together"><i class="bi bi-download"></i> @Mod.GroupDownloadCount.ToString("N0")</span>
             <span class="mod-card-version">v@(Mod.Version)</span>
             @if (Manage)
             {

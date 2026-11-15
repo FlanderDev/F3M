@@ -41,8 +41,9 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
     {
         var versions = await db.Mods.AsNoTracking()
             .Where(m => m.IsApproved)
-            .Select(m => new { m.Id, m.ModGroupId, m.Name, m.Author, m.UploadedAt, m.DownloadCount })
+            .Select(m => new { m.Id, m.ModGroupId, m.Name, m.Author, m.UploadedAt })
             .ToListAsync(ct);
+        var downloadsByGroup = await db.ModGroups.AsNoTracking().ToDictionaryAsync(g => g.Id, g => (long)g.DownloadCount, ct);
         var files = await db.ModFiles.AsNoTracking().Select(f => new { f.ModId, f.FileSizeBytes }).ToListAsync(ct);
         var users = await db.Users.AsNoTracking().Select(u => new { u.RegisteredAt, Linked = u.F95UserId != null }).ToListAsync(ct);
 
@@ -59,7 +60,7 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
                     FirstUpload = ordered[0].UploadedAt,
                     FirstVersionId = ordered[0].Id,
                     Latest = latest,
-                    Downloads = g.Sum(v => (long)v.DownloadCount),
+                    Downloads = downloadsByGroup.GetValueOrDefault(g.Key),
                     Bytes = g.Sum(v => bytesByVersion.GetValueOrDefault(v.Id))
                 };
             })

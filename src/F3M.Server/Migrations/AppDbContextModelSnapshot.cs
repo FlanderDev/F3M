@@ -383,9 +383,6 @@ namespace F3M.Server.Migrations
                         .HasMaxLength(10000)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("DownloadCount")
-                        .HasColumnType("INTEGER");
-
                     b.Property<bool>("IsApproved")
                         .HasColumnType("INTEGER");
 
@@ -558,6 +555,9 @@ namespace F3M.Server.Migrations
 
                     b.Property<DateTime?>("ClaimedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("DownloadCount")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("F95OwnerName")
                         .HasMaxLength(50)
