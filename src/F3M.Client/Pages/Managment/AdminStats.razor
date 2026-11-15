@@ -68,7 +68,8 @@
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-3">
                     <StatTile Label="Downloads" Value="@ChartMath.Compact(s.Period.Downloads)"
-                              Change="@Change(s.Period.Downloads, s.PreviousPeriod.Downloads, PreviousCounted)" ChangeNote="@ChangeNote" />
+                              Change="@Change(s.Period.Downloads, s.PreviousPeriod.Downloads, PreviousCounted)" ChangeNote="@ChangeNote"
+                              Note="@(s.Period.ScriptDownloads > 0 ? $"Plus {ChartMath.Compact(s.Period.ScriptDownloads)} by scripts and bots" : null)" />
                 </div>
                 <div class="col-6 col-md-3">
                     <StatTile Label="Visitors" Value="@ChartMath.Compact(s.Period.Visitors)"
@@ -129,14 +130,16 @@
                 <!-- Downloads -->
                 <div class="col-lg-6">
                     @{ var downloads = DownloadPoints; }
-                    <ChartCard Title="@(Weekly ? "Downloads per week" : "Downloads per day")" Subtitle="Files downloaded, in the browser or by the desktop app"
-                               Legend="@([BrowserSeries, DesktopSeries])">
+                    <ChartCard Title="@(Weekly ? "Downloads per week" : "Downloads per day")"
+                               Subtitle="Files downloaded on the website, by the desktop app, or by scripts and bots"
+                               Legend="@([BrowserSeries, DesktopSeries, ScriptSeries])">
                         <ChildContent>
-                            <ColumnChart Labels="downloads.Labels" ShortLabels="downloads.ShortLabels" Series="@Series(downloads, BrowserSeries, DesktopSeries)"
-                                         AriaLabel="Downloads per day, browser and desktop app" />
+                            <ColumnChart Labels="downloads.Labels" ShortLabels="downloads.ShortLabels"
+                                         Series="@Series(downloads, BrowserSeries, DesktopSeries, ScriptSeries)"
+                                         AriaLabel="Downloads per day, by website, desktop app, and scripts and bots" />
                         </ChildContent>
                         <Table>
-                            <PointTable Points="downloads" Columns="@(["Browser", "Desktop app"])" />
+                            <PointTable Points="downloads" Columns="@(["Website", "Desktop app", "Scripts and bots"])" />
                         </Table>
                     </ChartCard>
                 </div>
@@ -176,14 +179,15 @@
                 <div class="col-lg-6">
                     @{ var problems = ProblemPoints; }
                     <ChartCard Title="@(Weekly ? "Warnings and errors per week" : "Warnings and errors per day")"
-                               Subtitle="From the site log (kept for 90 days); details are in the log on the admin page"
-                               Legend="@([ErrorSeries, WarningSeries])">
+                               Subtitle="From the site log (kept for 90 days). What scripts and bots caused is counted apart."
+                               Legend="@([ErrorSeries, WarningSeries, ScriptProblemSeries])">
                         <ChildContent>
-                            <ColumnChart Labels="problems.Labels" ShortLabels="problems.ShortLabels" Series="@Series(problems, ErrorSeries, WarningSeries)"
+                            <ColumnChart Labels="problems.Labels" ShortLabels="problems.ShortLabels"
+                                         Series="@Series(problems, ErrorSeries, WarningSeries, ScriptProblemSeries)"
                                          AriaLabel="Warnings and errors per day" />
                         </ChildContent>
                         <Table>
-                            <PointTable Points="problems" Columns="@(["Errors", "Warnings"])" />
+                            <PointTable Points="problems" Columns="@(["Errors", "Warnings", "From scripts and bots"])" />
                         </Table>
                     </ChartCard>
                 </div>
@@ -261,6 +265,13 @@
                 <div class="col-lg-6">
                     <ChartCard Title="Desktop app versions" Subtitle="@($"Catalog syncs per app version in the {PeriodName}")">
                         <BarList Items="@DesktopVersionItems" EmptyText="No desktop app has synced in this period." />
+                    </ChartCard>
+                </div>
+
+                <!-- Scripts and bots -->
+                <div class="col-lg-6">
+                    <ChartCard Title="Scripts and bots" Subtitle="@($"What downloaded mods besides the website and the desktop app, in the {PeriodName}")">
+                        <BarList Items="@ScriptDownloaderItems" EmptyText="No script or bot downloaded anything in this period." />
                     </ChartCard>
                 </div>
 

@@ -46,6 +46,20 @@ public sealed class LogStore : BackgroundService
         db.Database.EnsureCreated();
         // Readers (the admin page) and the writer don't block each other.
         db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+
+        // Added later: EnsureCreated only makes the table of a new file.
+        AddColumnIfMissing(db, "Client", """ALTER TABLE "LogEntries" ADD COLUMN "Client" INTEGER NULL;""");
+        AddColumnIfMissing(db, "UserAgent", """ALTER TABLE "LogEntries" ADD COLUMN "UserAgent" TEXT NULL;""");
+    }
+
+    private static void AddColumnIfMissing(LogDbContext db, string column, string addColumn)
+    {
+        var exists = db.Database
+            .SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM pragma_table_info('LogEntries') WHERE name = {0}", column)
+            .AsEnumerable()
+            .Single() > 0;
+        if (!exists)
+            db.Database.ExecuteSqlRaw(addColumn);
     }
 
     /// <summary>Queues an entry. Never throws and never waits.</summary>
@@ -56,6 +70,7 @@ public sealed class LogStore : BackgroundService
         entry.Category = Truncate(entry.Category, MaxShort);
         entry.UserName = Truncate(entry.UserName, MaxShort);
         entry.RequestPath = Truncate(entry.RequestPath, MaxShort);
+        entry.UserAgent = Truncate(entry.UserAgent, MaxShort);
         queue.Writer.TryWrite(entry);
     }
 

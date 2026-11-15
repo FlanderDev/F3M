@@ -178,6 +178,7 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
         void FillCounted(StatsPeriod period, List<DailyCount> rows, List<DailyVisitor> visits)
         {
             period.Downloads = Sum(rows, StatsRecorder.Metrics.DownloadBrowser, StatsRecorder.Metrics.DownloadDesktop);
+            period.ScriptDownloads = Sum(rows, StatsRecorder.Metrics.DownloadScript);
             period.PageLoads = Sum(rows, StatsRecorder.Metrics.PageLoad);
             period.DesktopSyncs = Sum(rows, StatsRecorder.Metrics.DesktopSync);
             period.SignIns = Sum(rows, StatsRecorder.Metrics.SignInPassword, StatsRecorder.Metrics.SignInF95);
@@ -196,7 +197,8 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
             {
                 Day = day,
                 Browser = Sum(rows, StatsRecorder.Metrics.DownloadBrowser),
-                Desktop = Sum(rows, StatsRecorder.Metrics.DownloadDesktop)
+                Desktop = Sum(rows, StatsRecorder.Metrics.DownloadDesktop),
+                Scripts = Sum(rows, StatsRecorder.Metrics.DownloadScript)
             });
             result.Visits.Add(new DailyVisits { Day = day, Visitors = visitorsByDay.GetValueOrDefault(key), PageLoads = Sum(rows, StatsRecorder.Metrics.PageLoad) });
             result.SignIns.Add(new DailySignIns
@@ -207,6 +209,7 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
             });
         }
 
+        // What people downloaded: a script fetching everything would top the list otherwise.
         result.TopModsInPeriod = current
             .Where(c => c.Metric is StatsRecorder.Metrics.DownloadBrowser or StatsRecorder.Metrics.DownloadDesktop)
             .GroupBy(c => int.TryParse(c.Key, out var id) ? id : 0)
@@ -235,17 +238,21 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
         result.SearchesWithoutResults = Top(StatsRecorder.Metrics.SearchWithoutResults, TopSearchCount);
         result.TagFilters = Top(StatsRecorder.Metrics.TagFilter, TopSearchCount);
         result.DesktopVersions = Top(StatsRecorder.Metrics.DesktopSync, TopCount);
+        result.ScriptDownloaders = Top(StatsRecorder.Metrics.ScriptDownloader, TopCount);
         result.TagsSuggested = Top(StatsRecorder.Metrics.TagSuggested, TopSearchCount);
         result.TagsRequested = Top(StatsRecorder.Metrics.TagRequested, TopSearchCount);
     }
 
-    /// <summary>Warnings and errors per day, from the site log (which keeps 90 days).</summary>
+    /// <summary>
+    /// Warnings and errors per day, from the site log (which keeps 90 days). What requests from scripts and bots caused
+    /// is counted apart: their odd requests fail often without anything being wrong with the site.
+    /// </summary>
     private async Task AddProblemsAsync(SiteStats result, CancellationToken ct)
     {
         var since = result.From.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var problems = await log.Entries.AsNoTracking()
             .Where(e => e.Timestamp >= since && e.Level >= LogSeverity.Warning)
-            .Select(e => new { e.Timestamp, e.Level })
+            .Select(e => new { e.Timestamp, e.Level, FromScript = e.Client == RequestClient.Other })
             .ToListAsync(ct);
 
         var byDay = problems.ToLookup(p => DateOnly.FromDateTime(p.Timestamp));
@@ -254,8 +261,9 @@ public sealed class StatsService(AppDbContext db, LogDbContext log, StatsDbConte
             result.Problems.Add(new DailyProblems
             {
                 Day = day,
-                Warnings = byDay[day].Count(p => p.Level == LogSeverity.Warning),
-                Errors = byDay[day].Count(p => p.Level >= LogSeverity.Error)
+                Warnings = byDay[day].Count(p => !p.FromScript && p.Level == LogSeverity.Warning),
+                Errors = byDay[day].Count(p => !p.FromScript && p.Level >= LogSeverity.Error),
+                FromScripts = byDay[day].Count(p => p.FromScript)
             });
         }
     }

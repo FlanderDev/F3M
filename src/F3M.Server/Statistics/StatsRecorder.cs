@@ -20,6 +20,8 @@ public sealed class StatsRecorder : BackgroundService
     {
         public const string DownloadBrowser = "download.browser";   // mod group id
         public const string DownloadDesktop = "download.desktop";   // mod group id
+        public const string DownloadScript = "download.script";     // mod group id
+        public const string ScriptDownloader = "script.download";    // the script's or bot's name
         public const string PageLoad = "visit";                      // ""
         public const string Search = "search";                       // search term
         public const string SearchWithoutResults = "search.empty";   // search term
