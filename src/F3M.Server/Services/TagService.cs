@@ -56,13 +56,39 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
     {
         var snapshot = await index.GetAsync(db, ct);
 
-        // Only mods the site shows count: groups with an approved latest version.
-        var visibleGroups = db.Mods.Where(m => m.IsApproved && m.IsLatestVersion).Select(m => m.ModGroupId);
-        var links = await db.ModGroupTags.AsNoTracking()
-            .Where(t => visibleGroups.Contains(t.ModGroupId))
-            .Select(t => new { t.ModGroupId, t.TagId })
-            .ToListAsync(ct);
-        var groupsByTag = links.GroupBy(l => l.TagId).ToDictionary(g => g.Key, g => g.Select(l => l.ModGroupId).ToHashSet());
+        // Only mods the site shows count: groups with an approved latest version. The database does the counting, and
+        // it counts every link and takes off those of the hidden groups: on a site with many mods almost every group is
+        // shown, so that is far quicker than checking each link against the shown ones (and reading all links into
+        // memory, as this once did, made the request take over a second).
+        var shownGroups = db.Mods.Where(m => m.IsApproved && m.IsLatestVersion).Select(m => m.ModGroupId);
+        var hiddenGroups = await db.ModGroups.Select(g => g.Id).Except(shownGroups).ToListAsync(ct);
+        var allLinks = db.ModGroupTags.AsNoTracking();
+        var hiddenLinks = allLinks.Where(t => hiddenGroups.Contains(t.ModGroupId));
+
+        // A group has each tag at most once (the key is group + tag), so counting links counts groups.
+        var ownCounts = await CountByTag(allLinks, ct);
+        if (hiddenGroups.Count > 0)
+            foreach (var (tagId, hidden) in await CountByTag(hiddenLinks, ct))
+                ownCounts[tagId] -= hidden;
+
+        // A tag with tags under it counts each group once, however many of those tags the group has.
+        var totalCounts = new Dictionary<int, int>();
+        foreach (var tag in snapshot.Tags)
+        {
+            var ids = snapshot.Graph.SelfAndDescendants(tag.Id);
+            if (ids.Count == 1)
+                continue;
+            var used = ids.Where(id => ownCounts.GetValueOrDefault(id) > 0).ToList();
+            if (used.Count <= 1)
+            {
+                totalCounts[tag.Id] = used.Count == 0 ? 0 : ownCounts[used[0]];
+                continue;
+            }
+            var total = await CountGroups(allLinks, used, ct);
+            if (hiddenGroups.Count > 0)
+                total -= await CountGroups(hiddenLinks, used, ct);
+            totalCounts[tag.Id] = total;
+        }
 
         return [.. snapshot.Tags
             .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
@@ -74,13 +100,16 @@ public sealed class TagService(AppDbContext db, TagIndex index, CatalogService c
                 TypeId = t.TypeId,
                 IsProposed = t.IsProposed,
                 ParentIds = [.. snapshot.Graph.ParentsOf(t.Id).Order()],
-                ModCount = groupsByTag.TryGetValue(t.Id, out var own) ? own.Count : 0,
-                TotalModCount = snapshot.Graph.SelfAndDescendants(t.Id)
-                    .SelectMany(id => groupsByTag.GetValueOrDefault(id) ?? [])
-                    .Distinct()
-                    .Count()
+                ModCount = ownCounts.GetValueOrDefault(t.Id),
+                TotalModCount = totalCounts.TryGetValue(t.Id, out var total) ? total : ownCounts.GetValueOrDefault(t.Id)
             })];
     }
+
+    private static Task<Dictionary<int, int>> CountByTag(IQueryable<ModGroupTag> links, CancellationToken ct) =>
+        links.GroupBy(t => t.TagId).Select(g => new { TagId = g.Key, Count = g.Count() }).ToDictionaryAsync(g => g.TagId, g => g.Count, ct);
+
+    private static Task<int> CountGroups(IQueryable<ModGroupTag> links, List<int> tagIds, CancellationToken ct) =>
+        links.Where(t => tagIds.Contains(t.TagId)).Select(t => t.ModGroupId).Distinct().CountAsync(ct);
 
     private async Task<TagDto> GetTagAsync(int id, CancellationToken ct) =>
         (await GetTags(ct)).First(t => t.Id == id);
